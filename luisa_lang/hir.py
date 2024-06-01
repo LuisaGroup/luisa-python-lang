@@ -274,6 +274,13 @@ class Span:
         self.start = start
         self.end = end
 
+    def __str__(self) -> str:
+        if self.file is None:
+            return f"{self.start[0]}:{self.start[1]}-{self.end[0]}:{self.end[1]}"
+        return (
+            f"{self.file}:{self.start[0]}:{self.start[1]}-{self.end[0]}:{self.end[1]}"
+        )
+
     @staticmethod
     def from_ast(ast: ast.AST) -> Optional["Span"]:
         if not hasattr(ast, "lineno"):
@@ -438,7 +445,12 @@ class Env(Generic[K, V]):
         return env
 
     def lookup(self, key: K) -> Optional[V]:
-        return self._map.get(key)
+        res = self._map.get(key)
+        if res is not None:
+            return res
+        if self._parent is not None:
+            return self._parent.lookup(key)
+        return None
 
     def bind(self, key: K, value: V) -> None:
         self._map[key] = value
@@ -498,4 +510,4 @@ class Context:
     def __init__(self) -> None:
         self.global_types = TypeEnv()
         self.global_functions = Env()
-        self.global_types._init_builtins()
+        # self.global_types._init_builtins()

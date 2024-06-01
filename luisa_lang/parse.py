@@ -7,7 +7,7 @@ from typing import NoReturn, cast, Set, reveal_type
 
 
 def _report_error_span(span: hir.Span, message: str) -> NoReturn:
-    raise RuntimeError(f"error at {span.start}: {message}")
+    raise RuntimeError(f"error at {span}: {message}")
 
 
 def _report_error_tree(tree: ast.AST, message: str) -> NoReturn:
@@ -85,11 +85,14 @@ class FuncParser:
             pass
         report_error(expr, f"unsupported expression {expr}")
 
-    def parse_ref(self, expr: ast.expr) -> hir.Ref:
+    def parse_ref(self, expr: ast.expr, maybe_new_var=False) -> hir.Ref:
         if isinstance(expr, ast.Name):
             var = self.vars.lookup(expr.id)
             if var is None:
-                report_error(expr, f"unknown variable {expr.id}")
+                if not maybe_new_var:
+                    report_error(expr, f"unknown variable {expr.id}")
+                var = hir.Var(expr.id, None)
+                self.vars.bind(expr.id, var)
             return var
         if isinstance(expr, ast.Attribute):
             obj = self.parse_ref(expr.value)
@@ -100,13 +103,13 @@ class FuncParser:
             return hir.Index(obj, index)
         report_error(expr, f"unsupported expression {expr}")
 
-    def parse_stmt(self, stmt: ast.stmt) -> hir.Stmt:
+    def parse_stmt(self, stmt: ast.stmt) -> Optional[hir.Stmt]:
         if isinstance(stmt, ast.AnnAssign):
             type_annotation = stmt.annotation
             ty = parse_type(type_annotation, self.ty_env)
             if not isinstance(stmt.target, ast.Name):
                 report_error(stmt, f"expected name")
-            var = self.parse_ref(stmt.target)
+            var = self.parse_ref(stmt.target, maybe_new_var=True)
             if stmt.value is None:
                 if not isinstance(var, hir.Var):
                     report_error(stmt, f"expected variable")
@@ -119,9 +122,11 @@ class FuncParser:
             target = stmt.targets[0]
             if not isinstance(target, ast.Name):
                 report_error(target, f"expected name")
-            var = self.parse_ref(target)
+            var = self.parse_ref(target, maybe_new_var=True)
             value = self.parse_expr(stmt.value)
             return hir.Assign(var, None, value)
+        if isinstance(stmt, ast.Pass):
+            return None
         report_error(stmt, f"unsupported statement {stmt}")
 
 
@@ -149,7 +154,9 @@ def parse_function(func: ast.FunctionDef, ctx: hir.Context) -> Function:
     params = []
     for i, arg_type in enumerate(arg_types):
         params.append(hir.Var(f"arg{i}", arg_type))
-    return Function(name, params, return_type, parsed_body)
+    return Function(
+        name, params, return_type, [x for x in parsed_body if x is not None]
+    )
 
 
 # attempt to parse the AST and update the context

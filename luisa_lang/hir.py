@@ -176,6 +176,9 @@ class SymbolicType(Type):
 
     name: str
 
+    def __init__(self, name: str) -> None:
+        self.name = name
+
     def size(self) -> int:
         raise RuntimeError("SymbolicType has no size")
 
@@ -190,12 +193,38 @@ class TypeParameter:
     symbol: SymbolicType
     bound: Optional[List[Type]]
 
+    def __init__(self, symbol: SymbolicType, bound: Optional[List[Type]]) -> None:
+        self.symbol = symbol
+        self.bound = bound
+
+
+class OpaqueType(Type):
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def size(self) -> int:
+        raise RuntimeError("OpaqueType has no size")
+
+    def align(self) -> int:
+        raise RuntimeError("OpaqueType has no align")
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, OpaqueType) and value.name == self.name
+
 
 class ParametricType(Type):
     """A parametric type that is not yet resolved."""
 
     name: str
     params: List[TypeParameter]
+    body: Type
+
+    def __init__(self, name: str, params: List[TypeParameter], body: Type) -> None:
+        self.name = name
+        self.params = params
+        self.body = body
 
     def size(self) -> int:
         raise RuntimeError("ParametricType has no size")
@@ -288,6 +317,32 @@ class Var(Ref):
         self.name = name
         self.type = type
 
+    def __hash__(self) -> int:
+        return self.name.__hash__()
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Var) and other.name == self.name
+
+
+class Member(Ref):
+    base: Ref
+    field: str
+
+    def __init__(self, base: Ref, field: str) -> None:
+        self.base = base
+        self.field = field
+        self.type = None
+
+
+class Index(Ref):
+    base: Ref
+    index: Value
+
+    def __init__(self, base: Ref, index: Value) -> None:
+        self.base = base
+        self.index = index
+        self.type = None
+
 
 class Load(Value):
     ref: Ref
@@ -307,29 +362,55 @@ class Expr(Value):
         self.args = args
 
 
+class TypeRule(ABC):
+    @abstractmethod
+    def infer(self, ctx: "Context", args: List[Type]) -> Type:
+        pass
+
+
+class BuiltinFunction:
+    name: str
+    type_rule: TypeRule
+
+    def __init__(self, name: str, type_rule: TypeRule) -> None:
+        self.name = name
+        self.type_rule = type_rule
+
+
 class Stmt:
     pass
+
+
+class VarDecl(Stmt):
+    var: Var
+    expected_type: Type
+
+    def __init__(self, var: Var, expected_type: Type) -> None:
+        self.var = var
+        self.expected_type = expected_type
 
 
 class Assign(Stmt):
     ref: Ref
     value: Value
+    expected_type: Optional[Type]
 
-    def __init__(self, ref: Ref, value: Value) -> None:
+    def __init__(self, ref: Ref, expected_type: Optional[Type], value: Value) -> None:
         self.ref = ref
         self.value = value
+        self.expected_type = expected_type
 
 
 class Function:
     name: str
-    params: List[Tuple[str, Type]]
+    params: List[Var]
     return_type: Type
     body: List[Stmt]
 
     def __init__(
         self,
         name: str,
-        params: List[Tuple[str, Type]],
+        params: List[Var],
         return_type: Type,
         body: List[Stmt],
     ) -> None:
@@ -378,8 +459,8 @@ class TypeEnv(Env[str, Type]):
         }
         # int types
         for bits in [8, 16, 32, 64]:
-            iname, itype = (f"{int_bits_to_name[bits]}{bits}", IntType(bits, True))
-            uname, utype = (f"u{int_bits_to_name[bits]}{bits}", IntType(bits, False))
+            iname, itype = (f"{int_bits_to_name[bits]}", IntType(bits, True))
+            uname, utype = (f"u{int_bits_to_name[bits]}", IntType(bits, False))
             self.bind(iname, itype)
             self.bind(uname, utype)
             for count in [2, 3, 4]:
@@ -389,7 +470,7 @@ class TypeEnv(Env[str, Type]):
                 self.bind(vname, VectorType(utype, count))
         # float types
         for bits in [16, 32, 64]:
-            fname, ftype = (f"{float_bits_to_name[bits]}{bits}", FloatType(bits))
+            fname, ftype = (f"{float_bits_to_name[bits]}", FloatType(bits))
             self.bind(fname, ftype)
             for count in [2, 3, 4]:
                 vname = f"{fname}{count}"
@@ -403,12 +484,18 @@ class TypeEnv(Env[str, Type]):
         # unit type
         self.bind("None", UnitType())
 
+        # buffer type
+        buffer_ty = ParametricType(
+            "Buffer", [TypeParameter(SymbolicType("T"), [])], OpaqueType("Buffer")
+        )
+        self.bind("Buffer", buffer_ty)
+
 
 class Context:
-    _global_types: TypeEnv
-    _global_functions: Env[str, Function]
+    global_types: TypeEnv
+    global_functions: Env[str, Function]
 
     def __init__(self) -> None:
-        self._global_types = TypeEnv()
-        self._global_functions = Env()
-        self._global_types._init_builtins()
+        self.global_types = TypeEnv()
+        self.global_functions = Env()
+        self.global_types._init_builtins()

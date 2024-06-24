@@ -3,6 +3,24 @@ from typing import Generic, List, Optional, Tuple, Dict, Final, TypeVar
 from abc import ABC, abstractmethod
 
 
+class Path:
+    """A path such as `a.b.c`."""
+
+    parts: List[str]
+
+    def __init__(self, parts: List[str]) -> None:
+        self.parts = parts
+
+    def __str__(self) -> str:
+        return ".".join(self.parts)
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, Path) and value.parts == self.parts
+
+    def __hash__(self) -> int:
+        return hash(tuple(self.parts))
+
+
 class Type(ABC):
     @abstractmethod
     def size(self) -> int:
@@ -317,10 +335,19 @@ class Value(Node):
     pass
 
 
+class ValueRef(Ref):
+    value: Value
+
+    def __init__(self, value: Value) -> None:
+        super().__init__(value.type, value.span)
+        self.value = value
+
+
 class Var(Ref):
     name: str
 
-    def __init__(self, name: str, type: Optional[Type]) -> None:
+    def __init__(self, name: str, type: Optional[Type], span:Optional[Span]) -> None:
+        super().__init__(type, span)
         self.name = name
         self.type = type
 
@@ -335,31 +362,43 @@ class Member(Ref):
     base: Ref
     field: str
 
-    def __init__(self, base: Ref, field: str) -> None:
+    def __init__(self, base: Ref, field: str, span:Optional[Span]) -> None:
+        super().__init__(None, span)
         self.base = base
         self.field = field
-        self.type = None
+        
 
 
 class Index(Ref):
     base: Ref
     index: Value
 
-    def __init__(self, base: Ref, index: Value) -> None:
+    def __init__(self, base: Ref, index: Value, span:Optional[Span]) -> None:
+        super().__init__(None, span)
         self.base = base
         self.index = index
-        self.type = None
 
 
 class Load(Value):
     ref: Ref
 
     def __init__(self, ref: Ref) -> None:
+        super().__init__(ref.type, ref.span)
         self.ref = ref
-        self.type = ref.type
 
 
-class Expr(Value):
+class UnresolvedCall(Value):
+    op: str
+    args: List[Value]
+    is_method: bool
+
+    def __init__(self, op: str, args: List[Value], is_method=False) -> None:
+        self.op = op
+        self.args = args
+        self.is_method = is_method
+
+
+class Call(Value):
     op: Value
     args: List[Value]
 
@@ -456,7 +495,18 @@ class Env(Generic[K, V]):
         self._map[key] = value
 
 
-class TypeEnv(Env[str, Type]):
+class TypeEnv(Env[Path, Type]):
+    def bind(self, path: str | Path, ty: Type) -> None:
+        # TODO: handle generic types
+        if isinstance(path, str):
+            path = Path(path.split("."))
+        super().bind(path, ty)
+
+    def lookup(self, path: str | Path) -> Optional[Type]:
+        if isinstance(path, str):
+            path = Path(path.split("."))
+        return super().lookup(path)
+
     def _init_builtins(self) -> None:
         int_bits_to_name = {
             8: "byte",
@@ -510,4 +560,4 @@ class Context:
     def __init__(self) -> None:
         self.global_types = TypeEnv()
         self.global_functions = Env()
-        # self.global_types._init_builtins()
+        self.global_types._init_builtins()

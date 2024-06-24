@@ -2,7 +2,15 @@ import ast
 from typing import List, Optional, overload
 import luisa_lang
 import luisa_lang.hir as hir
-from luisa_lang.hir import Env, Type, BoundType, ParametricType, Function, Var
+from luisa_lang.hir import (
+    Env,
+    Type,
+    BoundType,
+    ParametricType,
+    Function,
+    Var,
+    UnresolvedCall,
+)
 from typing import NoReturn, cast, Set, reveal_type
 
 
@@ -72,6 +80,7 @@ class FuncParser:
         self.ty_env = cast(hir.TypeEnv, ctx.global_types.fork())
 
     def parse_expr(self, expr: ast.expr) -> hir.Value:
+        span = hir.Span.from_ast(expr)
         if (
             isinstance(expr, ast.Name)
             or isinstance(expr, ast.Attribute)
@@ -82,26 +91,54 @@ class FuncParser:
         if isinstance(expr, ast.Constant):
             raise RuntimeError("TODO: parse constant")
         if isinstance(expr, ast.BinOp):
-            pass
+            lhs = self.parse_expr(expr.left)
+            rhs = self.parse_expr(expr.right)
+            m0 = {
+                ast.Add: "+",
+                ast.Sub: "-",
+                ast.Mult: "*",
+                ast.Div: "/",
+                ast.FloorDiv: "//",
+                ast.Mod: "%",
+                ast.Pow: "**",
+                ast.LShift: "<<",
+            }
+            op = m0[type(expr.op)]
+            return UnresolvedCall(op, [lhs, rhs])
+        if isinstance(expr, ast.UnaryOp):
+            operand = self.parse_expr(expr.operand)
+            m1 = {
+                ast.USub: "-",
+                ast.UAdd: "+",
+                ast.Invert: "~",
+            }
+            op = m1[type(expr.op)]
+            return UnresolvedCall(op, [operand])
+        if isinstance(expr, ast.Call):
+            func = self.parse_expr(expr.func)
+            args = [self.parse_expr(arg) for arg in expr.args]
+            return hir.Call(func, args)
         report_error(expr, f"unsupported expression {expr}")
 
     def parse_ref(self, expr: ast.expr, maybe_new_var=False) -> hir.Ref:
+        span = hir.Span.from_ast(expr)
         if isinstance(expr, ast.Name):
             var = self.vars.lookup(expr.id)
             if var is None:
                 if not maybe_new_var:
                     report_error(expr, f"unknown variable {expr.id}")
-                var = hir.Var(expr.id, None)
+                var = hir.Var(expr.id, None, span)
                 self.vars.bind(expr.id, var)
             return var
         if isinstance(expr, ast.Attribute):
             obj = self.parse_ref(expr.value)
-            return hir.Member(obj, expr.attr)
+            return hir.Member(obj, expr.attr, span)
         if isinstance(expr, ast.Subscript):
             obj = self.parse_ref(expr.value)
             index = self.parse_expr(expr.slice)
-            return hir.Index(obj, index)
-        report_error(expr, f"unsupported expression {expr}")
+            return hir.Index(obj, index, span)
+        return hir.ValueRef(self.parse_expr(expr))
+        # report_error(expr, f"unsupported expression {expr}")
 
     def parse_stmt(self, stmt: ast.stmt) -> Optional[hir.Stmt]:
         if isinstance(stmt, ast.AnnAssign):
@@ -153,7 +190,8 @@ def parse_function(func: ast.FunctionDef, ctx: hir.Context) -> Function:
     parsed_body = [parser.parse_stmt(stmt) for stmt in body]
     params = []
     for i, arg_type in enumerate(arg_types):
-        params.append(hir.Var(f"arg{i}", arg_type))
+        span = hir.Span.from_ast(args.args[i])
+        params.append(hir.Var(f"arg{i}", arg_type, span))
     return Function(
         name, params, return_type, [x for x in parsed_body if x is not None]
     )

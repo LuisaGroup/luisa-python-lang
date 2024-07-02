@@ -1,6 +1,10 @@
 import ast
-from typing import Generic, List, Optional, Tuple, Dict, Final, TypeVar
+from dataclasses import dataclass
+import os
+from typing import Generic, List, Optional, Tuple, Dict, Final, TypeVar, Union
 from abc import ABC, abstractmethod
+
+PATH_PREFIX = "luisa_lang"
 
 
 class Path:
@@ -8,7 +12,9 @@ class Path:
 
     parts: List[str]
 
-    def __init__(self, parts: List[str]) -> None:
+    def __init__(self, parts: List[str] | str) -> None:
+        if isinstance(parts, str):
+            parts = parts.split(".")
         self.parts = parts
 
     def __str__(self) -> str:
@@ -235,11 +241,11 @@ class OpaqueType(Type):
 class ParametricType(Type):
     """A parametric type that is not yet resolved."""
 
-    name: str
+    name: Path
     params: List[TypeParameter]
     body: Type
 
-    def __init__(self, name: str, params: List[TypeParameter], body: Type) -> None:
+    def __init__(self, name: Path, params: List[TypeParameter], body: Type) -> None:
         self.name = name
         self.params = params
         self.body = body
@@ -346,7 +352,7 @@ class ValueRef(Ref):
 class Var(Ref):
     name: str
 
-    def __init__(self, name: str, type: Optional[Type], span:Optional[Span]) -> None:
+    def __init__(self, name: str, type: Optional[Type], span: Optional[Span]) -> None:
         super().__init__(type, span)
         self.name = name
         self.type = type
@@ -362,18 +368,17 @@ class Member(Ref):
     base: Ref
     field: str
 
-    def __init__(self, base: Ref, field: str, span:Optional[Span]) -> None:
+    def __init__(self, base: Ref, field: str, span: Optional[Span]) -> None:
         super().__init__(None, span)
         self.base = base
         self.field = field
-        
 
 
 class Index(Ref):
     base: Ref
     index: Value
 
-    def __init__(self, base: Ref, index: Value, span:Optional[Span]) -> None:
+    def __init__(self, base: Ref, index: Value, span: Optional[Span]) -> None:
         super().__init__(None, span)
         self.base = base
         self.index = index
@@ -392,7 +397,10 @@ class UnresolvedCall(Value):
     args: List[Value]
     is_method: bool
 
-    def __init__(self, op: str, args: List[Value], is_method=False) -> None:
+    def __init__(
+        self, op: str, args: List[Value], is_method=False, span: Optional[Span] = None
+    ) -> None:
+        super().__init__(None, span)
         self.op = op
         self.args = args
         self.is_method = is_method
@@ -402,8 +410,8 @@ class Call(Value):
     op: Value
     args: List[Value]
 
-    def __init__(self, op: Value, args: List[Value]) -> None:
-        super().__init__(op.type)
+    def __init__(self, op: Value, args: List[Value], span: Optional[Span]) -> None:
+        super().__init__(op.type, span)
         self.op = op
         self.args = args
 
@@ -452,6 +460,7 @@ class Function:
     params: List[Var]
     return_type: Type
     body: List[Stmt]
+    builtin: bool
 
     def __init__(
         self,
@@ -459,11 +468,20 @@ class Function:
         params: List[Var],
         return_type: Type,
         body: List[Stmt],
+        builtin: bool = False,
     ) -> None:
         self.name = name
         self.params = params
         self.return_type = return_type
         self.body = body
+        self.builtin = builtin
+
+
+class Module:
+    functions: Dict[str, Function]
+
+    def __init__(self) -> None:
+        self.functions = {}
 
 
 K = TypeVar("K")
@@ -495,17 +513,37 @@ class Env(Generic[K, V]):
         self._map[key] = value
 
 
-class TypeEnv(Env[Path, Type]):
-    def bind(self, path: str | Path, ty: Type) -> None:
-        # TODO: handle generic types
-        if isinstance(path, str):
-            path = Path(path.split("."))
-        super().bind(path, ty)
+Item = Union[Type, Function, BuiltinFunction]
+ItemEnv = Env[Path, Item]
 
-    def lookup(self, path: str | Path) -> Optional[Type]:
-        if isinstance(path, str):
-            path = Path(path.split("."))
-        return super().lookup(path)
+
+class Context:
+    items: ItemEnv
+
+    resolution: Env[Path, Path]
+    """Resolution environment, which holds alias -> alias | path bindings."""
+
+    def __init__(self, is_root: bool) -> None:
+        self.items = Env()
+        self.resolution = Env()
+        if is_root:
+            self._init_builtins()
+
+    def resolve_name(self, name: str | Path) -> Path:
+        """Resolve a name or path if it is imported/alias"""
+        path = Path(name.split(".")) if isinstance(name, str) else name
+        for _ in range(64):
+            resolved = self.resolution.lookup(path)
+            if resolved:
+                path = resolved
+            return path
+        raise RuntimeError(f"failed to resolve name {name}: maybe circular alias?")
+
+    def fork(self) -> "Context":
+        ctx = Context(False)
+        ctx.items = self.items.fork()
+        ctx.resolution = self.resolution.fork()
+        return ctx
 
     def _init_builtins(self) -> None:
         int_bits_to_name = {
@@ -521,43 +559,49 @@ class TypeEnv(Env[Path, Type]):
         }
         # int types
         for bits in [8, 16, 32, 64]:
-            iname, itype = (f"{int_bits_to_name[bits]}", IntType(bits, True))
-            uname, utype = (f"u{int_bits_to_name[bits]}", IntType(bits, False))
-            self.bind(iname, itype)
-            self.bind(uname, utype)
+            iname, itype = (
+                f"{PATH_PREFIX}.{int_bits_to_name[bits]}",
+                IntType(bits, True),
+            )
+            uname, utype = (
+                f"{PATH_PREFIX}.u{int_bits_to_name[bits]}",
+                IntType(bits, False),
+            )
+            self.items.bind(Path(iname), itype)
+            self.items.bind(Path(uname), utype)
             for count in [2, 3, 4]:
                 vname = f"{iname}{count}"
-                self.bind(vname, VectorType(itype, count))
+                self.items.bind(Path(vname), VectorType(itype, count))
                 vname = f"{uname}{count}"
-                self.bind(vname, VectorType(utype, count))
+                self.items.bind(Path(vname), VectorType(utype, count))
         # float types
         for bits in [16, 32, 64]:
-            fname, ftype = (f"{float_bits_to_name[bits]}", FloatType(bits))
-            self.bind(fname, ftype)
+            fname, ftype = (
+                f"{PATH_PREFIX}.{float_bits_to_name[bits]}",
+                FloatType(bits),
+            )
+            self.items.bind(Path(fname), ftype)
             for count in [2, 3, 4]:
                 vname = f"{fname}{count}"
-                self.bind(vname, VectorType(ftype, count))
+                self.items.bind(Path(vname), VectorType(ftype, count))
         # bool type
-        self.bind("bool", BoolType())
+        self.items.bind(Path(f"{PATH_PREFIX}.bool"), BoolType())
         for count in [2, 3, 4]:
-            vname = f"bool{count}"
-            self.bind(vname, VectorType(BoolType(), count))
+            vname = f"{PATH_PREFIX}.bool{count}"
+            self.items.bind(Path(vname), VectorType(BoolType(), count))
 
         # unit type
-        self.bind("None", UnitType())
+        self.items.bind(Path("None"), UnitType())
 
         # buffer type
         buffer_ty = ParametricType(
-            "Buffer", [TypeParameter(SymbolicType("T"), [])], OpaqueType("Buffer")
+            Path(f"{PATH_PREFIX}.Buffer"),
+            [TypeParameter(SymbolicType("T"), [])],
+            OpaqueType("Buffer"),
         )
-        self.bind("Buffer", buffer_ty)
-
-
-class Context:
-    global_types: TypeEnv
-    global_functions: Env[str, Function]
-
-    def __init__(self) -> None:
-        self.global_types = TypeEnv()
-        self.global_functions = Env()
-        self.global_types._init_builtins()
+        self.items.bind(Path(f"{PATH_PREFIX}.Buffer"), buffer_ty)
+        bulitins_file = os.path.join(os.path.dirname(__file__), "builtins.py")
+        with open(bulitins_file) as f:
+            code = f.read()
+            tree = ast.parse(code)
+            print(ast.dump(tree))

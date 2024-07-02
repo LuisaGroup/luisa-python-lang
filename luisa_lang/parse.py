@@ -1,9 +1,12 @@
 import ast
-from typing import List, Optional, overload
+import os
+from typing import List, Optional, Union, overload
 import luisa_lang
 import luisa_lang.hir as hir
+import sys
 from luisa_lang.hir import (
     Env,
+    Path,
     Type,
     BoundType,
     ParametricType,
@@ -39,22 +42,24 @@ def report_error(obj, message: str) -> NoReturn:
         raise NotImplementedError(f"unsupported object {obj}")
 
 
-def parse_type(type: ast.AST, type_env: hir.TypeEnv) -> Type:
+def parse_type(type: ast.AST, ctx: hir.Context) -> Type:
     if isinstance(type, ast.Name):
-        ty = type_env.lookup(type.id)
+        ty = ctx.items.lookup(Path(type.id))
         if ty is None:
             report_error(type, f"unknown type {type.id}")
+        if not isinstance(ty, Type):
+            report_error(type, f"expected type")
         return ty
     elif isinstance(type, ast.Subscript):
-        parameteric_type = parse_type(type.value, type_env)
+        parameteric_type = parse_type(type.value, ctx)
         if not isinstance(parameteric_type, ParametricType):
             report_error(type, f"expected parameteric type")
         slice = type.slice
         args = []
         if isinstance(slice, ast.Name):
-            args = [parse_type(slice, type_env)]
+            args = [parse_type(slice, ctx)]
         elif isinstance(slice, ast.Tuple):
-            args = [parse_type(arg, type_env) for arg in slice.elts]
+            args = [parse_type(arg, ctx) for arg in slice.elts]
         else:
             report_error(type, f"unparsable type arguments")
         if len(args) != len(parameteric_type.params):
@@ -69,15 +74,37 @@ def parse_type(type: ast.AST, type_env: hir.TypeEnv) -> Type:
         report_error(type, f"unparsable type")
 
 
+def resolve_file(filename: str) -> Optional[str]:
+    search_paths = ["."] + sys.path
+    for path in search_paths:
+        full_path = os.path.join(path, filename)
+        if os.path.exists(full_path):
+            return full_path
+    return None
+
+
+def parse_import(imp: ast.Import | ast.ImportFrom, ctx: hir.Context):
+    if isinstance(imp, ast.Import):
+        for name in imp.names:
+            resolved_file = resolve_file(name.name)
+            if not resolved_file:
+                report_error(imp, f"cannot find module {name.name}")
+            module_ast = ast.parse(resolved_file)
+            assert isinstance(module_ast, ast.Module)
+            module_parser = ModuleParser(module_ast, ctx)
+            module_parser.parse()
+            asname = name.asname
+    else:
+        pass
+
+
 class FuncParser:
     ctx: hir.Context
     vars: Env[str, hir.Var]
-    ty_env: hir.TypeEnv
 
     def __init__(self, ctx: hir.Context):
         self.ctx = ctx
         self.vars = Env()
-        self.ty_env = cast(hir.TypeEnv, ctx.global_types.fork())
 
     def parse_expr(self, expr: ast.expr) -> hir.Value:
         span = hir.Span.from_ast(expr)
@@ -104,7 +131,7 @@ class FuncParser:
                 ast.LShift: "<<",
             }
             op = m0[type(expr.op)]
-            return UnresolvedCall(op, [lhs, rhs])
+            return UnresolvedCall(op, [lhs, rhs], span=span)
         if isinstance(expr, ast.UnaryOp):
             operand = self.parse_expr(expr.operand)
             m1 = {
@@ -117,7 +144,7 @@ class FuncParser:
         if isinstance(expr, ast.Call):
             func = self.parse_expr(expr.func)
             args = [self.parse_expr(arg) for arg in expr.args]
-            return hir.Call(func, args)
+            return hir.Call(func, args, span)
         report_error(expr, f"unsupported expression {expr}")
 
     def parse_ref(self, expr: ast.expr, maybe_new_var=False) -> hir.Ref:
@@ -143,7 +170,7 @@ class FuncParser:
     def parse_stmt(self, stmt: ast.stmt) -> Optional[hir.Stmt]:
         if isinstance(stmt, ast.AnnAssign):
             type_annotation = stmt.annotation
-            ty = parse_type(type_annotation, self.ty_env)
+            ty = parse_type(type_annotation, self.ctx)
             if not isinstance(stmt.target, ast.Name):
                 report_error(stmt, f"expected name")
             var = self.parse_ref(stmt.target, maybe_new_var=True)
@@ -167,6 +194,26 @@ class FuncParser:
         report_error(stmt, f"unsupported statement {stmt}")
 
 
+class ModuleParser:
+    ctx: hir.Context
+    module: ast.Module
+
+    def __init__(self, module: ast.Module, ctx: hir.Context):
+        self.module = module
+        self.ctx = ctx
+
+    def parse(self) -> hir.Module:
+        m = hir.Module()
+        for stmt in self.module.body:
+            if isinstance(stmt, ast.FunctionDef):
+                f = parse_function(stmt, self.ctx)
+                m.functions[f.name] = f
+            else:
+                raise NotImplementedError(f"unsupported statement {stmt}")
+        return m
+
+
+
 def parse_function(func: ast.FunctionDef, ctx: hir.Context) -> Function:
     name = func.name
     args = func.args
@@ -174,17 +221,16 @@ def parse_function(func: ast.FunctionDef, ctx: hir.Context) -> Function:
         report_error(args.vararg, f"vararg not supported")
     if args.kwarg is not None:
         report_error(args.kwarg, f"kwarg not supported")
-    type_env = ctx.global_types
     arg_types: List[Type] = []
     for arg in args.args:
         if arg.annotation is None:
             raise RuntimeError("TODO: infer type")
-        arg_types.append(parse_type(arg.annotation, type_env))
+        arg_types.append(parse_type(arg.annotation, ctx))
     return_type: Type
     if func.returns is None:
         return_type = hir.UnitType()
     else:
-        return_type = parse_type(func.returns, type_env)
+        return_type = parse_type(func.returns, ctx)
     body = func.body
     parser = FuncParser(ctx)
     parsed_body = [parser.parse_stmt(stmt) for stmt in body]
@@ -197,12 +243,12 @@ def parse_function(func: ast.FunctionDef, ctx: hir.Context) -> Function:
     )
 
 
-# attempt to parse the AST and update the context
-def parse(tree: ast.AST, ctx: hir.Context):
-    print(ast.dump(tree))
-    assert isinstance(tree, ast.Module)
-    for stmt in tree.body:
-        if isinstance(stmt, ast.FunctionDef):
-            parse_function(stmt, ctx)
-        else:
-            raise NotImplementedError(f"unsupported statement {stmt}")
+# # attempt to parse the AST and update the context
+# def parse(tree: ast.AST, ctx: hir.Context):
+#     print(ast.dump(tree))
+#     assert isinstance(tree, ast.Module)
+#     for stmt in tree.body:
+#         if isinstance(stmt, ast.FunctionDef):
+#             parse_function(stmt, ctx)
+#         else:
+#             raise NotImplementedError(f"unsupported statement {stmt}")

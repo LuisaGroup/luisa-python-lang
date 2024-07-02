@@ -8,11 +8,24 @@ def lcpyc(*args, **kwargs):
 
     return decorator
 
+def builtin(*args, **kwargs):
+    def decorator(func):
+        return func
+
+    return decorator
 
 def intrinsic_impl(*args, **kwargs) -> Any:
     raise NotImplementedError(
         "intrinsic functions should not be called in normal Python code"
     )
+
+
+T = TypeVar("T")
+
+
+def dsl(any: T) -> T:
+    """Use @dsl to mark a function/class as a DSL function/class."""
+    return any
 
 
 u16 = TypeAliasType("u16", int)

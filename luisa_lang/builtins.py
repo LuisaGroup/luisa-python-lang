@@ -1,6 +1,14 @@
 import luisa_lang
 from luisa_lang.lang import *
 
-@lcpyc("builtin_function")
-def dispatch_id() -> u32:
+@builtin
+def dispatch_id() -> uint3:
+    return intrinsic_impl()
+
+@builtin
+def thread_id() -> uint3:
+    return intrinsic_impl()
+
+@builtin
+def block_id() -> uint3:
     return intrinsic_impl()

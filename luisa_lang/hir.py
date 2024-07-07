@@ -1,6 +1,7 @@
 import ast
 from dataclasses import dataclass
 import os
+import sys
 from typing import Generic, List, Optional, Tuple, Dict, Final, TypeVar, Union
 from abc import ABC, abstractmethod
 
@@ -484,6 +485,17 @@ class Module:
         self.functions = {}
 
 
+class Package:
+    is_std: bool
+    root: Module
+    path: str
+
+    def __init__(self, path: str, is_std: bool, root: Module) -> None:
+        self.path = path
+        self.is_std = is_std
+        self.root = root
+
+
 K = TypeVar("K")
 V = TypeVar("V")
 
@@ -518,16 +530,51 @@ ItemEnv = Env[Path, Item]
 
 
 class Context:
+    cur_path: str
+    packages: Dict[str, Package]
+
+    modules: Dict[str, Module]
+    """Holds absolute path -> module."""
+
     items: ItemEnv
+    """Item environment, which holds global name bindings."""
 
     resolution: Env[Path, Path]
     """Resolution environment, which holds alias -> alias | path bindings."""
 
-    def __init__(self, is_root: bool) -> None:
+    def __init__(self, cur_path: str, is_root: bool) -> None:
+        self.cur_path = cur_path
         self.items = Env()
         self.resolution = Env()
+        self.packages = {}
+        self.modules = {}
         if is_root:
             self._init_builtins()
+
+    def import_module_or_package(self, name: str) -> Optional[Module | Package]:
+        def resolve_module(filename: str) -> Optional[str]:
+            search_paths = [self.cur_path] + sys.path
+            for path in search_paths:
+                # first check if name.py exists
+                full_path = os.path.join(path, filename + ".py")
+                if os.path.exists(full_path):
+                    return full_path
+                # then check if name/__init__.py exists
+                full_path = os.path.join(path, filename, "__init__.py")
+                if os.path.exists(full_path):
+                    return full_path
+            return None
+
+        result = resolve_module(name)
+        if not result:
+            return None
+        result = os.path.abspath(result)
+        if result.endswith("__init__.py"):
+            # handling a multi-file module/package
+            pass
+        else:
+            pass
+        raise NotImplementedError("TODO")
 
     def resolve_name(self, name: str | Path) -> Path:
         """Resolve a name or path if it is imported/alias"""
@@ -539,11 +586,11 @@ class Context:
             return path
         raise RuntimeError(f"failed to resolve name {name}: maybe circular alias?")
 
-    def fork(self) -> "Context":
-        ctx = Context(False)
-        ctx.items = self.items.fork()
-        ctx.resolution = self.resolution.fork()
-        return ctx
+    # def fork(self) -> "Context":
+    #     ctx = Context(self.cur_path, False)
+    #     ctx.items = self.items.fork()
+    #     ctx.resolution = self.resolution.fork()
+    #     return ctx
 
     def _init_builtins(self) -> None:
         int_bits_to_name = {

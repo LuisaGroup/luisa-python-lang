@@ -1,6 +1,6 @@
 import ast
 import os
-from typing import List, Optional, Union, overload
+from typing import Dict, List, Optional, Union, overload
 import luisa_lang
 import luisa_lang.hir as hir
 import sys
@@ -74,37 +74,41 @@ def parse_type(type: ast.AST, ctx: hir.Context) -> Type:
         report_error(type, f"unparsable type")
 
 
-def resolve_file(filename: str) -> Optional[str]:
-    search_paths = ["."] + sys.path
-    for path in search_paths:
-        full_path = os.path.join(path, filename)
-        if os.path.exists(full_path):
-            return full_path
-    return None
-
-
-def parse_import(imp: ast.Import | ast.ImportFrom, ctx: hir.Context):
-    if isinstance(imp, ast.Import):
-        for name in imp.names:
-            resolved_file = resolve_file(name.name)
-            if not resolved_file:
-                report_error(imp, f"cannot find module {name.name}")
-            module_ast = ast.parse(resolved_file)
-            assert isinstance(module_ast, ast.Module)
-            module_parser = ModuleParser(module_ast, ctx)
-            module_parser.parse()
-            asname = name.asname
-    else:
-        pass
-
-
 class FuncParser:
     ctx: hir.Context
     vars: Env[str, hir.Var]
+    func: ast.FunctionDef
+    arg_types: List[Type]
+    return_type: Optional[Type]
 
-    def __init__(self, ctx: hir.Context):
+    def __init__(self, func: ast.FunctionDef, ctx: hir.Context):
         self.ctx = ctx
         self.vars = Env()
+        self.func = func
+        self.arg_types = []
+        self.return_type = None
+        self._init_signature()
+
+    def _init_signature(
+        self,
+    ):
+        assert self.return_type is None
+        func = self.func
+        ctx = self.ctx
+        args = func.args
+        if args.vararg is not None:
+            report_error(args.vararg, f"vararg not supported")
+        if args.kwarg is not None:
+            report_error(args.kwarg, f"kwarg not supported")
+        arg_types: List[Type] = []
+        for arg in args.args:
+            if arg.annotation is None:
+                raise RuntimeError("TODO: infer type")
+            arg_types.append(parse_type(arg.annotation, ctx))
+        if func.returns is None:
+            self.return_type = hir.UnitType()
+        else:
+            self.return_type = parse_type(func.returns, ctx)
 
     def parse_expr(self, expr: ast.expr) -> hir.Value:
         span = hir.Span.from_ast(expr)
@@ -193,62 +197,58 @@ class FuncParser:
             return None
         report_error(stmt, f"unsupported statement {stmt}")
 
+    def parse_body(self) -> hir.Function:
+        body = self.func.body
+        parsed_body = [self.parse_stmt(stmt) for stmt in body]
+        params = []
+        args = self.func.args
+        for i, arg_type in enumerate(self.arg_types):
+            span = hir.Span.from_ast(args.args[i])
+            params.append(hir.Var(f"arg{i}", arg_type, span))
+        assert self.return_type is not None
+        return Function(
+            self.func.name,
+            params,
+            self.return_type,
+            [x for x in parsed_body if x is not None],
+        )
+
 
 class ModuleParser:
     ctx: hir.Context
     module: ast.Module
+    functions: Dict[str, FuncParser]
 
     def __init__(self, module: ast.Module, ctx: hir.Context):
         self.module = module
         self.ctx = ctx
+        self.functions = {}
+
+    def parse_import(self, imp: ast.Import | ast.ImportFrom):
+        ctx = self.ctx
+        if isinstance(imp, ast.Import):
+            for name in imp.names:
+                resolved_file = resolve_file(name.name)
+                if not resolved_file:
+                    report_error(imp, f"cannot find module {name.name}")
+                module_ast = ast.parse(resolved_file)
+                assert isinstance(module_ast, ast.Module)
+                module_parser = ModuleParser(module_ast, ctx)
+                module_parser.parse()
+                asname = name.asname
+        else:
+            pass
 
     def parse(self) -> hir.Module:
         m = hir.Module()
         for stmt in self.module.body:
             if isinstance(stmt, ast.FunctionDef):
-                f = parse_function(stmt, self.ctx)
-                m.functions[f.name] = f
+                f = FuncParser(stmt, self.ctx)
+                self.functions[stmt.name] = f
+            elif isinstance(stmt, ast.Import) or isinstance(stmt, ast.ImportFrom):
+                self.parse_import(stmt)
             else:
                 raise NotImplementedError(f"unsupported statement {stmt}")
+        for name, f in self.functions.items():
+            m.functions[name] = f.parse_body()
         return m
-
-
-
-def parse_function(func: ast.FunctionDef, ctx: hir.Context) -> Function:
-    name = func.name
-    args = func.args
-    if args.vararg is not None:
-        report_error(args.vararg, f"vararg not supported")
-    if args.kwarg is not None:
-        report_error(args.kwarg, f"kwarg not supported")
-    arg_types: List[Type] = []
-    for arg in args.args:
-        if arg.annotation is None:
-            raise RuntimeError("TODO: infer type")
-        arg_types.append(parse_type(arg.annotation, ctx))
-    return_type: Type
-    if func.returns is None:
-        return_type = hir.UnitType()
-    else:
-        return_type = parse_type(func.returns, ctx)
-    body = func.body
-    parser = FuncParser(ctx)
-    parsed_body = [parser.parse_stmt(stmt) for stmt in body]
-    params = []
-    for i, arg_type in enumerate(arg_types):
-        span = hir.Span.from_ast(args.args[i])
-        params.append(hir.Var(f"arg{i}", arg_type, span))
-    return Function(
-        name, params, return_type, [x for x in parsed_body if x is not None]
-    )
-
-
-# # attempt to parse the AST and update the context
-# def parse(tree: ast.AST, ctx: hir.Context):
-#     print(ast.dump(tree))
-#     assert isinstance(tree, ast.Module)
-#     for stmt in tree.body:
-#         if isinstance(stmt, ast.FunctionDef):
-#             parse_function(stmt, ctx)
-#         else:
-#             raise NotImplementedError(f"unsupported statement {stmt}")

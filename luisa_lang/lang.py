@@ -2,17 +2,19 @@ from typing_extensions import TypeAliasType
 from typing import TypeAlias, TypeVar, Union, Generic, Literal, overload, Any
 
 
-def lcpyc(*args, **kwargs):
+def lcpyc(func, *args, **kwargs):
     def decorator(func):
         return func
 
     return decorator
 
-def builtin(*args, **kwargs):
-    def decorator(func):
-        return func
 
-    return decorator
+T = TypeVar("T")
+
+
+def builtin(func: T, *args, **kwargs) -> T:
+    return func
+
 
 def intrinsic_impl(*args, **kwargs) -> Any:
     raise NotImplementedError(
@@ -20,7 +22,8 @@ def intrinsic_impl(*args, **kwargs) -> Any:
     )
 
 
-T = TypeVar("T")
+def kernel(func: T, *args, **kwargs) -> T:
+    return func
 
 
 def dsl(any: T) -> T:
@@ -45,8 +48,13 @@ FloatPrimitives = Union[f32]
 FloatPrimitive = TypeVar("FloatPrimitive", bound=FloatPrimitives)
 VecLen = TypeVar("VecLen")
 
-
+@builtin
 class Vector(Generic[Primitive, VecLen]):
+    x: Primitive
+    y: Primitive
+    z: Primitive
+    w: Primitive
+
     @overload
     def __init__(self, x: Primitive) -> None: ...
     @overload
@@ -118,10 +126,22 @@ uint2 = Vector[u32, Literal[2]]
 uint3 = Vector[u32, Literal[3]]
 uint4 = Vector[u32, Literal[4]]
 
+
+# class uint3:
+#     x: u32
+#     y: u32
+#     z: u32
+
+
 Element = TypeVar("Element")
 
 
-# class Buffer(Generic[Element]):
-#     def __getitem__(self, index: u32 | u64) -> Element: ...
-#     def __setitem__(self, index: u32 | u64, value: Element) -> None: ...
-#     def __len__(self) -> u32 | u64: ...
+class Buffer(Generic[Element]):
+    def __getitem__(self, index: u32 | u64) -> Element:
+        return intrinsic_impl()
+
+    def __setitem__(self, index: u32 | u64, value: Element) -> None:
+        return intrinsic_impl()
+
+    def __len__(self) -> u32 | u64:
+        return intrinsic_impl()

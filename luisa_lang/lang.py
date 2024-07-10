@@ -2,6 +2,7 @@ from typing_extensions import TypeAliasType
 from typing import (
     Callable,
     Optional,
+    Sequence,
     TypeAlias,
     TypeVar,
     Union,
@@ -10,7 +11,7 @@ from typing import (
     overload,
     Any,
 )
-
+from luisa_lang._math_type_exports import *
 
 T = TypeVar("T")
 Scalar = TypeVar("Scalar")
@@ -47,13 +48,13 @@ def _intrinsic_impl(*args, **kwargs) -> Any:
     )
 
 
-def dataclass(cls: type, align: Optional[int] = None) -> type:
+def struct(cls: type) -> type:
     """
     Mark a class as a DSL struct.
 
     Example:
     ```python
-    @luisa.dataclass
+    @luisa.struct
     class Sphere:
         center: luisa.float3
         radius: luisa.float
@@ -65,11 +66,20 @@ def dataclass(cls: type, align: Optional[int] = None) -> type:
     return cls
 
 
-struct = dataclass
 
+@overload
+def kernel(f: KernelType) -> KernelType: ...
+@overload
+def kernel(export: bool = False, **kwargs) -> Callable[[KernelType], KernelType]: ...
+def kernel(*args, **kwargs) -> KernelType | Callable[[KernelType], KernelType]:
+    if len(args) == 1 and len(kwargs) == 0:
+        f = args[0]
+        return f
 
-def kernel(func: KernelType, *args, **kwargs) -> KernelType:
-    return func
+    def decorator(f):
+        return f
+
+    return decorator
 
 
 class InoutMarker:
@@ -83,7 +93,11 @@ inout = InoutMarker("inout")
 out = InoutMarker("out")
 
 
-def func(func: F, *args, **kwargs) -> F:
+@overload
+def func(f: F) -> F: ...
+@overload
+def func(inline: bool | Literal["always"] = False, **kwargs) -> Callable[[F], F]: ...
+def func(*args, **kwargs) -> F | Callable[[F], F]:
     """
     Mark a function as a DSL function.
     To mark an argument as inout/out, use the `var=inout` syntax in decorator arguments.
@@ -95,306 +109,43 @@ def func(func: F, *args, **kwargs) -> F:
         a, b = b, a
     ```
     """
-    return func
+    if len(args) == 1 and len(kwargs) == 0:
+        f = args[0]
+        return f
 
+    def decorator(f):
+        return f
 
-class CommonArithOps(Generic[T, Scalar]):
-    def __init__(self, value: Scalar) -> None:
-        return _intrinsic_impl()
-
-    def __add__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __radd__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __sub__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __rsub__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __mul__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __rmul__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __mod__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __rmod__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __pow__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __rpow__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-
-class IntArithOps(Generic[T, Scalar, Float]):
-    def __truediv__(self: T, other: Scalar | T) -> Float:
-        return _intrinsic_impl()
-
-    def __rtruediv__(self: T, other: Scalar | T) -> Float:
-        return _intrinsic_impl()
-
-    def __floordiv__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __rfloordiv__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-
-class FloatTypeMarker:
-    pass
-
-
-class MathIntrinsics(Generic[T]):
-    def sin(self: T) -> T:
-        return _intrinsic_impl()
-
-    def cos(self: T) -> T:
-        return _intrinsic_impl()
-
-    def tan(self: T) -> T:
-        return _intrinsic_impl()
-
-    def asin(self: T) -> T:
-        return _intrinsic_impl()
-
-    def acos(self: T) -> T:
-        return _intrinsic_impl()
-
-    def atan(self: T) -> T:
-        return _intrinsic_impl()
-
-    def atan2(self: T, other: T) -> T:
-        return _intrinsic_impl()
-
-    def sinh(self: T) -> T:
-        return _intrinsic_impl()
-
-    def cosh(self: T) -> T:
-        return _intrinsic_impl()
-
-    def tanh(self: T) -> T:
-        return _intrinsic_impl()
-
-
-class FloatArithOps(Generic[T, Scalar], FloatTypeMarker):
-    def __truediv__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __rtruediv__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __floordiv__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-    def __rfloordiv__(self: T, other: Scalar | T) -> T:
-        return _intrinsic_impl()
-
-
-@_builtin_type
-class u8(CommonArithOps["u8", int]):
-    pass
-
-
-@_builtin_type
-class u16(CommonArithOps["u16", int]):
-    pass
-
-
-@_builtin_type
-class u32(CommonArithOps["u32", int]):
-    pass
-
-
-@_builtin_type
-class u64(CommonArithOps["u64", int]):
-    pass
-
-
-@_builtin_type
-class i8(CommonArithOps["i8", int]):
-    pass
-
-
-@_builtin_type
-class i16(CommonArithOps["i16", int]):
-    pass
-
-
-@_builtin_type
-class i32(CommonArithOps["i32", int]):
-    pass
-
-
-@_builtin_type
-class i64(CommonArithOps["i64", int]):
-    pass
-
-
-class Vector2Base(Generic[Scalar]):
-    x: Scalar
-    y: Scalar
-
-    @overload
-    def __init__(self, x: Scalar): ...
-    @overload
-    def __init__(self, x: Scalar, y: Scalar): ...
-    def __init__(self, *args, **kwargs) -> None:
-        return _intrinsic_impl()
-
-
-class Vector3Base(Generic[Scalar]):
-    x: Scalar
-    y: Scalar
-    z: Scalar
-
-    @overload
-    def __init__(self, x: Scalar): ...
-    @overload
-    def __init__(self, x: Scalar, y: Scalar): ...
-    @overload
-    def __init__(self, x: Scalar, y: Scalar, z: Scalar): ...
-    def __init__(self, *args, **kwargs) -> None:
-        return _intrinsic_impl()
-
-
-class Vector3Cross(Generic[T]):
-    @_builtin
-    def cross(self: T, other: T) -> T:
-        return _intrinsic_impl()
-
-
-class Vector4Base(Generic[Scalar]):
-    x: Scalar
-    y: Scalar
-    z: Scalar
-    w: Scalar
-
-    @overload
-    def __init__(self, x: Scalar): ...
-    @overload
-    def __init__(self, x: Scalar, y: Scalar): ...
-    @overload
-    def __init__(self, x: Scalar, y: Scalar, z: Scalar): ...
-    @overload
-    def __init__(self, x: Scalar, y: Scalar, z: Scalar, w: Scalar): ...
-    def __init__(self, *args, **kwargs) -> None:
-        return _intrinsic_impl()
-
-
-class IntVector2(
-    Generic[T, Scalar], Vector2Base[Scalar], CommonArithOps[T, Scalar | int]
-):
-    pass
-
-
-class IntVector3(
-    Generic[T, Scalar], Vector3Base[Scalar], CommonArithOps[T, Scalar | int]
-):
-    pass
-
-
-class IntVector4(
-    Generic[T, Scalar], Vector4Base[Scalar], CommonArithOps[T, Scalar | int]
-):
-    pass
-
-
-class FloatVector2(
-    Generic[T, Scalar],
-    Vector2Base[Scalar],
-    CommonArithOps[T, Scalar | int],
-    FloatArithOps[T, Scalar],
-):
-    pass
-
-
-class FloatVector3(
-    Generic[T, Scalar],
-    Vector3Base[Scalar],
-    CommonArithOps[T, Scalar | int],
-    FloatArithOps[T, Scalar],
-    Vector3Cross[T],
-):
-    pass
-
-
-class FloatVector4(
-    Generic[T, Scalar],
-    Vector4Base[Scalar],
-    CommonArithOps[T, Scalar | int],
-    FloatArithOps[T, Scalar],
-):
-    pass
-
-
-class int2(IntVector2["int2", i32]):
-    pass
-
-
-class int3(IntVector3["int3", i32]):
-    pass
-
-
-class int4(IntVector4["int4", i32]):
-    pass
-
-
-class uint2(IntVector2["uint2", u32]):
-    pass
-
-
-class uint3(IntVector3["uint3", u32]):
-    pass
-
-
-class uint4(IntVector4["uint4", u32]):
-    pass
-
-
-class long2(IntVector2["long2", i64]):
-    pass
-
-
-class long3(IntVector3["long3", i64]):
-    pass
-
-
-class long4(IntVector4["long4", i64]):
-    pass
-
-
-class ulong2(IntVector2["ulong2", u64]):
-    pass
-
-
-class ulong3(IntVector3["ulong3", u64]):
-    pass
-
-
-class ulong4(IntVector4["ulong4", u64]):
-    pass
+    return decorator
 
 
 Element = TypeVar("Element")
 
 
 class Buffer(Generic[Element]):
-    def __getitem__(self, index: u32 | u64) -> Element:
+    def __getitem__(self, index: int | u32 | u64) -> Element:
         return _intrinsic_impl()
 
-    def __setitem__(self, index: u32 | u64, value: Element) -> None:
+    def __setitem__(self, index: int | u32 | u64, value: Element) -> None:
         return _intrinsic_impl()
 
     def __len__(self) -> u32 | u64:
         return _intrinsic_impl()
 
 
-def constexpr(a: Any) -> Any:
+@_builtin
+def consteval(a: Any) -> Any:
     return a
+
+
+@_builtin
+def device_log(_: Any):
+    pass
+
+
+def static_assert(cond: Any, msg: str = ""):
+    pass
+
+
+def unroll(range_: Sequence[int]) -> Sequence[int]:
+    return range_

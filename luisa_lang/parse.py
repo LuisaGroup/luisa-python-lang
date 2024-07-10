@@ -41,94 +41,92 @@ def report_error(obj, message: str) -> NoReturn:
         _report_error_tree(obj, message)
     else:
         raise NotImplementedError(f"unsupported object {obj}")
+    
+# class AccessChain:
 
-
-class NameKind(Enum):
-    MODULE = 0
-    TYPE = 1
-    FUNCTION = 2
-    OTHER = 3
-
-
-NameEvalResult = Tuple[NameKind, Any]
 class ParsingContext:
     globals: Dict[str, Any]
     global_ctx: hir.GlobalContext
-    name_eval_cache: Dict[str, Optional[NameEvalResult]]
+    name_eval_cache: Dict[str, Optional[Any]]
 
     def __init__(self, globals: Dict[str, Any], global_ctx: hir.GlobalContext):
         self.globals = globals
         self.global_ctx = global_ctx
         self.name_eval_cache = {}
 
-    def __eval_name(self, name: str) -> Optional[NameEvalResult]:
-        if name in self.name_eval_cache:
-            return self.name_eval_cache[name]
+    def __eval_name(self, name: str | ast.Name | ast.Attribute) -> Optional[Any]:
         try:
-            result = eval(name, self.globals)
-            if isinstance(result, ModuleType):
-                return (NameKind.MODULE, result)
-            if isinstance(result, type):
-                return (NameKind.TYPE, result)
-            if callable(result):
-                return (NameKind.FUNCTION, result)
-            result = (NameKind.OTHER, result)
+            if isinstance(name, str):
+                if name in self.name_eval_cache:
+                    return self.name_eval_cache[name]
+                result = eval(name, self.globals)
+                self.name_eval_cache[name] = result
+            elif isinstance(name, ast.Name):
+                if name.id in self.name_eval_cache:
+                    return self.name_eval_cache[name.id]
+                result = eval(name.id, self.globals)
+                self.name_eval_cache[name.id] = result
+                return result
+            else:
+                pass
+
+            return result
         except NameError:
-            result = None
-        self.name_eval_cache[name] = result
-        return result
+            return None
+                
 
     def parse_type(self, type: ast.AST) -> Type:
-        if isinstance(type, ast.Name):
-            r = self.__eval_name(type.id)
-            if r is None:
-                report_error(type, f"unknown type {type.id}")
-            kind, result = r
-            if kind != NameKind.TYPE:
-                report_error(type, f"expected {NameKind.TYPE} but got {kind}")
-            result = cast(Type, result)
-            ty = self.global_ctx.types.get(result)
-            if ty is None:
-                report_error(type, f"unknown type {type.id}")
-            if not isinstance(ty, Type):
-                report_error(type, f"expected type")
-            return ty
-        elif isinstance(type, ast.Subscript):
-            parameteric_type = self.parse_type(type.value)
-            if not isinstance(parameteric_type, ParametricType):
-                report_error(type, f"expected parameteric type")
-            slice = type.slice
-            args = []
-            if isinstance(slice, ast.Name):
-                args = [self.parse_type(slice)]
-            elif isinstance(slice, ast.Tuple):
-                args = [self.parse_type(arg) for arg in slice.elts]
-            else:
-                report_error(type, f"unparsable type arguments")
-            if len(args) != len(parameteric_type.params):
-                report_error(type, f"expected {len(parameteric_type.params)} arguments")
-            return BoundType(parameteric_type, args)
-        elif isinstance(type, ast.Attribute):
-            pass
-        elif isinstance(type, ast.Constant):
-            if type.value is None:
-                return hir.UnitType()
-            else:
-                raise NotImplementedError(f"unsupported constant type {type.value}")
-        else:
-            report_error(type, f"unparsable type")
+        raise NotImplementedError("TODO")
+        # if isinstance(type, ast.Name):
+        #     r = self.__eval_name(type.id)
+        #     if r is None:
+        #         report_error(type, f"unknown type {type.id}")
+        #     kind, result = r
+        #     if kind != NameKind.TYPE:
+        #         report_error(type, f"expected {NameKind.TYPE} but got {kind}")
+        #     result = cast(Type, result)
+        #     ty = self.global_ctx.types.get(result)
+        #     if ty is None:
+        #         report_error(type, f"unknown type {type.id}")
+        #     if not isinstance(ty, Type):
+        #         report_error(type, f"expected type")
+        #     return ty
+        # elif isinstance(type, ast.Subscript):
+        #     parameteric_type = self.parse_type(type.value)
+        #     if not isinstance(parameteric_type, ParametricType):
+        #         report_error(type, f"expected parameteric type")
+        #     slice = type.slice
+        #     args = []
+        #     if isinstance(slice, ast.Name):
+        #         args = [self.parse_type(slice)]
+        #     elif isinstance(slice, ast.Tuple):
+        #         args = [self.parse_type(arg) for arg in slice.elts]
+        #     else:
+        #         report_error(type, f"unparsable type arguments")
+        #     if len(args) != len(parameteric_type.params):
+        #         report_error(type, f"expected {len(parameteric_type.params)} arguments")
+        #     return BoundType(parameteric_type, args)
+        # elif isinstance(type, ast.Attribute):
+        #     pass
+        # elif isinstance(type, ast.Constant):
+        #     if type.value is None:
+        #         return hir.UnitType()
+        #     else:
+        #         raise NotImplementedError(f"unsupported constant type {type.value}")
+        # else:
+        #     report_error(type, f"unparsable type")
 
 
 class FuncParser:
     ctx: hir.GlobalContext
-    vars: Env[str, hir.Var]
+    vars: Dict[str, hir.Var]
     func: ast.FunctionDef
     arg_types: List[Type]
     return_type: Optional[Type]
 
     def __init__(self, func: ast.FunctionDef, ctx: hir.GlobalContext):
         self.ctx = ctx
-        self.vars = Env()
+        self.vars = {}
         self.func = func
         self.arg_types = []
         self.return_type = None

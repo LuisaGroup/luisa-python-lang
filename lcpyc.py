@@ -15,9 +15,11 @@ def _main(args: List[str]):
         "--emit",
         help="""emit type:
     ir:         Serialized IR in json (Default)
-    c|cpp:      C/C++ Header with dataclass definitions
-    rust:       Rust file with dataclass definitions""",
-        choices=["ir", "c", "cpp", "rust"],
+    h|hpp:      C/C++ Header with dataclass definitions
+    rust:       Rust file with dataclass definitions
+    cpp:        Generated C++ source for static compilation
+    """,
+        choices=["ir", "h", "hpp", "rust"],
     )
     parser.add_argument("-o", "--output", help="output file")
     result = parser.parse_args(args)

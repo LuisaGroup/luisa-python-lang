@@ -1,11 +1,11 @@
 import ast
 import os
-from typing import Dict, List, Optional, Union, overload
+from types import ModuleType
+from typing import Any, Dict, List, Optional, Tuple, Union, overload
 import luisa_lang
 import luisa_lang.hir as hir
 import sys
 from luisa_lang.hir import (
-    Env,
     Path,
     Type,
     BoundType,
@@ -15,6 +15,7 @@ from luisa_lang.hir import (
     UnresolvedCall,
 )
 from typing import NoReturn, cast, Set, reveal_type
+from enum import Enum
 
 
 def _report_error_span(span: hir.Span, message: str) -> NoReturn:
@@ -42,46 +43,90 @@ def report_error(obj, message: str) -> NoReturn:
         raise NotImplementedError(f"unsupported object {obj}")
 
 
-def parse_type(type: ast.AST, ctx: hir.Context) -> Type:
-    if isinstance(type, ast.Name):
-        ty = ctx.items.lookup(Path(type.id))
-        if ty is None:
-            report_error(type, f"unknown type {type.id}")
-        if not isinstance(ty, Type):
-            report_error(type, f"expected type")
-        return ty
-    elif isinstance(type, ast.Subscript):
-        parameteric_type = parse_type(type.value, ctx)
-        if not isinstance(parameteric_type, ParametricType):
-            report_error(type, f"expected parameteric type")
-        slice = type.slice
-        args = []
-        if isinstance(slice, ast.Name):
-            args = [parse_type(slice, ctx)]
-        elif isinstance(slice, ast.Tuple):
-            args = [parse_type(arg, ctx) for arg in slice.elts]
+class NameKind(Enum):
+    MODULE = 0
+    TYPE = 1
+    FUNCTION = 2
+    OTHER = 3
+
+
+NameEvalResult = Tuple[NameKind, Any]
+class ParsingContext:
+    globals: Dict[str, Any]
+    global_ctx: hir.GlobalContext
+    name_eval_cache: Dict[str, Optional[NameEvalResult]]
+
+    def __init__(self, globals: Dict[str, Any], global_ctx: hir.GlobalContext):
+        self.globals = globals
+        self.global_ctx = global_ctx
+        self.name_eval_cache = {}
+
+    def __eval_name(self, name: str) -> Optional[NameEvalResult]:
+        if name in self.name_eval_cache:
+            return self.name_eval_cache[name]
+        try:
+            result = eval(name, self.globals)
+            if isinstance(result, ModuleType):
+                return (NameKind.MODULE, result)
+            if isinstance(result, type):
+                return (NameKind.TYPE, result)
+            if callable(result):
+                return (NameKind.FUNCTION, result)
+            result = (NameKind.OTHER, result)
+        except NameError:
+            result = None
+        self.name_eval_cache[name] = result
+        return result
+
+    def parse_type(self, type: ast.AST) -> Type:
+        if isinstance(type, ast.Name):
+            r = self.__eval_name(type.id)
+            if r is None:
+                report_error(type, f"unknown type {type.id}")
+            kind, result = r
+            if kind != NameKind.TYPE:
+                report_error(type, f"expected {NameKind.TYPE} but got {kind}")
+            result = cast(Type, result)
+            ty = self.global_ctx.types.get(result)
+            if ty is None:
+                report_error(type, f"unknown type {type.id}")
+            if not isinstance(ty, Type):
+                report_error(type, f"expected type")
+            return ty
+        elif isinstance(type, ast.Subscript):
+            parameteric_type = self.parse_type(type.value)
+            if not isinstance(parameteric_type, ParametricType):
+                report_error(type, f"expected parameteric type")
+            slice = type.slice
+            args = []
+            if isinstance(slice, ast.Name):
+                args = [self.parse_type(slice)]
+            elif isinstance(slice, ast.Tuple):
+                args = [self.parse_type(arg) for arg in slice.elts]
+            else:
+                report_error(type, f"unparsable type arguments")
+            if len(args) != len(parameteric_type.params):
+                report_error(type, f"expected {len(parameteric_type.params)} arguments")
+            return BoundType(parameteric_type, args)
+        elif isinstance(type, ast.Attribute):
+            pass
+        elif isinstance(type, ast.Constant):
+            if type.value is None:
+                return hir.UnitType()
+            else:
+                raise NotImplementedError(f"unsupported constant type {type.value}")
         else:
-            report_error(type, f"unparsable type arguments")
-        if len(args) != len(parameteric_type.params):
-            report_error(type, f"expected {len(parameteric_type.params)} arguments")
-        return BoundType(parameteric_type, args)
-    elif isinstance(type, ast.Constant):
-        if type.value is None:
-            return hir.UnitType()
-        else:
-            raise NotImplementedError(f"unsupported constant type {type.value}")
-    else:
-        report_error(type, f"unparsable type")
+            report_error(type, f"unparsable type")
 
 
 class FuncParser:
-    ctx: hir.Context
+    ctx: hir.GlobalContext
     vars: Env[str, hir.Var]
     func: ast.FunctionDef
     arg_types: List[Type]
     return_type: Optional[Type]
 
-    def __init__(self, func: ast.FunctionDef, ctx: hir.Context):
+    def __init__(self, func: ast.FunctionDef, ctx: hir.GlobalContext):
         self.ctx = ctx
         self.vars = Env()
         self.func = func
@@ -215,29 +260,14 @@ class FuncParser:
 
 
 class ModuleParser:
-    ctx: hir.Context
+    ctx: hir.GlobalContext
     module: ast.Module
     functions: Dict[str, FuncParser]
 
-    def __init__(self, module: ast.Module, ctx: hir.Context):
+    def __init__(self, module: ast.Module, ctx: hir.GlobalContext):
         self.module = module
         self.ctx = ctx
         self.functions = {}
-
-    def parse_import(self, imp: ast.Import | ast.ImportFrom):
-        ctx = self.ctx
-        if isinstance(imp, ast.Import):
-            for name in imp.names:
-                resolved_file = resolve_file(name.name)
-                if not resolved_file:
-                    report_error(imp, f"cannot find module {name.name}")
-                module_ast = ast.parse(resolved_file)
-                assert isinstance(module_ast, ast.Module)
-                module_parser = ModuleParser(module_ast, ctx)
-                module_parser.parse()
-                asname = name.asname
-        else:
-            pass
 
     def parse(self) -> hir.Module:
         m = hir.Module()
@@ -245,8 +275,6 @@ class ModuleParser:
             if isinstance(stmt, ast.FunctionDef):
                 f = FuncParser(stmt, self.ctx)
                 self.functions[stmt.name] = f
-            elif isinstance(stmt, ast.Import) or isinstance(stmt, ast.ImportFrom):
-                self.parse_import(stmt)
             else:
                 raise NotImplementedError(f"unsupported statement {stmt}")
         for name, f in self.functions.items():

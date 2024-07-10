@@ -2,7 +2,7 @@ import ast
 from dataclasses import dataclass
 import os
 import sys
-from typing import Generic, List, Optional, Tuple, Dict, Final, TypeVar, Union
+from typing import Any, Callable, Generic, List, Optional, Tuple, Dict, Final, TypeVar, Union
 from abc import ABC, abstractmethod
 
 PATH_PREFIX = "luisa_lang"
@@ -419,7 +419,7 @@ class Call(Value):
 
 class TypeRule(ABC):
     @abstractmethod
-    def infer(self, ctx: "Context", args: List[Type]) -> Type:
+    def infer(self, ctx: "GlobalContext", args: List[Type]) -> Type:
         pass
 
 
@@ -485,170 +485,124 @@ class Module:
         self.functions = {}
 
 
-class Package:
-    is_std: bool
-    root: Module
-    path: str
+# class Package:
+#     is_std: bool
+#     root: Module
+#     path: str
 
-    def __init__(self, path: str, is_std: bool, root: Module) -> None:
-        self.path = path
-        self.is_std = is_std
-        self.root = root
-
-
-K = TypeVar("K")
-V = TypeVar("V")
+#     def __init__(self, path: str, is_std: bool, root: Module) -> None:
+#         self.path = path
+#         self.is_std = is_std
+#         self.root = root
 
 
-class Env(Generic[K, V]):
-    _map: Dict[K, V]
-    _parent: Optional["Env[K, V]"]
+# K = TypeVar("K")
+# V = TypeVar("V")
+
+
+# class Env(Generic[K, V]):
+#     _map: Dict[K, V]
+#     _parent: Optional["Env[K, V]"]
+
+#     def __init__(self) -> None:
+#         self._map = {}
+#         self._parent = None
+
+#     def fork(self) -> "Env[K, V]":
+#         env = Env[K, V]()
+#         env._parent = self
+#         return env
+
+#     def lookup(self, key: K) -> Optional[V]:
+#         res = self._map.get(key)
+#         if res is not None:
+#             return res
+#         if self._parent is not None:
+#             return self._parent.lookup(key)
+#         return None
+
+#     def bind(self, key: K, value: V) -> None:
+#         self._map[key] = value
+
+
+# Item = Union[Type, Function, BuiltinFunction]
+# ItemEnv = Env[Path, Item]
+
+_global_context: Optional["GlobalContext"] = None
+
+class GlobalContext:
+    types: Dict[type, Type]
+    functions: Dict[Callable, Function]
+
+    @staticmethod
+    def get() -> "GlobalContext":
+        global _global_context
+        if _global_context is None:
+            _global_context = GlobalContext()
+        return _global_context
 
     def __init__(self) -> None:
-        self._map = {}
-        self._parent = None
+        assert _global_context is None, "GlobalContext should be a singleton"
+        self.types = {}
+        self.functions = {}
+    
+    # def _init_builtins(self) -> None:
+    #     int_bits_to_name = {
+    #         8: "byte",
+    #         16: "short",
+    #         32: "int",
+    #         64: "long",
+    #     }
+    #     float_bits_to_name = {
+    #         16: "half",
+    #         32: "float",
+    #         64: "double",
+    #     }
+    #     # int types
+    #     for bits in [8, 16, 32, 64]:
+    #         iname, itype = (
+    #             f"{PATH_PREFIX}.{int_bits_to_name[bits]}",
+    #             IntType(bits, True),
+    #         )
+    #         uname, utype = (
+    #             f"{PATH_PREFIX}.u{int_bits_to_name[bits]}",
+    #             IntType(bits, False),
+    #         )
+    #         self.items.bind(Path(iname), itype)
+    #         self.items.bind(Path(uname), utype)
+    #         for count in [2, 3, 4]:
+    #             vname = f"{iname}{count}"
+    #             self.items.bind(Path(vname), VectorType(itype, count))
+    #             vname = f"{uname}{count}"
+    #             self.items.bind(Path(vname), VectorType(utype, count))
+    #     # float types
+    #     for bits in [16, 32, 64]:
+    #         fname, ftype = (
+    #             f"{PATH_PREFIX}.{float_bits_to_name[bits]}",
+    #             FloatType(bits),
+    #         )
+    #         self.items.bind(Path(fname), ftype)
+    #         for count in [2, 3, 4]:
+    #             vname = f"{fname}{count}"
+    #             self.items.bind(Path(vname), VectorType(ftype, count))
+    #     # bool type
+    #     self.items.bind(Path(f"{PATH_PREFIX}.bool"), BoolType())
+    #     for count in [2, 3, 4]:
+    #         vname = f"{PATH_PREFIX}.bool{count}"
+    #         self.items.bind(Path(vname), VectorType(BoolType(), count))
 
-    def fork(self) -> "Env[K, V]":
-        env = Env[K, V]()
-        env._parent = self
-        return env
+    #     # unit type
+    #     self.items.bind(Path("None"), UnitType())
 
-    def lookup(self, key: K) -> Optional[V]:
-        res = self._map.get(key)
-        if res is not None:
-            return res
-        if self._parent is not None:
-            return self._parent.lookup(key)
-        return None
-
-    def bind(self, key: K, value: V) -> None:
-        self._map[key] = value
-
-
-Item = Union[Type, Function, BuiltinFunction]
-ItemEnv = Env[Path, Item]
-
-
-class Context:
-    cur_path: str
-    packages: Dict[str, Package]
-
-    modules: Dict[str, Module]
-    """Holds absolute path -> module."""
-
-    items: ItemEnv
-    """Item environment, which holds global name bindings."""
-
-    resolution: Env[Path, Path]
-    """Resolution environment, which holds alias -> alias | path bindings."""
-
-    def __init__(self, cur_path: str, is_root: bool) -> None:
-        self.cur_path = cur_path
-        self.items = Env()
-        self.resolution = Env()
-        self.packages = {}
-        self.modules = {}
-        if is_root:
-            self._init_builtins()
-
-    def import_module_or_package(self, name: str) -> Optional[Module | Package]:
-        def resolve_module(filename: str) -> Optional[str]:
-            search_paths = [self.cur_path] + sys.path
-            for path in search_paths:
-                # first check if name.py exists
-                full_path = os.path.join(path, filename + ".py")
-                if os.path.exists(full_path):
-                    return full_path
-                # then check if name/__init__.py exists
-                full_path = os.path.join(path, filename, "__init__.py")
-                if os.path.exists(full_path):
-                    return full_path
-            return None
-
-        result = resolve_module(name)
-        if not result:
-            return None
-        result = os.path.abspath(result)
-        if result.endswith("__init__.py"):
-            # handling a multi-file module/package
-            pass
-        else:
-            pass
-        raise NotImplementedError("TODO")
-
-    def resolve_name(self, name: str | Path) -> Path:
-        """Resolve a name or path if it is imported/alias"""
-        path = Path(name.split(".")) if isinstance(name, str) else name
-        for _ in range(64):
-            resolved = self.resolution.lookup(path)
-            if resolved:
-                path = resolved
-            return path
-        raise RuntimeError(f"failed to resolve name {name}: maybe circular alias?")
-
-    # def fork(self) -> "Context":
-    #     ctx = Context(self.cur_path, False)
-    #     ctx.items = self.items.fork()
-    #     ctx.resolution = self.resolution.fork()
-    #     return ctx
-
-    def _init_builtins(self) -> None:
-        int_bits_to_name = {
-            8: "byte",
-            16: "short",
-            32: "int",
-            64: "long",
-        }
-        float_bits_to_name = {
-            16: "half",
-            32: "float",
-            64: "double",
-        }
-        # int types
-        for bits in [8, 16, 32, 64]:
-            iname, itype = (
-                f"{PATH_PREFIX}.{int_bits_to_name[bits]}",
-                IntType(bits, True),
-            )
-            uname, utype = (
-                f"{PATH_PREFIX}.u{int_bits_to_name[bits]}",
-                IntType(bits, False),
-            )
-            self.items.bind(Path(iname), itype)
-            self.items.bind(Path(uname), utype)
-            for count in [2, 3, 4]:
-                vname = f"{iname}{count}"
-                self.items.bind(Path(vname), VectorType(itype, count))
-                vname = f"{uname}{count}"
-                self.items.bind(Path(vname), VectorType(utype, count))
-        # float types
-        for bits in [16, 32, 64]:
-            fname, ftype = (
-                f"{PATH_PREFIX}.{float_bits_to_name[bits]}",
-                FloatType(bits),
-            )
-            self.items.bind(Path(fname), ftype)
-            for count in [2, 3, 4]:
-                vname = f"{fname}{count}"
-                self.items.bind(Path(vname), VectorType(ftype, count))
-        # bool type
-        self.items.bind(Path(f"{PATH_PREFIX}.bool"), BoolType())
-        for count in [2, 3, 4]:
-            vname = f"{PATH_PREFIX}.bool{count}"
-            self.items.bind(Path(vname), VectorType(BoolType(), count))
-
-        # unit type
-        self.items.bind(Path("None"), UnitType())
-
-        # buffer type
-        buffer_ty = ParametricType(
-            Path(f"{PATH_PREFIX}.Buffer"),
-            [TypeParameter(SymbolicType("T"), [])],
-            OpaqueType("Buffer"),
-        )
-        self.items.bind(Path(f"{PATH_PREFIX}.Buffer"), buffer_ty)
-        bulitins_file = os.path.join(os.path.dirname(__file__), "builtins.py")
-        with open(bulitins_file) as f:
-            code = f.read()
-            tree = ast.parse(code)
-            print(ast.dump(tree))
+    #     # buffer type
+    #     buffer_ty = ParametricType(
+    #         Path(f"{PATH_PREFIX}.Buffer"),
+    #         [TypeParameter(SymbolicType("T"), [])],
+    #         OpaqueType("Buffer"),
+    #     )
+    #     self.items.bind(Path(f"{PATH_PREFIX}.Buffer"), buffer_ty)
+    #     bulitins_file = os.path.join(os.path.dirname(__file__), "builtins.py")
+    #     with open(bulitins_file) as f:
+    #         code = f.read()
+    #         tree = ast.parse(code)
+    #         print(ast.dump(tree))

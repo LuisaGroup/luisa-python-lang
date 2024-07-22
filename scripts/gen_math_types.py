@@ -8,7 +8,7 @@ class Kind(Enum):
     FLOAT = 2
 
 
-def main():
+def main() -> None:
     with open("luisa_lang/math_types.py", "w") as f:
         FLOAT_BULTINS_1 = [
             "abs",
@@ -25,8 +25,7 @@ def main():
             "floor",
             "log",
             "log10",
-            "log2"
-            "sin",
+            "log2" "sin",
             "sinh",
             "sqrt",
             "tan",
@@ -34,9 +33,14 @@ def main():
             "trunc",
         ]
         FLOAT_BULTINS_2 = ["atan2", "copysign"]
-        exports: List[str] = ['FLOAT_TYPES', 'FloatType', 'FloatBuiltin'] + FLOAT_BULTINS_1 + FLOAT_BULTINS_2
-        def print(s: str):
-            if s == '':
+        exports: List[str] = (
+            ["FLOAT_TYPES", "FloatType", "FloatBuiltin"]
+            + FLOAT_BULTINS_1
+            + FLOAT_BULTINS_2
+        )
+
+        def print(s: str) -> None:
+            if s == "":
                 __builtins__.print(file=f)
             lines = s.split("\n")
             for line in lines:
@@ -47,9 +51,8 @@ def main():
         print("# fmt: off")
         print("import typing as tp")
         print(
-            "from luisa_lang.lang import _builtin, _builtin_type, _intrinsic_impl",
+            "from luisa_lang._markers import _builtin, _builtin_type, _intrinsic_impl",
         )
-        
 
         def gen_float_builtins():
             print("class FloatBuiltin(tp.Generic[_F]):")
@@ -61,10 +64,12 @@ def main():
                 )
             print("")
             for builtin in FLOAT_BULTINS_1:
-                print(f'@_builtin\ndef {builtin}(x: FloatType) -> FloatType: return _intrinsic_impl()')
+                print(
+                    f"@_builtin\ndef {builtin}(x: FloatType) -> FloatType: return _intrinsic_impl()"
+                )
             for builtin in FLOAT_BULTINS_2:
                 print(
-                    f'@_builtin\ndef {builtin}(x: FloatType, y: FloatType) -> FloatType: return _intrinsic_impl()'
+                    f"@_builtin\ndef {builtin}(x: FloatType, y: FloatType) -> FloatType: return _intrinsic_impl()"
                 )
 
         def gen_binop(op: str, ty: str, operand_ty: str):
@@ -107,14 +112,14 @@ def main():
             inherits = []
             if kind == Kind.FLOAT:
                 inherits.append(f"FloatBuiltin['{ty}']")
-            inherits_str = '' if len(inherits) == 0 else f"({', '.join(inherits)})"
+            inherits_str = "" if len(inherits) == 0 else f"({', '.join(inherits)})"
             print(
                 f"""@_builtin_type
 class {ty}{inherits_str}:
-    def __init__(self, _value: '{ty}' | {literal_ty}) -> None: return _intrinsic_impl()
+    def __init__(self, _value: tp.Union['{ty}', {literal_ty}]) -> None: return _intrinsic_impl()
 """
             )
-            gen_common_binop(ty, f"'{ty}' | {literal_ty}", kind)
+            gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", kind)
             print("")
 
         def gen_vector_type(ty: str, scalar_ty: str, literal_scalar_ty: str, size: int):
@@ -129,7 +134,7 @@ class {ty}:
 """
             )
             gen_common_binop(
-                ty, f"'{ty}' | {scalar_ty} | {literal_scalar_ty}", Kind.FLOAT
+                ty, f" tp.Union['{ty}', {scalar_ty}, {literal_scalar_ty}]", Kind.FLOAT
             )
             print("")
 
@@ -138,7 +143,7 @@ class {ty}:
             float_types.append(f"float{size}")
             float_types.append(f"double{size}")
         float_types_quoted = [f'"{x}"' for x in float_types]
-        
+
         print(
             f'FLOAT_TYPES: tp.Final[tp.List[str]] = [{", ".join(float_types_quoted)}]'
         )
@@ -162,7 +167,9 @@ class {ty}:
                 gen_vector_type(f"{name}{size}", f"i{bits}", "int", size)
                 gen_vector_type(f"u{name}{size}", f"u{bits}", "int", size)
     with open("luisa_lang/_math_type_exports.py", "w") as f:
-        __builtins__.print(f'from luisa_lang.math_types import ({", ".join(exports)})', file=f)
+        __builtins__.print(
+            f'from luisa_lang.math_types import ({", ".join(exports)})', file=f
+        )
 
 
 if __name__ == "__main__":

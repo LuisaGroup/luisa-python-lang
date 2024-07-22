@@ -2,7 +2,18 @@ import ast
 from dataclasses import dataclass
 import os
 import sys
-from typing import Any, Callable, Generic, List, Optional, Tuple, Dict, Final, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    List,
+    Optional,
+    Tuple,
+    Dict,
+    Final,
+    TypeVar,
+    Union,
+)
 from abc import ABC, abstractmethod
 
 PATH_PREFIX = "luisa_lang"
@@ -29,6 +40,11 @@ class Path:
 
 
 class Type(ABC):
+    methods: Dict[str, "Function"]
+
+    def __init__(self):
+        self.methods = {}
+
     @abstractmethod
     def size(self) -> int:
         pass
@@ -478,24 +494,6 @@ class Function:
         self.builtin = builtin
 
 
-class Module:
-    functions: Dict[str, Function]
-
-    def __init__(self) -> None:
-        self.functions = {}
-
-
-# class Package:
-#     is_std: bool
-#     root: Module
-#     path: str
-
-#     def __init__(self, path: str, is_std: bool, root: Module) -> None:
-#         self.path = path
-#         self.is_std = is_std
-#         self.root = root
-
-
 # K = TypeVar("K")
 # V = TypeVar("V")
 
@@ -530,9 +528,10 @@ class Module:
 
 _global_context: Optional["GlobalContext"] = None
 
+
 class GlobalContext:
     types: Dict[type, Type]
-    functions: Dict[Callable, Function]
+    functions: Dict[Callable[..., Any], Function]
 
     @staticmethod
     def get() -> "GlobalContext":
@@ -545,64 +544,10 @@ class GlobalContext:
         assert _global_context is None, "GlobalContext should be a singleton"
         self.types = {}
         self.functions = {}
-    
-    # def _init_builtins(self) -> None:
-    #     int_bits_to_name = {
-    #         8: "byte",
-    #         16: "short",
-    #         32: "int",
-    #         64: "long",
-    #     }
-    #     float_bits_to_name = {
-    #         16: "half",
-    #         32: "float",
-    #         64: "double",
-    #     }
-    #     # int types
-    #     for bits in [8, 16, 32, 64]:
-    #         iname, itype = (
-    #             f"{PATH_PREFIX}.{int_bits_to_name[bits]}",
-    #             IntType(bits, True),
-    #         )
-    #         uname, utype = (
-    #             f"{PATH_PREFIX}.u{int_bits_to_name[bits]}",
-    #             IntType(bits, False),
-    #         )
-    #         self.items.bind(Path(iname), itype)
-    #         self.items.bind(Path(uname), utype)
-    #         for count in [2, 3, 4]:
-    #             vname = f"{iname}{count}"
-    #             self.items.bind(Path(vname), VectorType(itype, count))
-    #             vname = f"{uname}{count}"
-    #             self.items.bind(Path(vname), VectorType(utype, count))
-    #     # float types
-    #     for bits in [16, 32, 64]:
-    #         fname, ftype = (
-    #             f"{PATH_PREFIX}.{float_bits_to_name[bits]}",
-    #             FloatType(bits),
-    #         )
-    #         self.items.bind(Path(fname), ftype)
-    #         for count in [2, 3, 4]:
-    #             vname = f"{fname}{count}"
-    #             self.items.bind(Path(vname), VectorType(ftype, count))
-    #     # bool type
-    #     self.items.bind(Path(f"{PATH_PREFIX}.bool"), BoolType())
-    #     for count in [2, 3, 4]:
-    #         vname = f"{PATH_PREFIX}.bool{count}"
-    #         self.items.bind(Path(vname), VectorType(BoolType(), count))
 
-    #     # unit type
-    #     self.items.bind(Path("None"), UnitType())
+class FuncMetadata:
+    pass
 
-    #     # buffer type
-    #     buffer_ty = ParametricType(
-    #         Path(f"{PATH_PREFIX}.Buffer"),
-    #         [TypeParameter(SymbolicType("T"), [])],
-    #         OpaqueType("Buffer"),
-    #     )
-    #     self.items.bind(Path(f"{PATH_PREFIX}.Buffer"), buffer_ty)
-    #     bulitins_file = os.path.join(os.path.dirname(__file__), "builtins.py")
-    #     with open(bulitins_file) as f:
-    #         code = f.read()
-    #         tree = ast.parse(code)
-    #         print(ast.dump(tree))
+
+class StructMetadata:
+    pass

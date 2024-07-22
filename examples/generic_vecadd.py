@@ -4,7 +4,6 @@ from luisa_lang import Buffer, dispatch_id, static_assert
 
 T = TypeVar("T", bound=Any)
 
-
 @luisa_lang.kernel
 def vecadd(a: Buffer[T], b: Buffer[T], c: Buffer[T]):
     static_assert(

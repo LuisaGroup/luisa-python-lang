@@ -1,6 +1,8 @@
+from enum import Enum, auto
 from typing_extensions import TypeAliasType
 from typing import (
     Callable,
+    Dict,
     Optional,
     Sequence,
     TypeAlias,
@@ -8,44 +10,43 @@ from typing import (
     Union,
     Generic,
     Literal,
+    cast,
     overload,
     Any,
 )
 from luisa_lang._math_type_exports import *
+from luisa_lang._markers import _builtin_type, _builtin, _intrinsic_impl
+import ast
 
-T = TypeVar("T")
-Scalar = TypeVar("Scalar")
-Float = TypeVar("Float")
-Int = TypeVar("Int")
-ScalarLiteral = TypeVar("ScalarLiteral", int, float)
-F = TypeVar("F", bound=Callable[..., Any])
-KernelType = TypeVar("KernelType", bound=Callable[..., None])
-Self = TypeVar("Self")
+_T = TypeVar("_T")
+_F = TypeVar("_F", bound=Callable[..., Any])
+_KernelType = TypeVar("_KernelType", bound=Callable[..., None])
 
 
-def _dsl_decorator_impl(any: T, is_builtin: bool) -> T:
-    env = globals()
-    if type(any) == type:
-        # is a class
-        pass
-    elif callable(any):
-        # is a function
-        pass
-    return any
+class _ObjKind(Enum):
+    STRUCT = auto()
+    FUNC = auto()
+    KERNEL = auto()
 
 
-def _builtin_type(any: T, *args, **kwargs) -> T:
-    return any
+def _dsl_decorator_impl(obj: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
+    import sourceinspect
+    obj_src = sourceinspect.getsource(obj)
+    obj_ast = ast.parse(obj_src)
+    if kind == _ObjKind.STRUCT:
+        return obj
+    elif kind == _ObjKind.FUNC or kind == _ObjKind.KERNEL:
+        assert callable(obj)
+        func_globals = getattr(obj, "__globals__", None)
+        if kind == _ObjKind.FUNC:
 
+            def dummy(*args, **kwargs):
+                raise RuntimeError("DSL function should only be called in DSL context.")
 
-def _builtin(func: F, *args, **kwargs) -> F:
-    return func
-
-
-def _intrinsic_impl(*args, **kwargs) -> Any:
-    raise NotImplementedError(
-        "intrinsic functions should not be called in normal Python code"
-    )
+            return cast(_T, dummy)
+        else:
+            return cast(_T, obj)
+    raise NotImplementedError()
 
 
 def struct(cls: type) -> type:
@@ -66,12 +67,11 @@ def struct(cls: type) -> type:
     return cls
 
 
-
 @overload
-def kernel(f: KernelType) -> KernelType: ...
+def kernel(f: _KernelType) -> _KernelType: ...
 @overload
-def kernel(export: bool = False, **kwargs) -> Callable[[KernelType], KernelType]: ...
-def kernel(*args, **kwargs) -> KernelType | Callable[[KernelType], KernelType]:
+def kernel(export: bool = False, **kwargs) -> Callable[[_KernelType], _KernelType]: ...
+def kernel(*args, **kwargs) -> _KernelType | Callable[[_KernelType], _KernelType]:
     if len(args) == 1 and len(kwargs) == 0:
         f = args[0]
         return f
@@ -94,10 +94,10 @@ out = InoutMarker("out")
 
 
 @overload
-def func(f: F) -> F: ...
+def func(f: _F) -> _F: ...
 @overload
-def func(inline: bool | Literal["always"] = False, **kwargs) -> Callable[[F], F]: ...
-def func(*args, **kwargs) -> F | Callable[[F], F]:
+def func(inline: bool | Literal["always"] = False, **kwargs) -> Callable[[_F], _F]: ...
+def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
     """
     Mark a function as a DSL function.
     To mark an argument as inout/out, use the `var=inout` syntax in decorator arguments.
@@ -119,33 +119,30 @@ def func(*args, **kwargs) -> F | Callable[[F], F]:
     return decorator
 
 
-Element = TypeVar("Element")
-
-
-class Buffer(Generic[Element]):
-    def __getitem__(self, index: int | u32 | u64) -> Element:
+@_builtin_type
+class Buffer(Generic[_T]):
+    def __getitem__(self, index: int | u32 | u64) -> _T:
         return _intrinsic_impl()
 
-    def __setitem__(self, index: int | u32 | u64, value: Element) -> None:
+    def __setitem__(self, index: int | u32 | u64, value: _T) -> None:
         return _intrinsic_impl()
 
     def __len__(self) -> u32 | u64:
         return _intrinsic_impl()
 
 
-@_builtin
-def consteval(a: Any) -> Any:
-    return a
+@_builtin_type
+class Pointer(Generic[_T]):
+    def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> _T:
+        return _intrinsic_impl()
 
+    def __setitem__(self, index: int | i32 | i64 | u32 | u64, value: _T) -> None:
+        return _intrinsic_impl()
 
-@_builtin
-def device_log(_: Any):
-    pass
+    @property
+    def value(self) -> _T:
+        return _intrinsic_impl()
 
-
-def static_assert(cond: Any, msg: str = ""):
-    pass
-
-
-def unroll(range_: Sequence[int]) -> Sequence[int]:
-    return range_
+    @value.setter
+    def value(self, value: _T) -> None:
+        return _intrinsic_impl()

@@ -1,7 +1,7 @@
 import ast
 import os
 from types import ModuleType
-from typing import Any, Dict, List, Optional, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, overload
 import luisa_lang
 import luisa_lang.hir as hir
 import sys
@@ -41,8 +41,44 @@ def report_error(obj, message: str) -> NoReturn:
         _report_error_tree(obj, message)
     else:
         raise NotImplementedError(f"unsupported object {obj}")
-    
-# class AccessChain:
+
+
+# def _retrieve_metadata(obj: Any) -> Optional[hir.FuncMetadata | hir.StructMetadata]:
+#     meta = getattr(obj, '__lc_metadata', None)
+
+NamedResolution = hir.Type | hir.Function | hir.Var
+
+
+def _is_hir_types(obj: Any) -> bool:
+    return (
+        isinstance(obj, hir.Type)
+        or isinstance(obj, hir.Function)
+        or isinstance(obj, hir.Var)
+    )
+
+
+class AccessKind(Enum):
+    SUBSCRIPT = 0
+    ATTRIBUTE = 1
+
+
+AccessKey = Union[str, ast.AST, "AccessChain"]
+
+
+class AccessChain:
+    """
+    AccessChain are used to represent access chains like `a.b.c.d` or `a[b].c.d`,
+    where keys are resolvable at compile time.
+    Usually the chain can be resolved to either types or functions.
+    """
+
+    parent: Any
+    chain: List[Tuple[AccessKind, List[AccessKey]]]
+
+    def __init__(self, parent: Any):
+        self.parent = parent
+        self.chain = []
+
 
 class ParsingContext:
     globals: Dict[str, Any]
@@ -54,78 +90,92 @@ class ParsingContext:
         self.global_ctx = global_ctx
         self.name_eval_cache = {}
 
-    def __eval_name(self, name: str | ast.Name | ast.Attribute) -> Optional[Any]:
+    def __eval_name(self, name: str) -> Optional[Any]:
         try:
-            if isinstance(name, str):
-                if name in self.name_eval_cache:
-                    return self.name_eval_cache[name]
-                result = eval(name, self.globals)
-                self.name_eval_cache[name] = result
-            elif isinstance(name, ast.Name):
-                if name.id in self.name_eval_cache:
-                    return self.name_eval_cache[name.id]
-                result = eval(name.id, self.globals)
-                self.name_eval_cache[name.id] = result
-                return result
-            else:
-                pass
-
+            result = eval(name, self.globals)
+            self.name_eval_cache[name] = result
             return result
         except NameError:
+            self.name_eval_cache[name] = None
             return None
-                
 
-    def parse_type(self, type: ast.AST) -> Type:
-        raise NotImplementedError("TODO")
-        # if isinstance(type, ast.Name):
-        #     r = self.__eval_name(type.id)
-        #     if r is None:
-        #         report_error(type, f"unknown type {type.id}")
-        #     kind, result = r
-        #     if kind != NameKind.TYPE:
-        #         report_error(type, f"expected {NameKind.TYPE} but got {kind}")
-        #     result = cast(Type, result)
-        #     ty = self.global_ctx.types.get(result)
-        #     if ty is None:
-        #         report_error(type, f"unknown type {type.id}")
-        #     if not isinstance(ty, Type):
-        #         report_error(type, f"expected type")
-        #     return ty
-        # elif isinstance(type, ast.Subscript):
-        #     parameteric_type = self.parse_type(type.value)
-        #     if not isinstance(parameteric_type, ParametricType):
-        #         report_error(type, f"expected parameteric type")
-        #     slice = type.slice
-        #     args = []
-        #     if isinstance(slice, ast.Name):
-        #         args = [self.parse_type(slice)]
-        #     elif isinstance(slice, ast.Tuple):
-        #         args = [self.parse_type(arg) for arg in slice.elts]
-        #     else:
-        #         report_error(type, f"unparsable type arguments")
-        #     if len(args) != len(parameteric_type.params):
-        #         report_error(type, f"expected {len(parameteric_type.params)} arguments")
-        #     return BoundType(parameteric_type, args)
-        # elif isinstance(type, ast.Attribute):
-        #     pass
-        # elif isinstance(type, ast.Constant):
-        #     if type.value is None:
-        #         return hir.UnitType()
-        #     else:
-        #         raise NotImplementedError(f"unsupported constant type {type.value}")
-        # else:
-        #     report_error(type, f"unparsable type")
+    # def __resolve_object(self, obj: Any) -> Optional[NamedResolution]:
+    #     if _is_hir_types(obj):
+    #         return obj
+    #     pass
+
+    def __resolve_access_chain(self, tree: ast.AST) -> Optional[AccessChain]:
+        """
+        Attempt to resolve a static access chain from the given AST tree.
+        """
+
+        def check_is_access(tree: ast.AST) -> bool:
+            return (
+                isinstance(tree, ast.Name)
+                or isinstance(tree, ast.Attribute)
+                or isinstance(tree, ast.Subscript)
+            )
+
+        if isinstance(tree, ast.Name):
+            r = self.__eval_name(tree.id)
+            if r is None:
+                return None
+            return AccessChain(r)
+        elif isinstance(tree, ast.Attribute):
+            parent = self.__resolve_access_chain(tree.value)
+            if parent is None:
+                return None
+            parent.chain.append((AccessKind.ATTRIBUTE, [tree.attr]))
+            return parent
+        elif isinstance(tree, ast.Subscript):
+            parent = self.__resolve_access_chain(tree.value)
+            if parent is None:
+                return None
+            if isinstance(tree.slice, ast.Tuple):
+                keys: List[AccessKey] = []
+                for s in tree.slice.elts:
+                    if not check_is_access(s):
+                        return None
+                    resolve_s = self.__resolve_access_chain(s)
+                    if resolve_s is None:
+                        return None
+                    keys.append(resolve_s)
+                parent.chain.append((AccessKind.SUBSCRIPT, keys))
+            if check_is_access(tree.slice):
+                child_chain = self.__resolve_access_chain(tree.slice)
+                if child_chain is None:
+                    return None
+                parent.chain.append((AccessKind.SUBSCRIPT, [tree.slice]))
+                return parent
+            parent.chain.append((AccessKind.SUBSCRIPT, [tree.slice]))
+            return parent
+        report_error(tree, f"unsupported access chain {tree}")
+
+    def parse_type(self, type_tree: ast.AST) -> Optional[Type]:
+        acess_chain = self.__resolve_access_chain(type_tree)
+        if acess_chain is None:
+            return None
+        cur: Any = None
+        chain_idx = None
+        while True:
+            if isinstance(cur, type):
+                if cur in self.global_ctx.types:
+                    if chain_idx is None or chain_idx >= len(acess_chain.chain):
+                        return self.global_ctx.types[cur]
+                    return self.global_ctx.types[cur]
+            break
+        raise NotImplementedError("TODO: parse type")
 
 
 class FuncParser:
-    ctx: hir.GlobalContext
+    p_ctx: ParsingContext
     vars: Dict[str, hir.Var]
     func: ast.FunctionDef
     arg_types: List[Type]
     return_type: Optional[Type]
 
-    def __init__(self, func: ast.FunctionDef, ctx: hir.GlobalContext):
-        self.ctx = ctx
+    def __init__(self, func: ast.FunctionDef, p_ctx: ParsingContext) -> None:
+        self.p_ctx = p_ctx
         self.vars = {}
         self.func = func
         self.arg_types = []
@@ -134,10 +184,10 @@ class FuncParser:
 
     def _init_signature(
         self,
-    ):
+    ) -> None:
         assert self.return_type is None
         func = self.func
-        ctx = self.ctx
+        p_ctx = self.p_ctx
         args = func.args
         if args.vararg is not None:
             report_error(args.vararg, f"vararg not supported")
@@ -147,11 +197,12 @@ class FuncParser:
         for arg in args.args:
             if arg.annotation is None:
                 raise RuntimeError("TODO: infer type")
-            arg_types.append(parse_type(arg.annotation, ctx))
+            if (arg_ty := p_ctx.parse_type(arg.annotation)) is not None:
+                arg_types.append(arg_ty)
         if func.returns is None:
             self.return_type = hir.UnitType()
         else:
-            self.return_type = parse_type(func.returns, ctx)
+            self.return_type = p_ctx.parse_type(func.returns)
 
     def parse_expr(self, expr: ast.expr) -> hir.Value:
         span = hir.Span.from_ast(expr)
@@ -197,12 +248,12 @@ class FuncParser:
     def parse_ref(self, expr: ast.expr, maybe_new_var=False) -> hir.Ref:
         span = hir.Span.from_ast(expr)
         if isinstance(expr, ast.Name):
-            var = self.vars.lookup(expr.id)
+            var = self.vars.get(expr.id)
             if var is None:
                 if not maybe_new_var:
                     report_error(expr, f"unknown variable {expr.id}")
                 var = hir.Var(expr.id, None, span)
-                self.vars.bind(expr.id, var)
+                self.vars[expr.id] = var
             return var
         if isinstance(expr, ast.Attribute):
             obj = self.parse_ref(expr.value)
@@ -217,7 +268,9 @@ class FuncParser:
     def parse_stmt(self, stmt: ast.stmt) -> Optional[hir.Stmt]:
         if isinstance(stmt, ast.AnnAssign):
             type_annotation = stmt.annotation
-            ty = parse_type(type_annotation, self.ctx)
+            ty = self.p_ctx.parse_type(type_annotation)
+            if ty is None:
+                report_error(type_annotation, f"failed to parse type")
             if not isinstance(stmt.target, ast.Name):
                 report_error(stmt, f"expected name")
             var = self.parse_ref(stmt.target, maybe_new_var=True)
@@ -255,26 +308,3 @@ class FuncParser:
             self.return_type,
             [x for x in parsed_body if x is not None],
         )
-
-
-class ModuleParser:
-    ctx: hir.GlobalContext
-    module: ast.Module
-    functions: Dict[str, FuncParser]
-
-    def __init__(self, module: ast.Module, ctx: hir.GlobalContext):
-        self.module = module
-        self.ctx = ctx
-        self.functions = {}
-
-    def parse(self) -> hir.Module:
-        m = hir.Module()
-        for stmt in self.module.body:
-            if isinstance(stmt, ast.FunctionDef):
-                f = FuncParser(stmt, self.ctx)
-                self.functions[stmt.name] = f
-            else:
-                raise NotImplementedError(f"unsupported statement {stmt}")
-        for name, f in self.functions.items():
-            m.functions[name] = f.parse_body()
-        return m

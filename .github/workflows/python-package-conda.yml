@@ -23,7 +23,7 @@ jobs:
         pip install mypy
     - name: Run static typechecker
       run: |
-        mypy .
+        mypy  .
     # - name: Test with pytest
     #   run: |
     #     conda install pytest

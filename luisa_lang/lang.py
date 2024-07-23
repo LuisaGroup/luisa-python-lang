@@ -14,7 +14,7 @@ from typing import (
     overload,
     Any,
 )
-from luisa_lang._math_type_exports import *
+from luisa_lang.math_types import *
 from luisa_lang._markers import _builtin_type, _builtin, _intrinsic_impl
 import luisa_lang.hir as hir
 import luisa_lang.parse as parse

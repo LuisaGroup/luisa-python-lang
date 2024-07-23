@@ -176,10 +176,7 @@ class {ty}:
                 name = names[bits]
                 gen_vector_type(f"{name}{size}", f"i{bits}", "int", size)
                 gen_vector_type(f"u{name}{size}", f"u{bits}", "int", size)
-    with open("luisa_lang/_math_type_exports.py", "w") as f:
-        __builtins__.print(
-            f'from luisa_lang.math_types import ({", ".join(exports)})', file=f
-        )
+        print("__all__ = " + str(exports))
 
 
 if __name__ == "__main__":

@@ -270,7 +270,7 @@ class FuncParser:
         self.arg_types = []
         self.return_type = None
         self._init_signature()
-        print(self.arg_types, "->", self.return_type)
+        print(self.arg_types, '->', self.return_type)
 
     def _init_signature(
         self,
@@ -288,6 +288,8 @@ class FuncParser:
                 raise RuntimeError("TODO: infer type")
             if (arg_ty := p_ctx.parse_type(arg.annotation)) is not None:
                 self.arg_types.append(arg_ty)
+            else:
+                report_error(arg.annotation, f"invalid type for argument")
         if func.returns is None:
             self.return_type = hir.UnitType()
         else:

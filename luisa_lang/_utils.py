@@ -54,4 +54,6 @@ def retrieve_ast_and_filename(f: object) -> Tuple[ast.AST, str]:
     source_lines, lineno = sourceinspect.getsourcelines(f)
     src, indent = dedent_and_retrieve_indentation(source_lines)
     tree = increment_lineno_and_col_offset(ast.parse(src), lineno - 1, indent + 1)
+    for child in ast.walk(tree):
+        setattr(child, "source_file", source_file)
     return tree, source_file

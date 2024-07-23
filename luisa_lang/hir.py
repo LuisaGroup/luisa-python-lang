@@ -201,7 +201,7 @@ class ArrayType(Type):
             and value.element == self.element
             and value.count == self.count
         )
-    
+
     def __repr__(self) -> str:
         return f"ArrayType({self.element}, {self.count})"
 
@@ -344,8 +344,11 @@ class Span:
             return None
         if not hasattr(ast, "end_col_offset") or ast.end_col_offset is None:
             return None
+        file = None
+        if hasattr(ast, "source_file"):
+            file = getattr(ast, "source_file")
         return Span(
-            file=None,
+            file=file,
             start=(getattr(ast, "lineno", 0), getattr(ast, "col_offset", 0)),
             end=(getattr(ast, "end_lineno", 0), getattr(ast, "end_col_offset", 0)),
         )
@@ -554,7 +557,7 @@ class GlobalContext:
 
     def __init__(self) -> None:
         assert _global_context is None, "GlobalContext should be a singleton"
-        self.types = {}
+        self.types = {type(None): UnitType()}
         self.functions = {}
 
 

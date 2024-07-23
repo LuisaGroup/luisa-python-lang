@@ -346,8 +346,8 @@ class Span:
             return None
         return Span(
             file=None,
-            start=(ast.lineno, ast.col_offset),
-            end=(ast.end_lineno, ast.end_col_offset),
+            start=(getattr(ast, "lineno", 0), getattr(ast, "col_offset", 0)),
+            end=(getattr(ast, "end_lineno", 0), getattr(ast, "end_col_offset", 0)),
         )
 
 

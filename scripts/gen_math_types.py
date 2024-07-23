@@ -53,6 +53,9 @@ def main() -> None:
         print(
             "from luisa_lang._markers import _builtin, _builtin_type, _intrinsic_impl",
         )
+        print("import luisa_lang.hir as _hir")
+        print("_ctx = _hir.GlobalContext.get()")
+        print("_ctx.types[bool] = _hir.BoolType()")
 
         def gen_float_builtins():
             print("class FloatBuiltin(tp.Generic[_F]):")
@@ -120,6 +123,12 @@ class {ty}{inherits_str}:
 """
             )
             gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", kind)
+            if kind == Kind.FLOAT:
+                bits = 32 if ty == "f32" else 64
+                print(f"_ctx.types[{ty}] = _hir.FloatType({bits})")
+            else:
+                signed = ty[0] == "i"
+                print(f"_ctx.types[{ty}] = _hir.IntType({int(ty[1:])}, {signed})")
             print("")
 
         def gen_vector_type(ty: str, scalar_ty: str, literal_scalar_ty: str, size: int):
@@ -136,6 +145,7 @@ class {ty}:
             gen_common_binop(
                 ty, f" tp.Union['{ty}', {scalar_ty}, {literal_scalar_ty}]", Kind.FLOAT
             )
+            print(f"_ctx.types[{ty}] = _hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[{scalar_ty}]), {size})")
             print("")
 
         float_types = ["f32", "f64"]

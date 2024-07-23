@@ -105,6 +105,9 @@ class IntType(ScalarType):
             and value.signed == self.signed
         )
 
+    def __repr__(self) -> str:
+        return f"IntType({self.bits}, {self.signed})"
+
 
 class FloatType(ScalarType):
     bits: int
@@ -120,6 +123,9 @@ class FloatType(ScalarType):
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, FloatType) and value.bits == self.bits
+
+    def __repr__(self) -> str:
+        return f"FloatType({self.bits})"
 
 
 # INT8: Final[IntType] = IntType(8, True)
@@ -171,6 +177,9 @@ class VectorType(Type):
             and value.count == self.count
         )
 
+    def __repr__(self) -> str:
+        return f"VectorType({self.element}, {self.count})"
+
 
 class ArrayType(Type):
     element: Type
@@ -192,6 +201,9 @@ class ArrayType(Type):
             and value.element == self.element
             and value.count == self.count
         )
+    
+    def __repr__(self) -> str:
+        return f"ArrayType({self.element}, {self.count})"
 
 
 class StructType(Type):
@@ -544,6 +556,7 @@ class GlobalContext:
         assert _global_context is None, "GlobalContext should be a singleton"
         self.types = {}
         self.functions = {}
+
 
 class FuncMetadata:
     pass

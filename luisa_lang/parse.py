@@ -75,9 +75,100 @@ class AccessChain:
     parent: Any
     chain: List[Tuple[AccessKind, List[AccessKey]]]
 
-    def __init__(self, parent: Any):
+    def __init__(
+        self,
+        parent: Any,
+        chain: Optional[List[Tuple[AccessKind, List[AccessKey]]]] = None,
+    ):
         self.parent = parent
-        self.chain = []
+        if chain is None:
+            self.chain = []
+        else:
+            self.chain = chain
+
+    def __repr__(self) -> str:
+        return f"AccessChain({self.parent}, {self.chain})"
+
+    def resolve(self) -> Tuple[Any, Optional["AccessChain"]]:
+        """
+        Attempt to resolve the access chain.
+        if the chain is fully resolved, return the final object and None.
+        otherwise, return most resolved object and the remaining chain.
+        """
+        cur = self.parent
+        chain_idx = None
+
+        def eval_keys(
+            cur: Any, access: Tuple[AccessKind, List[AccessKey]]
+        ) -> Tuple[bool, Any]:
+            kind, keys = access
+            if kind == AccessKind.ATTRIBUTE:
+                assert len(keys) == 1, f"expected single key"
+                assert isinstance(keys[0], str), f"expected string key"
+                return True, getattr(cur, keys[0])
+            # kind == AccessKind.SUBSCRIPT
+            evaled_keys: List[Any] = []
+            for key in keys:
+                if isinstance(key, str):
+                    evaled_keys.append(key)
+                elif isinstance(key, ast.AST):
+                    raise NotImplementedError("TODO: eval ast key")
+                else:
+                    assert isinstance(key, AccessChain), f"expected AccessChain key"
+                    resolved, remaining = key.resolve()
+                    if remaining is not None:
+                        return False, None
+                    evaled_keys.append(resolved)
+            try:
+                return True, cur[tuple(evaled_keys)]
+            except KeyError:
+                return False, None
+
+        def get_access_key() -> Optional[Tuple[AccessKind, List[AccessKey]]]:
+            if chain_idx is None:
+                if len(self.chain) == 0:
+                    return None
+                return self.chain[0]
+            if chain_idx + 1 >= len(self.chain):
+                return None
+            return self.chain[chain_idx + 1]
+
+        ctx = hir.GlobalContext.get()
+        while True:
+            access = get_access_key()
+
+            # check type of cur to determine what to do
+            ## is cur a module?
+            if type(cur) == ModuleType:
+                if access is None:
+                    break
+                success, cur = eval_keys(cur, access)
+                if not success:
+                    break
+            # is cur a type?
+            elif type(cur) == type:
+                hir_ty = ctx.types.get(cur)
+                if hir_ty is None:
+                    if access is None:
+                        break
+                    success, cur = eval_keys(cur, access)
+                    if not success:
+                        break
+                else:
+                    if access is None:
+                        return hir_ty, None
+                    raise NotImplementedError()
+            if chain_idx is None:
+                if len(self.chain) == 0:
+                    break
+                chain_idx = 0
+            else:
+                chain_idx += 1
+                if chain_idx >= len(self.chain):
+                    break
+        if chain_idx is None:
+            return cur, None
+        return cur, AccessChain(cur, self.chain[chain_idx:])
 
 
 class ParsingContext:
@@ -85,9 +176,9 @@ class ParsingContext:
     global_ctx: hir.GlobalContext
     name_eval_cache: Dict[str, Optional[Any]]
 
-    def __init__(self, globals: Dict[str, Any], global_ctx: hir.GlobalContext):
+    def __init__(self, globals: Dict[str, Any]):
         self.globals = globals
-        self.global_ctx = global_ctx
+        self.global_ctx = hir.GlobalContext.get()
         self.name_eval_cache = {}
 
     def __eval_name(self, name: str) -> Optional[Any]:
@@ -155,16 +246,14 @@ class ParsingContext:
         acess_chain = self.__resolve_access_chain(type_tree)
         if acess_chain is None:
             return None
-        cur: Any = None
-        chain_idx = None
-        while True:
-            if isinstance(cur, type):
-                if cur in self.global_ctx.types:
-                    if chain_idx is None or chain_idx >= len(acess_chain.chain):
-                        return self.global_ctx.types[cur]
-                    return self.global_ctx.types[cur]
-            break
-        raise NotImplementedError("TODO: parse type")
+        print(acess_chain)
+        resolved, remaining = acess_chain.resolve()
+        print(resolved, remaining)
+        if remaining is not None:
+            report_error(type_tree, f"failed to resolve type")
+        if isinstance(resolved, hir.Type):
+            return resolved
+        return None
 
 
 class FuncParser:
@@ -181,6 +270,7 @@ class FuncParser:
         self.arg_types = []
         self.return_type = None
         self._init_signature()
+        print(self.arg_types, "->", self.return_type)
 
     def _init_signature(
         self,
@@ -193,12 +283,11 @@ class FuncParser:
             report_error(args.vararg, f"vararg not supported")
         if args.kwarg is not None:
             report_error(args.kwarg, f"kwarg not supported")
-        arg_types: List[Type] = []
         for arg in args.args:
             if arg.annotation is None:
                 raise RuntimeError("TODO: infer type")
             if (arg_ty := p_ctx.parse_type(arg.annotation)) is not None:
-                arg_types.append(arg_ty)
+                self.arg_types.append(arg_ty)
         if func.returns is None:
             self.return_type = hir.UnitType()
         else:

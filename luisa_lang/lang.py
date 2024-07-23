@@ -16,6 +16,8 @@ from typing import (
 )
 from luisa_lang._math_type_exports import *
 from luisa_lang._markers import _builtin_type, _builtin, _intrinsic_impl
+import luisa_lang.hir as hir
+import luisa_lang.parse as parse
 import ast
 
 _T = TypeVar("_T")
@@ -29,23 +31,40 @@ class _ObjKind(Enum):
     KERNEL = auto()
 
 
-def _dsl_decorator_impl(obj: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
+def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     import sourceinspect
-    obj_src = sourceinspect.getsource(obj)
-    obj_ast = ast.parse(obj_src)
+    from luisa_lang._utils import retrieve_ast_and_filename
+    import inspect
+
+    assert inspect.isfunction(f), f"{f} is not a function"
+    obj_ast, obj_file = retrieve_ast_and_filename(f)
+    assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"
+
+    ctx = hir.GlobalContext.get()
+
+    func_globals: Any = getattr(f, "__globals__", {})
+    parsing_ctx = parse.ParsingContext(func_globals)
+    print(ast.dump(obj_ast))
+    func_def = obj_ast.body[0]
+    if not isinstance(func_def, ast.FunctionDef):
+        raise RuntimeError("Function definition expected.")
+    func_parser = parse.FuncParser(func_def, parsing_ctx)
+    if kind == _ObjKind.FUNC:
+
+        def dummy(*args, **kwargs):
+            raise RuntimeError("DSL function should only be called in DSL context.")
+
+        return cast(_T, dummy)
+    else:
+        return cast(_T, f)
+
+
+def _dsl_decorator_impl(obj: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
+
     if kind == _ObjKind.STRUCT:
         return obj
     elif kind == _ObjKind.FUNC or kind == _ObjKind.KERNEL:
-        assert callable(obj)
-        func_globals = getattr(obj, "__globals__", None)
-        if kind == _ObjKind.FUNC:
-
-            def dummy(*args, **kwargs):
-                raise RuntimeError("DSL function should only be called in DSL context.")
-
-            return cast(_T, dummy)
-        else:
-            return cast(_T, obj)
+        return _dsl_func_impl(obj, kind, attrs)
     raise NotImplementedError()
 
 
@@ -109,14 +128,33 @@ def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
         a, b = b, a
     ```
     """
+
+    def impl(f: _F) -> _F:
+        return _dsl_decorator_impl(f, _ObjKind.FUNC, kwargs)
+
     if len(args) == 1 and len(kwargs) == 0:
         f = args[0]
-        return f
+        return impl(f)
 
     def decorator(f):
-        return f
+        return impl(f)
 
     return decorator
+
+
+@_builtin_type
+class Array(Generic[_T]):
+    def __init__(self, size: u32 | u64) -> None:
+        return _intrinsic_impl()
+
+    def __getitem__(self, index: int | u32 | u64) -> _T:
+        return _intrinsic_impl()
+
+    def __setitem__(self, index: int | u32 | u64, value: _T) -> None:
+        return _intrinsic_impl()
+
+    def __len__(self) -> u32 | u64:
+        return _intrinsic_impl()
 
 
 @_builtin_type

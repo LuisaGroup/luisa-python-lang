@@ -262,15 +262,17 @@ class FuncParser:
     func: ast.FunctionDef
     arg_types: List[Type]
     return_type: Optional[Type]
+    name: str
 
-    def __init__(self, func: ast.FunctionDef, p_ctx: ParsingContext) -> None:
+    def __init__(self, name: str, func: ast.FunctionDef, p_ctx: ParsingContext) -> None:
+        self.name = name
         self.p_ctx = p_ctx
         self.vars = {}
         self.func = func
         self.arg_types = []
         self.return_type = None
         self._init_signature()
-        print(self.arg_types, '->', self.return_type)
+        print(self.arg_types, "->", self.return_type)
 
     def _init_signature(
         self,
@@ -288,6 +290,7 @@ class FuncParser:
                 raise RuntimeError("TODO: infer type")
             if (arg_ty := p_ctx.parse_type(arg.annotation)) is not None:
                 self.arg_types.append(arg_ty)
+                self.vars[arg.arg] = hir.Var(arg.arg, arg_ty, hir.Span.from_ast(arg))
             else:
                 report_error(arg.annotation, f"invalid type for argument")
         if func.returns is None:
@@ -320,7 +323,9 @@ class FuncParser:
                 ast.LShift: "<<",
             }
             op = m0[type(expr.op)]
-            return UnresolvedCall(op, [lhs, rhs], span=span)
+            return UnresolvedCall(
+                op, [lhs, rhs], kind=hir.CallOpKind.BINARY_OP, span=span
+            )
         if isinstance(expr, ast.UnaryOp):
             operand = self.parse_expr(expr.operand)
             m1 = {
@@ -329,11 +334,11 @@ class FuncParser:
                 ast.Invert: "~",
             }
             op = m1[type(expr.op)]
-            return UnresolvedCall(op, [operand])
+            return UnresolvedCall(op, [operand], kind=hir.CallOpKind.UNARY_OP)
         if isinstance(expr, ast.Call):
             func = self.parse_expr(expr.func)
             args = [self.parse_expr(arg) for arg in expr.args]
-            return hir.Call(func, args, span)
+            return hir.Call(func, args, kind=hir.CallOpKind.FUNC, span=span)
         report_error(expr, f"unsupported expression {expr}")
 
     def parse_ref(self, expr: ast.expr, maybe_new_var=False) -> hir.Ref:
@@ -380,6 +385,13 @@ class FuncParser:
             var = self.parse_ref(target, maybe_new_var=True)
             value = self.parse_expr(stmt.value)
             return hir.Assign(var, None, value)
+        if isinstance(stmt, ast.Return):
+            if stmt.value is None:
+                if not isinstance(self.return_type, hir.UnitType):
+                    report_error(stmt, f"expected return value")
+                return hir.Return(None)
+            value = self.parse_expr(stmt.value)
+            return hir.Return(value)
         if isinstance(stmt, ast.Pass):
             return None
         report_error(stmt, f"unsupported statement {stmt}")
@@ -393,8 +405,9 @@ class FuncParser:
             span = hir.Span.from_ast(args.args[i])
             params.append(hir.Var(f"arg{i}", arg_type, span))
         assert self.return_type is not None
+
         return Function(
-            self.func.name,
+            self.name,
             params,
             self.return_type,
             [x for x in parsed_body if x is not None],

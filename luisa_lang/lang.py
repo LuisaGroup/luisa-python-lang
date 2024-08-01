@@ -19,6 +19,7 @@ from luisa_lang._markers import _builtin_type, _builtin, _intrinsic_impl
 import luisa_lang.hir as hir
 import luisa_lang.parse as parse
 import ast
+import inspect
 
 _T = TypeVar("_T")
 _F = TypeVar("_F", bound=Callable[..., Any])
@@ -30,30 +31,37 @@ class _ObjKind(Enum):
     FUNC = auto()
     KERNEL = auto()
 
+def _get_full_name(obj: Any) -> str:
+    module = ''
+    if hasattr(obj, '__module__'):
+        module = obj.__module__
+    return f"{module}.{obj.__qualname__}"
 
 def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     import sourceinspect
     from luisa_lang._utils import retrieve_ast_and_filename
-    import inspect
+    
 
     assert inspect.isfunction(f), f"{f} is not a function"
+    print(hir.GlobalContext.get)
     obj_ast, obj_file = retrieve_ast_and_filename(f)
     assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"
 
     ctx = hir.GlobalContext.get()
-
     func_globals: Any = getattr(f, "__globals__", {})
     parsing_ctx = parse.ParsingContext(func_globals)
     print(ast.dump(obj_ast))
     func_def = obj_ast.body[0]
     if not isinstance(func_def, ast.FunctionDef):
         raise RuntimeError("Function definition expected.")
-    func_parser = parse.FuncParser(func_def, parsing_ctx)
+    func_parser = parse.FuncParser(_get_full_name(f), func_def, parsing_ctx)
+    func_ir = func_parser.parse_body()
+    ctx.functions[f] = func_ir
     if kind == _ObjKind.FUNC:
 
         def dummy(*args, **kwargs):
             raise RuntimeError("DSL function should only be called in DSL context.")
-
+        setattr(dummy, '__luisa_func__', f)
         return cast(_T, dummy)
     else:
         return cast(_T, f)

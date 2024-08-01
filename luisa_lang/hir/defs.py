@@ -1,5 +1,6 @@
 import ast
 from dataclasses import dataclass
+from enum import Enum, auto
 import os
 import sys
 from typing import (
@@ -41,9 +42,11 @@ class Path:
 
 class Type(ABC):
     methods: Dict[str, "Function"]
+    is_builtin: bool
 
     def __init__(self):
         self.methods = {}
+        self.is_builtin = False
 
     @abstractmethod
     def size(self) -> int:
@@ -55,6 +58,10 @@ class Type(ABC):
 
     @abstractmethod
     def __eq__(self, value: object) -> bool:
+        pass
+
+    @abstractmethod
+    def __hash__(self) -> int:
         pass
 
 
@@ -67,6 +74,9 @@ class UnitType(Type):
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, UnitType)
+
+    def __hash__(self) -> int:
+        return hash(UnitType)
 
 
 class ScalarType(Type):
@@ -82,6 +92,9 @@ class BoolType(ScalarType):
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, BoolType)
+
+    def __hash__(self) -> int:
+        return hash(BoolType)
 
 
 class IntType(ScalarType):
@@ -105,6 +118,9 @@ class IntType(ScalarType):
             and value.signed == self.signed
         )
 
+    def __hash__(self) -> int:
+        return hash((IntType, self.bits, self.signed))
+
     def __repr__(self) -> str:
         return f"IntType({self.bits}, {self.signed})"
 
@@ -126,6 +142,9 @@ class FloatType(ScalarType):
 
     def __repr__(self) -> str:
         return f"FloatType({self.bits})"
+
+    def __hash__(self) -> int:
+        return hash((FloatType, self.bits))
 
 
 # INT8: Final[IntType] = IntType(8, True)
@@ -180,6 +199,9 @@ class VectorType(Type):
     def __repr__(self) -> str:
         return f"VectorType({self.element}, {self.count})"
 
+    def __hash__(self) -> int:
+        return hash((VectorType, self.element, self.count))
+
 
 class ArrayType(Type):
     element: Type
@@ -204,6 +226,25 @@ class ArrayType(Type):
 
     def __repr__(self) -> str:
         return f"ArrayType({self.element}, {self.count})"
+
+
+class PointerType(Type):
+    element: Type
+
+    def __init__(self, element: Type) -> None:
+        self.element = element
+
+    def size(self) -> int:
+        return 8
+
+    def align(self) -> int:
+        return 8
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, PointerType) and value.element == self.element
+
+    def __repr__(self) -> str:
+        return f"PointerType({self.element})"
 
 
 class StructType(Type):
@@ -383,11 +424,15 @@ class ValueRef(Ref):
 
 class Var(Ref):
     name: str
+    byval: bool
 
-    def __init__(self, name: str, type: Optional[Type], span: Optional[Span]) -> None:
+    def __init__(
+        self, name: str, type: Optional[Type], span: Optional[Span], byval=True
+    ) -> None:
         super().__init__(type, span)
         self.name = name
         self.type = type
+        self.byval = byval
 
     def __hash__(self) -> int:
         return self.name.__hash__()
@@ -423,29 +468,36 @@ class Load(Value):
         super().__init__(ref.type, ref.span)
         self.ref = ref
 
+class CallOpKind(Enum):
+    FUNC = auto()
+    BINARY_OP = auto()
+    UNARY_OP = auto()
+    
 
 class UnresolvedCall(Value):
     op: str
     args: List[Value]
-    is_method: bool
+    kind: CallOpKind
 
     def __init__(
-        self, op: str, args: List[Value], is_method=False, span: Optional[Span] = None
+        self, op: str, args: List[Value], kind: CallOpKind, span: Optional[Span] = None
     ) -> None:
         super().__init__(None, span)
         self.op = op
         self.args = args
-        self.is_method = is_method
+        self.kind = kind
 
 
 class Call(Value):
     op: Value
     args: List[Value]
+    kind: CallOpKind
 
-    def __init__(self, op: Value, args: List[Value], span: Optional[Span]) -> None:
+    def __init__(self, op: Value, args: List[Value],kind: CallOpKind, span: Optional[Span]) -> None:
         super().__init__(op.type, span)
         self.op = op
         self.args = args
+        self.kind = kind
 
 
 class TypeRule(ABC):
@@ -487,12 +539,20 @@ class Assign(Stmt):
         self.expected_type = expected_type
 
 
+class Return(Stmt):
+    value: Optional[Value]
+
+    def __init__(self, value: Optional[Value]) -> None:
+        self.value = value
+
+
 class Function:
     name: str
     params: List[Var]
     return_type: Type
     body: List[Stmt]
     builtin: bool
+    export: bool
 
     def __init__(
         self,
@@ -501,12 +561,25 @@ class Function:
         return_type: Type,
         body: List[Stmt],
         builtin: bool = False,
+        export: bool = False,
     ) -> None:
         self.name = name
         self.params = params
         self.return_type = return_type
         self.body = body
         self.builtin = builtin
+        self.export = export
+
+    @property
+    def is_parametric(self) -> bool:
+        for p in self.params:
+            if p.type is None:
+                return True
+            if isinstance(p.type, ParametricType):
+                return True
+        if isinstance(self.return_type, ParametricType):
+            return True
+        return False
 
 
 # K = TypeVar("K")

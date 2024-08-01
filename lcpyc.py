@@ -15,8 +15,8 @@ def _main(args: List[str]):
         "--emit",
         help="""emit type:
     ir:         Serialized IR in json (Default)
-    h|hpp:      C/C++ Header with dataclass definitions
-    rust:       Rust file with dataclass definitions
+    h|hpp:      C/C++ Header with struct definitions
+    rust:       Rust file with struct definitions
     cpp:        Generated C++ source for static compilation
     """,
         choices=["ir", "h", "hpp", "rust"],

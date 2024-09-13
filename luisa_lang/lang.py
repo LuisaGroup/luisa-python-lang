@@ -14,33 +14,30 @@ from typing import (
     overload,
     Any,
 )
+from luisa_lang._utils import _get_full_name
 from luisa_lang.math_types import *
-from luisa_lang._markers import _builtin_type, _builtin, _intrinsic_impl
+from luisa_lang._builtin_decor import _builtin_type, _builtin, _intrinsic_impl
 import luisa_lang.hir as hir
 import luisa_lang.parse as parse
 import ast
 import inspect
 
 _T = TypeVar("_T")
+_N = TypeVar("_N", int, u32, u64)
 _F = TypeVar("_F", bound=Callable[..., Any])
 _KernelType = TypeVar("_KernelType", bound=Callable[..., None])
 
 
 class _ObjKind(Enum):
+    BUILTIN_TYPE = auto()
     STRUCT = auto()
     FUNC = auto()
     KERNEL = auto()
 
-def _get_full_name(obj: Any) -> str:
-    module = ''
-    if hasattr(obj, '__module__'):
-        module = obj.__module__
-    return f"{module}.{obj.__qualname__}"
 
 def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     import sourceinspect
     from luisa_lang._utils import retrieve_ast_and_filename
-    
 
     assert inspect.isfunction(f), f"{f} is not a function"
     print(hir.GlobalContext.get)
@@ -61,7 +58,8 @@ def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
 
         def dummy(*args, **kwargs):
             raise RuntimeError("DSL function should only be called in DSL context.")
-        setattr(dummy, '__luisa_func__', f)
+
+        setattr(dummy, "__luisa_func__", f)
         return cast(_T, dummy)
     else:
         return cast(_T, f)
@@ -150,9 +148,25 @@ def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
     return decorator
 
 
-@_builtin_type
-class Array(Generic[_T]):
-    def __init__(self, size: u32 | u64) -> None:
+def typeof(value: Any) -> hir.Type:
+    if isinstance(value, hir.Type):
+        return value
+    if isinstance(value, type):
+        return hir.GlobalContext.get().types[value]
+    return hir.GlobalContext.get().types[type(value)]
+
+
+_t = hir.SymbolicType("T")
+_n = hir.SymbolicConstant("N", typeof(u32))
+
+
+@_builtin_type(
+    hir.ParametricType(
+        "Array", [hir.TypeParameter(_t, bound=[])], hir.ArrayType(_t, _n)
+    )
+)
+class Array(Generic[_T, _N]):
+    def __init__(self) -> None:
         return _intrinsic_impl()
 
     def __getitem__(self, index: int | u32 | u64) -> _T:
@@ -165,7 +179,11 @@ class Array(Generic[_T]):
         return _intrinsic_impl()
 
 
-@_builtin_type
+@_builtin_type(
+    hir.ParametricType(
+        "Buffer", [hir.TypeParameter(_t, bound=[])], hir.OpaqueType("Buffer")
+    )
+)
 class Buffer(Generic[_T]):
     def __getitem__(self, index: int | u32 | u64) -> _T:
         return _intrinsic_impl()
@@ -177,7 +195,11 @@ class Buffer(Generic[_T]):
         return _intrinsic_impl()
 
 
-@_builtin_type
+@_builtin_type(
+    hir.ParametricType(
+        "Pointer", [hir.TypeParameter(_t, bound=[])], hir.PointerType(_t)
+    )
+)
 class Pointer(Generic[_T]):
     def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> _T:
         return _intrinsic_impl()
@@ -192,3 +214,22 @@ class Pointer(Generic[_T]):
     @value.setter
     def value(self, value: _T) -> None:
         return _intrinsic_impl()
+
+
+# hir.GlobalContext.get().flush()
+
+
+def get_dsl_func(func: Callable[..., Any]) -> hir.Function:
+    func_ = hir.GlobalContext.get().functions.get(func)
+    success = func_ is not None
+    if not func_:
+        # check if __luisa_func__ is set
+        luisa_func = getattr(func, "__luisa_func__", None)
+        if luisa_func:
+            func_ = hir.GlobalContext.get().functions.get(luisa_func)
+            success = func_ is not None
+    if not success:
+        raise RuntimeError(f'function "{func}" not is not a valid DSL function')
+    assert func_
+    return func_
+       

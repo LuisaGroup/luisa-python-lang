@@ -4,6 +4,7 @@ from luisa_lang.codegen import CodeGen, ScratchBuffer
 from typing import Any, Callable, Dict, Union
 
 from luisa_lang.hir.defs import GlobalContext
+from luisa_lang.lang import get_dsl_func
 
 
 class TypeCodeGenCache:
@@ -95,18 +96,7 @@ class CppCodeGen(CodeGen):
 
     def gen_function(self, func: hir.Function | Callable[..., Any]) -> str:
         if callable(func):
-            func_ = GlobalContext.get().functions.get(func)
-            success = func_ is not None
-            if not func_:
-                # check if __luisa_func__ is set
-                luisa_func = getattr(func, "__luisa_func__", None)
-                if luisa_func:
-                    func_ = GlobalContext.get().functions.get(luisa_func)
-                    success = func_ is not None
-            if not success:
-                raise RuntimeError(f'function "{func}" not is not a valid DSL function')
-            assert func_
-            func = func_
+            func = get_dsl_func(func)
         if func in self.func_cache:
             return self.func_cache[func]
         func_code_gen = FuncCodeGen(self, func)
@@ -151,7 +141,7 @@ class FuncCodeGen:
         match expr:
             case hir.Load() as load:
                 return self.gen_ref(load.ref)
-            case hir.UnresolvedCall() as ucall:
+            case hir.Call() as ucall if expr.is_unresolved():
                 kind = ucall.kind
                 match kind:
                     case hir.CallOpKind.BINARY_OP:
@@ -178,9 +168,19 @@ class FuncCodeGen:
             case _:
                 raise NotImplementedError(f"unsupported statement: {stmt}")
 
+    def gen_locals(self):
+        for local in self.func.locals:
+            assert (
+                local.type
+            ), f"Local variable {local.name} contains unresolved type, please resolve it via TypeInferencer"
+            self.body.writeln(
+                f"{self.base.type_cache.gen(local.type)} {local.name}{{}};"
+            )
+
     def gen(self) -> None:
         self.body.writeln(f"{self.signature} {{")
         self.body.indent += 1
+        self.gen_locals()
         for stmt in self.func.body:
             self.gen_stmt(stmt)
         self.body.indent -= 1

@@ -1,2 +1,0 @@
-class TypeChecker:
-    pass

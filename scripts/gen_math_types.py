@@ -51,7 +51,7 @@ def main() -> None:
         print("# fmt: off")
         print("import typing as tp")
         print(
-            "from luisa_lang._markers import _builtin, _builtin_type, _intrinsic_impl",
+            "from luisa_lang._builtin_decor import _builtin, _builtin_type, _intrinsic_impl",
         )
         print("import luisa_lang.hir as _hir")
         print("_ctx = _hir.GlobalContext.get()")
@@ -116,19 +116,19 @@ def main() -> None:
             if kind == Kind.FLOAT:
                 inherits.append(f"FloatBuiltin['{ty}']")
             inherits_str = "" if len(inherits) == 0 else f"({', '.join(inherits)})"
+            if kind == Kind.FLOAT:
+                bits = 32 if ty == "f32" else 64
+                hir_ty = f"_hir.FloatType({bits})"
+            else:
+                signed = ty[0] == "i"
+                hir_ty = f"_hir.IntType({int(ty[1:])}, {signed})"
             print(
-                f"""@_builtin_type
+                f"""@_builtin_type({hir_ty})
 class {ty}{inherits_str}:
     def __init__(self, _value: tp.Union['{ty}', {literal_ty}]) -> None: return _intrinsic_impl()
 """
             )
-            gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", kind)
-            if kind == Kind.FLOAT:
-                bits = 32 if ty == "f32" else 64
-                print(f"_ctx.types[{ty}] = _hir.FloatType({bits})")
-            else:
-                signed = ty[0] == "i"
-                print(f"_ctx.types[{ty}] = _hir.IntType({int(ty[1:])}, {signed})")
+            gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", kind)           
             print("")
 
         def gen_vector_type(ty: str, scalar_ty: str, literal_scalar_ty: str, size: int):
@@ -137,7 +137,7 @@ class {ty}{inherits_str}:
             comps = "xyzw"[:size]
             fields_def = "".join([f"    {comp}: {scalar_ty}\n" for comp in comps])
             print(
-                f"""@_builtin_type
+                f"""@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[{scalar_ty}]), {size}))
 class {ty}:
 {fields_def}
 """
@@ -145,7 +145,6 @@ class {ty}:
             gen_common_binop(
                 ty, f" tp.Union['{ty}', {scalar_ty}, {literal_scalar_ty}]", Kind.FLOAT
             )
-            print(f"_ctx.types[{ty}] = _hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[{scalar_ty}]), {size})")
             print("")
 
         float_types = ["f32", "f64"]

@@ -15,33 +15,16 @@ from typing import (
     TypeVar,
     Union,
 )
+from luisa_lang._utils import Span
 from abc import ABC, abstractmethod
 
 PATH_PREFIX = "luisa_lang"
 
-
-class Path:
-    """A path such as `a.b.c`."""
-
-    parts: List[str]
-
-    def __init__(self, parts: List[str] | str) -> None:
-        if isinstance(parts, str):
-            parts = parts.split(".")
-        self.parts = parts
-
-    def __str__(self) -> str:
-        return ".".join(self.parts)
-
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, Path) and value.parts == self.parts
-
-    def __hash__(self) -> int:
-        return hash(tuple(self.parts))
+FunctionLike = Union["Function", "BuiltinFunction"]
 
 
 class Type(ABC):
-    methods: Dict[str, "Function"]
+    methods: Dict[str, FunctionLike]
     is_builtin: bool
 
     def __init__(self):
@@ -102,6 +85,7 @@ class IntType(ScalarType):
     signed: bool
 
     def __init__(self, bits: int, signed: bool) -> None:
+        super().__init__()
         self.bits = bits
         self.signed = signed
 
@@ -129,6 +113,7 @@ class FloatType(ScalarType):
     bits: int
 
     def __init__(self, bits: int) -> None:
+        super().__init__()
         self.bits = bits
 
     def size(self) -> int:
@@ -167,6 +152,7 @@ class VectorType(Type):
     count: int
 
     def __init__(self, element: ScalarType, count: int) -> None:
+        super().__init__()
         self.element = element
         self.count = count
 
@@ -205,16 +191,21 @@ class VectorType(Type):
 
 class ArrayType(Type):
     element: Type
-    count: int
+    count: Union[int, "SymbolicConstant"]
 
-    def __init__(self, element: Type, count: int) -> None:
+    def __init__(self, element: Type, count: Union[int, "SymbolicConstant"]) -> None:
+        super().__init__()
         self.element = element
         self.count = count
 
     def size(self) -> int:
+        if isinstance(self.count, SymbolicConstant):
+            raise RuntimeError("ArrayType size is symbolic")
         return self.element.size() * self.count
 
     def align(self) -> int:
+        if isinstance(self.count, SymbolicConstant):
+            raise RuntimeError("ArrayType align is symbolic")
         return self.element.align()
 
     def __eq__(self, value: object) -> bool:
@@ -227,11 +218,15 @@ class ArrayType(Type):
     def __repr__(self) -> str:
         return f"ArrayType({self.element}, {self.count})"
 
+    def __hash__(self) -> int:
+        return hash((ArrayType, self.element, self.count))
+
 
 class PointerType(Type):
     element: Type
 
     def __init__(self, element: Type) -> None:
+        super().__init__()
         self.element = element
 
     def size(self) -> int:
@@ -246,11 +241,15 @@ class PointerType(Type):
     def __repr__(self) -> str:
         return f"PointerType({self.element})"
 
+    def __hash__(self) -> int:
+        return hash((PointerType, self.element))
+
 
 class StructType(Type):
     fields: List[Tuple[str, Type]]
 
     def __init__(self, fields: List[Tuple[str, Type]]) -> None:
+        super().__init__()
         self.fields = fields
 
     def size(self) -> int:
@@ -271,6 +270,7 @@ class SymbolicType(Type):
     name: str
 
     def __init__(self, name: str) -> None:
+        super().__init__()
         self.name = name
 
     def size(self) -> int:
@@ -282,12 +282,17 @@ class SymbolicType(Type):
     def __eq__(self, value: object) -> bool:
         return isinstance(value, SymbolicType) and value.name == self.name
 
+    def __hash__(self) -> int:
+        return hash((SymbolicType, self.name))
+
 
 class TypeParameter:
-    symbol: SymbolicType
-    bound: Optional[List[Type]]
+    symbol: Union[SymbolicType, "SymbolicConstant"]
+    bound: List[Type]
 
-    def __init__(self, symbol: SymbolicType, bound: Optional[List[Type]]) -> None:
+    def __init__(
+        self, symbol: Union[SymbolicType, "SymbolicConstant"], bound: List[Type]
+    ) -> None:
         self.symbol = symbol
         self.bound = bound
 
@@ -296,6 +301,7 @@ class OpaqueType(Type):
     name: str
 
     def __init__(self, name: str) -> None:
+        super().__init__()
         self.name = name
 
     def size(self) -> int:
@@ -307,15 +313,19 @@ class OpaqueType(Type):
     def __eq__(self, value: object) -> bool:
         return isinstance(value, OpaqueType) and value.name == self.name
 
+    def __hash__(self) -> int:
+        return hash((OpaqueType, self.name))
+
 
 class ParametricType(Type):
     """A parametric type that is not yet resolved."""
 
-    name: Path
+    name: str
     params: List[TypeParameter]
     body: Type
 
-    def __init__(self, name: Path, params: List[TypeParameter], body: Type) -> None:
+    def __init__(self, name: str, params: List[TypeParameter], body: Type) -> None:
+        super().__init__()
         self.name = name
         self.params = params
         self.body = body
@@ -332,6 +342,9 @@ class ParametricType(Type):
             and value.name == self.name
             and value.params == self.params
         )
+
+    def __hash__(self) -> int:
+        return hash((ParametricType, self.name, tuple(self.params)))
 
 
 class BoundType(Type):
@@ -356,45 +369,6 @@ class BoundType(Type):
         )
 
 
-class Span:
-    file: Optional[str]
-    start: Tuple[int, int]
-    end: Tuple[int, int]
-
-    def __init__(
-        self, file: Optional[str], start: Tuple[int, int], end: Tuple[int, int]
-    ) -> None:
-        self.file = file
-        self.start = start
-        self.end = end
-
-    def __str__(self) -> str:
-        if self.file is None:
-            return f"{self.start[0]}:{self.start[1]}-{self.end[0]}:{self.end[1]}"
-        return (
-            f"{self.file}:{self.start[0]}:{self.start[1]}-{self.end[0]}:{self.end[1]}"
-        )
-
-    @staticmethod
-    def from_ast(ast: ast.AST) -> Optional["Span"]:
-        if not hasattr(ast, "lineno"):
-            return None
-        if not hasattr(ast, "col_offset"):
-            return None
-        if not hasattr(ast, "end_lineno") or ast.end_lineno is None:
-            return None
-        if not hasattr(ast, "end_col_offset") or ast.end_col_offset is None:
-            return None
-        file = None
-        if hasattr(ast, "source_file"):
-            file = getattr(ast, "source_file")
-        return Span(
-            file=file,
-            start=(getattr(ast, "lineno", 0), getattr(ast, "col_offset", 0)),
-            end=(getattr(ast, "end_lineno", 0), getattr(ast, "end_col_offset", 0)),
-        )
-
-
 class Node:
     type: Optional[Type]
     span: Optional[Span]
@@ -412,6 +386,16 @@ class Ref(Node):
 
 class Value(Node):
     pass
+
+
+class SymbolicConstant(Value):
+    name: str
+
+    def __init__(
+        self, name: str, type: Optional[Type] = None, span: Optional[Span] = None
+    ) -> None:
+        super().__init__(type, span)
+        self.name = name
 
 
 class ValueRef(Ref):
@@ -468,42 +452,56 @@ class Load(Value):
         super().__init__(ref.type, ref.span)
         self.ref = ref
 
+
 class CallOpKind(Enum):
     FUNC = auto()
     BINARY_OP = auto()
     UNARY_OP = auto()
-    
 
-class UnresolvedCall(Value):
-    op: str
+
+class Call(Value):
+    op: Value | str
     args: List[Value]
     kind: CallOpKind
 
     def __init__(
-        self, op: str, args: List[Value], kind: CallOpKind, span: Optional[Span] = None
+        self,
+        op: Value | str,
+        args: List[Value],
+        kind: CallOpKind,
+        span: Optional[Span] = None,
     ) -> None:
-        super().__init__(None, span)
+        super().__init__(op.type if isinstance(op, Value) else None, span)
         self.op = op
         self.args = args
         self.kind = kind
 
+    def is_unresolved(self) -> bool:
+        return isinstance(self.op, str)
 
-class Call(Value):
-    op: Value
-    args: List[Value]
-    kind: CallOpKind
 
-    def __init__(self, op: Value, args: List[Value],kind: CallOpKind, span: Optional[Span]) -> None:
-        super().__init__(op.type, span)
-        self.op = op
-        self.args = args
-        self.kind = kind
+class TypeInferenceError(Exception):
+    pass
 
 
 class TypeRule(ABC):
     @abstractmethod
-    def infer(self, ctx: "GlobalContext", args: List[Type]) -> Type:
+    def infer(self, args: List[Type]) -> Type:
         pass
+
+    @staticmethod
+    def from_fn(fn: Callable[[List[Type]], Type]) -> "TypeRule":
+        return TypeRuleFn(fn)
+
+
+class TypeRuleFn(TypeRule):
+    fn: Callable[[List[Type]], Type]
+
+    def __init__(self, fn: Callable[[List[Type]], Type]) -> None:
+        self.fn = fn
+
+    def infer(self, args: List[Type]) -> Type:
+        return self.fn(args)
 
 
 class BuiltinFunction:
@@ -516,14 +514,18 @@ class BuiltinFunction:
 
 
 class Stmt:
-    pass
+    span: Optional[Span]
+
+    def __init__(self, span: Optional[Span] = None) -> None:
+        self.span = span
 
 
 class VarDecl(Stmt):
     var: Var
     expected_type: Type
 
-    def __init__(self, var: Var, expected_type: Type) -> None:
+    def __init__(self, var: Var, expected_type: Type, span: Optional[Span] = None) -> None:
+        super().__init__(span)
         self.var = var
         self.expected_type = expected_type
 
@@ -533,7 +535,8 @@ class Assign(Stmt):
     value: Value
     expected_type: Optional[Type]
 
-    def __init__(self, ref: Ref, expected_type: Optional[Type], value: Value) -> None:
+    def __init__(self, ref: Ref, expected_type: Optional[Type], value: Value, span: Optional[Span] = None) -> None:
+        super().__init__(span)
         self.ref = ref
         self.value = value
         self.expected_type = expected_type
@@ -542,7 +545,8 @@ class Assign(Stmt):
 class Return(Stmt):
     value: Optional[Value]
 
-    def __init__(self, value: Optional[Value]) -> None:
+    def __init__(self, value: Optional[Value], span: Optional[Span] = None) -> None:
+        super().__init__(span)
         self.value = value
 
 
@@ -553,6 +557,7 @@ class Function:
     body: List[Stmt]
     builtin: bool
     export: bool
+    locals: List[Var]
 
     def __init__(
         self,
@@ -560,6 +565,7 @@ class Function:
         params: List[Var],
         return_type: Type,
         body: List[Stmt],
+        locals: List[Var],
         builtin: bool = False,
         export: bool = False,
     ) -> None:
@@ -569,6 +575,7 @@ class Function:
         self.body = body
         self.builtin = builtin
         self.export = export
+        self.locals = locals
 
     @property
     def is_parametric(self) -> bool:
@@ -620,6 +627,7 @@ _global_context: Optional["GlobalContext"] = None
 class GlobalContext:
     types: Dict[type, Type]
     functions: Dict[Callable[..., Any], Function]
+    # deferred: List[Callable[[], None]]
 
     @staticmethod
     def get() -> "GlobalContext":
@@ -632,6 +640,12 @@ class GlobalContext:
         assert _global_context is None, "GlobalContext should be a singleton"
         self.types = {type(None): UnitType()}
         self.functions = {}
+        # self.deferred = []
+
+    # def flush(self) -> None:
+    #     for fn in self.deferred:
+    #         fn()
+    #     self.deferred = []
 
 
 class FuncMetadata:

@@ -3,44 +3,18 @@ import os
 from types import ModuleType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, overload
 import luisa_lang
+from luisa_lang._utils import report_error
 import luisa_lang.hir as hir
 import sys
 from luisa_lang.hir import (
-    Path,
     Type,
     BoundType,
     ParametricType,
     Function,
     Var,
-    UnresolvedCall,
 )
 from typing import NoReturn, cast, Set, reveal_type
 from enum import Enum
-
-
-def _report_error_span(span: hir.Span, message: str) -> NoReturn:
-    raise RuntimeError(f"error at {span}: {message}")
-
-
-def _report_error_tree(tree: ast.AST, message: str) -> NoReturn:
-    span = hir.Span.from_ast(tree)
-    if span is not None:
-        _report_error_span(span, message)
-    else:
-        raise RuntimeError(f"error: {message}")
-
-
-@overload
-def report_error(obj: hir.Span, message: str) -> NoReturn: ...
-@overload
-def report_error(obj: ast.AST, message: str) -> NoReturn: ...
-def report_error(obj, message: str) -> NoReturn:
-    if isinstance(obj, hir.Span):
-        _report_error_span(obj, message)
-    elif isinstance(obj, ast.AST):
-        _report_error_tree(obj, message)
-    else:
-        raise NotImplementedError(f"unsupported object {obj}")
 
 
 # def _retrieve_metadata(obj: Any) -> Optional[hir.FuncMetadata | hir.StructMetadata]:
@@ -323,9 +297,7 @@ class FuncParser:
                 ast.LShift: "<<",
             }
             op = m0[type(expr.op)]
-            return UnresolvedCall(
-                op, [lhs, rhs], kind=hir.CallOpKind.BINARY_OP, span=span
-            )
+            return hir.Call(op, [lhs, rhs], kind=hir.CallOpKind.BINARY_OP, span=span)
         if isinstance(expr, ast.UnaryOp):
             operand = self.parse_expr(expr.operand)
             m1 = {
@@ -334,7 +306,7 @@ class FuncParser:
                 ast.Invert: "~",
             }
             op = m1[type(expr.op)]
-            return UnresolvedCall(op, [operand], kind=hir.CallOpKind.UNARY_OP)
+            return hir.Call(op, [operand], kind=hir.CallOpKind.UNARY_OP, span=span)
         if isinstance(expr, ast.Call):
             func = self.parse_expr(expr.func)
             args = [self.parse_expr(arg) for arg in expr.args]
@@ -405,10 +377,12 @@ class FuncParser:
             span = hir.Span.from_ast(args.args[i])
             params.append(hir.Var(f"arg{i}", arg_type, span))
         assert self.return_type is not None
-
+        # a sorted list of vars
+        vars = [self.vars[v] for v in sorted(self.vars.keys())]
         return Function(
             self.name,
             params,
             self.return_type,
             [x for x in parsed_body if x is not None],
+            vars,
         )

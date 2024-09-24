@@ -12,6 +12,7 @@ from luisa_lang.hir import (
     ParametricType,
     Function,
     Var,
+    get_dsl_func
 )
 from typing import NoReturn, cast, Set, reveal_type
 from enum import Enum
@@ -42,8 +43,12 @@ AccessKey = Union[str, ast.AST, "AccessChain"]
 class AccessChain:
     """
     AccessChain are used to represent access chains like `a.b.c.d` or `a[b].c.d`,
-    where keys are resolvable at compile time.
-    Usually the chain can be resolved to either types or functions.
+    where the prefixes of the chain can often be resolved to a python object.
+    For example,
+    - `my_module.a_global_var['a']` can be resolved to a python object.
+    - `my_module.my_type` would be resolved into a type.
+    In some cases, the chain cannot be fully resolved, then we attempt
+    to resolve as much as possible and return the most resolved object and the remaining chain.
     """
 
     parent: Any
@@ -88,7 +93,8 @@ class AccessChain:
                 elif isinstance(key, ast.AST):
                     raise NotImplementedError("TODO: eval ast key")
                 else:
-                    assert isinstance(key, AccessChain), f"expected AccessChain key"
+                    assert isinstance(
+                        key, AccessChain), f"expected AccessChain key"
                     resolved, remaining = key.resolve()
                     if remaining is not None:
                         return False, None
@@ -112,7 +118,7 @@ class AccessChain:
             access = get_access_key()
 
             # check type of cur to determine what to do
-            ## is cur a module?
+            # is cur a module?
             if type(cur) == ModuleType:
                 if access is None:
                     break
@@ -141,7 +147,7 @@ class AccessChain:
                 if chain_idx >= len(self.chain):
                     break
         if chain_idx is None:
-            return cur, None
+            return cur, self
         return cur, AccessChain(cur, self.chain[chain_idx:])
 
 
@@ -169,9 +175,15 @@ class ParsingContext:
     #         return obj
     #     pass
 
-    def __resolve_access_chain(self, tree: ast.AST) -> Optional[AccessChain]:
+    def _parse_access_chain(self, tree: ast.AST) -> Optional[AccessChain]:
         """
         Attempt to resolve a static access chain from the given AST tree.
+
+        Example:
+        - `module.type` -> `AccessChain(module, [(AccessKind.ATTRIBUTE, ['type'])])`
+        - `identifier.attr` -> None
+        - `module.type['key']` -> `AccessChain(module, [(AccessKind.ATTRIBUTE, ['type']), (AccessKind.SUBSCRIPT, ['key'])])`
+
         """
 
         def check_is_access(tree: ast.AST) -> bool:
@@ -187,13 +199,13 @@ class ParsingContext:
                 return None
             return AccessChain(r)
         elif isinstance(tree, ast.Attribute):
-            parent = self.__resolve_access_chain(tree.value)
+            parent = self._parse_access_chain(tree.value)
             if parent is None:
                 return None
             parent.chain.append((AccessKind.ATTRIBUTE, [tree.attr]))
             return parent
         elif isinstance(tree, ast.Subscript):
-            parent = self.__resolve_access_chain(tree.value)
+            parent = self._parse_access_chain(tree.value)
             if parent is None:
                 return None
             if isinstance(tree.slice, ast.Tuple):
@@ -201,13 +213,13 @@ class ParsingContext:
                 for s in tree.slice.elts:
                     if not check_is_access(s):
                         return None
-                    resolve_s = self.__resolve_access_chain(s)
+                    resolve_s = self._parse_access_chain(s)
                     if resolve_s is None:
                         return None
                     keys.append(resolve_s)
                 parent.chain.append((AccessKind.SUBSCRIPT, keys))
             if check_is_access(tree.slice):
-                child_chain = self.__resolve_access_chain(tree.slice)
+                child_chain = self._parse_access_chain(tree.slice)
                 if child_chain is None:
                     return None
                 parent.chain.append((AccessKind.SUBSCRIPT, [tree.slice]))
@@ -217,12 +229,12 @@ class ParsingContext:
         report_error(tree, f"unsupported access chain {tree}")
 
     def parse_type(self, type_tree: ast.AST) -> Optional[Type]:
-        acess_chain = self.__resolve_access_chain(type_tree)
+        acess_chain: AccessChain | None = self._parse_access_chain(type_tree)
         if acess_chain is None:
             return None
-        print(acess_chain)
+        # print(acess_chain)
         resolved, remaining = acess_chain.resolve()
-        print(resolved, remaining)
+        # print(resolved, remaining)
         if remaining is not None:
             report_error(type_tree, f"failed to resolve type")
         if isinstance(resolved, hir.Type):
@@ -264,13 +276,21 @@ class FuncParser:
                 raise RuntimeError("TODO: infer type")
             if (arg_ty := p_ctx.parse_type(arg.annotation)) is not None:
                 self.arg_types.append(arg_ty)
-                self.vars[arg.arg] = hir.Var(arg.arg, arg_ty, hir.Span.from_ast(arg))
+                self.vars[arg.arg] = hir.Var(
+                    arg.arg, arg_ty, hir.Span.from_ast(arg))
             else:
                 report_error(arg.annotation, f"invalid type for argument")
         if func.returns is None:
             self.return_type = hir.UnitType()
         else:
             self.return_type = p_ctx.parse_type(func.returns)
+
+    def parse_const(self, const: ast.Constant) -> hir.Value:
+        span = hir.Span.from_ast(const)
+        value = const.value
+        if isinstance(value, (int, float, str, bool)):
+            return hir.Constant(value, span)
+        report_error(const, f"unsupported constant type {type(value)}")
 
     def parse_expr(self, expr: ast.expr) -> hir.Value:
         span = hir.Span.from_ast(expr)
@@ -282,7 +302,7 @@ class FuncParser:
             ref = self.parse_ref(expr)
             return hir.Load(ref)
         if isinstance(expr, ast.Constant):
-            raise RuntimeError("TODO: parse constant")
+            return self.parse_const(expr)
         if isinstance(expr, ast.BinOp):
             lhs = self.parse_expr(expr.left)
             rhs = self.parse_expr(expr.right)
@@ -297,7 +317,7 @@ class FuncParser:
                 ast.LShift: "<<",
             }
             op = m0[type(expr.op)]
-            return hir.Call(op, [lhs, rhs], kind=hir.CallOpKind.BINARY_OP, span=span)
+            return hir.Call(op, [lhs, rhs], kind=hir.CallOpKind.BINARY_OP, resolved=False, span=span)
         if isinstance(expr, ast.UnaryOp):
             operand = self.parse_expr(expr.operand)
             m1 = {
@@ -306,32 +326,56 @@ class FuncParser:
                 ast.Invert: "~",
             }
             op = m1[type(expr.op)]
-            return hir.Call(op, [operand], kind=hir.CallOpKind.UNARY_OP, span=span)
+            return hir.Call(op, [operand], kind=hir.CallOpKind.UNARY_OP, resolved=False, span=span)
         if isinstance(expr, ast.Call):
             func = self.parse_expr(expr.func)
             args = [self.parse_expr(arg) for arg in expr.args]
-            return hir.Call(func, args, kind=hir.CallOpKind.FUNC, span=span)
+            return hir.Call(func, args, kind=hir.CallOpKind.FUNC, resolved=True, span=span)
         report_error(expr, f"unsupported expression {expr}")
 
     def parse_ref(self, expr: ast.expr, maybe_new_var=False) -> hir.Ref:
         span = hir.Span.from_ast(expr)
-        if isinstance(expr, ast.Name):
-            var = self.vars.get(expr.id)
-            if var is None:
-                if not maybe_new_var:
-                    report_error(expr, f"unknown variable {expr.id}")
-                var = hir.Var(expr.id, None, span)
-                self.vars[expr.id] = var
-            return var
-        if isinstance(expr, ast.Attribute):
-            obj = self.parse_ref(expr.value)
-            return hir.Member(obj, expr.attr, span)
-        if isinstance(expr, ast.Subscript):
-            obj = self.parse_ref(expr.value)
-            index = self.parse_expr(expr.slice)
-            return hir.Index(obj, index, span)
-        return hir.ValueRef(self.parse_expr(expr))
-        # report_error(expr, f"unsupported expression {expr}")
+        access_chain: AccessChain | None = self.p_ctx._parse_access_chain(expr)
+        if not access_chain:
+            if isinstance(expr, ast.Subscript):
+                obj = self.parse_ref(expr.value)
+                index = self.parse_expr(expr.slice)
+                return hir.Index(obj, index, span)
+            elif isinstance(expr, ast.Name):
+                var = self.vars.get(expr.id)
+                if var is None:
+                    if not maybe_new_var:
+                        report_error(expr, f"unknown variable {expr.id}")
+                    var = hir.Var(expr.id, None, span)
+                    self.vars[expr.id] = var
+                return var
+            elif isinstance(expr, ast.Attribute):
+                obj = self.parse_ref(expr.value)
+                return hir.Member(obj, expr.attr, span)
+            report_error(expr, f"unsupported reference {expr}")
+        resolved, remaining = access_chain.resolve()
+        if remaining is None or remaining.chain == []:
+            if callable(resolved):
+                dsl_func = get_dsl_func(resolved)
+                if dsl_func is None:
+                    report_error(expr, f"expected DSL function")
+                return hir.ValueRef(hir.Constant(dsl_func, span))
+            else:
+                report_error(expr, f"expected callable")
+        print(resolved, remaining)
+        parent = resolved
+        for i in range(len(remaining.chain)):
+            access = remaining.chain[i]
+            kind, keys = access
+            if kind == AccessKind.ATTRIBUTE:
+                assert len(keys) == 1, f"expected single key"
+                assert isinstance(keys[0], str), f"expected string key"
+                parent = hir.Member(parent, keys[0], span)
+            elif kind == AccessKind.SUBSCRIPT:
+                raise NotImplementedError("TODO: resolve subscript")
+            else:
+                report_error(expr, f"unsupported access kind {kind}")
+        return parent
 
     def parse_stmt(self, stmt: ast.stmt) -> Optional[hir.Stmt]:
         if isinstance(stmt, ast.AnnAssign):

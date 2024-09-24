@@ -1,12 +1,14 @@
 # fmt: off
 import typing as tp
 from luisa_lang._builtin_decor import _builtin, _builtin_type, _intrinsic_impl
+from luisa_lang._classinfo import _register_class
 import luisa_lang.hir as _hir
 _ctx = _hir.GlobalContext.get()
 _ctx.types[bool] = _hir.BoolType()
 FLOAT_TYPES: tp.Final[tp.List[str]] = ["f32", "f64", "float2", "double2", "float3", "double3", "float4", "double4"]
 FloatType = tp.Union["f32", "f64", "float2", "double2", "float3", "double3", "float4", "double4"]
 _F = tp.TypeVar("_F")
+_F1 = tp.TypeVar("_F1", "f32", "f64", "float2", "double2", "float3", "double3", "float4", "double4")
 class FloatBuiltin(tp.Generic[_F]):
     def abs(self: _F) -> _F: return _intrinsic_impl()
     def acos(self: _F) -> _F: return _intrinsic_impl()
@@ -22,7 +24,8 @@ class FloatBuiltin(tp.Generic[_F]):
     def floor(self: _F) -> _F: return _intrinsic_impl()
     def log(self: _F) -> _F: return _intrinsic_impl()
     def log10(self: _F) -> _F: return _intrinsic_impl()
-    def log2sin(self: _F) -> _F: return _intrinsic_impl()
+    def log2(self: _F) -> _F: return _intrinsic_impl()
+    def sin(self: _F) -> _F: return _intrinsic_impl()
     def sinh(self: _F) -> _F: return _intrinsic_impl()
     def sqrt(self: _F) -> _F: return _intrinsic_impl()
     def tan(self: _F) -> _F: return _intrinsic_impl()
@@ -32,49 +35,52 @@ class FloatBuiltin(tp.Generic[_F]):
     def copysign(self: _F, _other: _F) -> _F: return _intrinsic_impl()
 
 @_builtin
-def abs(x: FloatType) -> FloatType: return _intrinsic_impl()
+def abs(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def acos(x: FloatType) -> FloatType: return _intrinsic_impl()
+def acos(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def acosh(x: FloatType) -> FloatType: return _intrinsic_impl()
+def acosh(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def asin(x: FloatType) -> FloatType: return _intrinsic_impl()
+def asin(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def asinh(x: FloatType) -> FloatType: return _intrinsic_impl()
+def asinh(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def atan(x: FloatType) -> FloatType: return _intrinsic_impl()
+def atan(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def atanh(x: FloatType) -> FloatType: return _intrinsic_impl()
+def atanh(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def ceil(x: FloatType) -> FloatType: return _intrinsic_impl()
+def ceil(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def cos(x: FloatType) -> FloatType: return _intrinsic_impl()
+def cos(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def cosh(x: FloatType) -> FloatType: return _intrinsic_impl()
+def cosh(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def exp(x: FloatType) -> FloatType: return _intrinsic_impl()
+def exp(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def floor(x: FloatType) -> FloatType: return _intrinsic_impl()
+def floor(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def log(x: FloatType) -> FloatType: return _intrinsic_impl()
+def log(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def log10(x: FloatType) -> FloatType: return _intrinsic_impl()
+def log10(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def log2sin(x: FloatType) -> FloatType: return _intrinsic_impl()
+def log2(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def sinh(x: FloatType) -> FloatType: return _intrinsic_impl()
+def sin(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def sqrt(x: FloatType) -> FloatType: return _intrinsic_impl()
+def sinh(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def tan(x: FloatType) -> FloatType: return _intrinsic_impl()
+def sqrt(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def tanh(x: FloatType) -> FloatType: return _intrinsic_impl()
+def tan(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def trunc(x: FloatType) -> FloatType: return _intrinsic_impl()
+def tanh(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def atan2(x: FloatType, y: FloatType) -> FloatType: return _intrinsic_impl()
+def trunc(x: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
-def copysign(x: FloatType, y: FloatType) -> FloatType: return _intrinsic_impl()
+def atan2(x: _F1, y: _F1) -> _F1: return _intrinsic_impl()
+@_builtin
+def copysign(x: _F1, y: _F1) -> _F1: return _intrinsic_impl()
+_register_class(FloatBuiltin)
 @_builtin_type(_hir.FloatType(32))
 class f32(FloatBuiltin['f32']):
     def __init__(self, _value: tp.Union['f32', float]) -> None: return _intrinsic_impl()
@@ -1253,4 +1259,4 @@ class ulong4:
     def __floordiv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
 
-__all__ = ['FLOAT_TYPES', 'FloatType', 'FloatBuiltin', 'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'floor', 'log', 'log10', 'log2sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc', 'atan2', 'copysign', 'f32', 'f64', 'i8', 'u8', 'i16', 'u16', 'i32', 'u32', 'i64', 'u64', 'bool2', 'float2', 'double2', 'byte2', 'ubyte2', 'short2', 'ushort2', 'int2', 'uint2', 'long2', 'ulong2', 'bool3', 'float3', 'double3', 'byte3', 'ubyte3', 'short3', 'ushort3', 'int3', 'uint3', 'long3', 'ulong3', 'bool4', 'float4', 'double4', 'byte4', 'ubyte4', 'short4', 'ushort4', 'int4', 'uint4', 'long4', 'ulong4']
+__all__ = ['FLOAT_TYPES', 'FloatType', 'FloatBuiltin', 'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'floor', 'log', 'log10', 'log2', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc', 'atan2', 'copysign', 'f32', 'f64', 'i8', 'u8', 'i16', 'u16', 'i32', 'u32', 'i64', 'u64', 'bool2', 'float2', 'double2', 'byte2', 'ubyte2', 'short2', 'ushort2', 'int2', 'uint2', 'long2', 'ulong2', 'bool3', 'float3', 'double3', 'byte3', 'ubyte3', 'short3', 'ushort3', 'int3', 'uint3', 'long3', 'ulong3', 'bool4', 'float4', 'double4', 'byte4', 'ubyte4', 'short4', 'ushort4', 'int4', 'uint4', 'long4', 'ulong4']

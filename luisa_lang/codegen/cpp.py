@@ -1,10 +1,10 @@
 from luisa_lang import hir
 from luisa_lang._utils import unwrap
 from luisa_lang.codegen import CodeGen, ScratchBuffer
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, Tuple, Union
 
 from luisa_lang.hir.defs import GlobalContext
-from luisa_lang.lang import get_dsl_func
+from luisa_lang.hir import get_dsl_func
 
 
 class TypeCodeGenCache:
@@ -57,7 +57,8 @@ class Mangling:
             for i, c in enumerate(comps):
                 mangled += f"{len(c)}{c}"
                 if i != len(comps) - 1:
-                    mangled += "E"
+                    mangled += "C"
+            mangled += "E"
             return mangled
 
         match obj:
@@ -76,14 +77,14 @@ class Mangling:
                 return f"A{count}{self.mangle(element)}"
             case hir.Function(name=name, params=params, return_type=ret):
                 name = mangle_name(name)
-                return f"F{name}_{self.mangle(ret)}_{'_'.join(self.mangle(unwrap(p.type)) for p in params)}"
+                return f"F{name}_{self.mangle(ret)}{''.join(self.mangle(unwrap(p.type)) for p in params)}"
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 
 
 class CppCodeGen(CodeGen):
     type_cache: TypeCodeGenCache
-    func_cache: Dict[hir.Function, str]
+    func_cache: Dict[int, Tuple[hir.Function, str]]
     mangling: Mangling
     generated_code: ScratchBuffer
 
@@ -96,12 +97,16 @@ class CppCodeGen(CodeGen):
 
     def gen_function(self, func: hir.Function | Callable[..., Any]) -> str:
         if callable(func):
-            func = get_dsl_func(func)
-        if func in self.func_cache:
-            return self.func_cache[func]
+            dsl_func = get_dsl_func(func)
+            assert dsl_func is not None
+            func = dsl_func
+        if id(func) in self.func_cache:
+            return self.func_cache[id(func)][1]
+        inferencer = hir.FuncTypeInferencer(func)
+        inferencer.infer()
         func_code_gen = FuncCodeGen(self, func)
         name = func_code_gen.name
-        self.func_cache[func] = name
+        self.func_cache[id(func)] = (func, name)
         func_code_gen.gen()
         self.generated_code.merge(func_code_gen.body)
         return name
@@ -134,6 +139,11 @@ class FuncCodeGen:
         match ref:
             case hir.Var() as var:
                 return var.name
+            case hir.Member() as member:
+                base = self.gen_ref(member.base)
+                return f"{base}.{member.field}"
+            case hir.ValueRef() as value_ref:
+                return self.gen_expr(value_ref.value)
             case _:
                 raise NotImplementedError(f"unsupported reference: {ref}")
 
@@ -141,16 +151,33 @@ class FuncCodeGen:
         match expr:
             case hir.Load() as load:
                 return self.gen_ref(load.ref)
-            case hir.Call() as ucall if expr.is_unresolved():
-                kind = ucall.kind
+            case hir.Call() as call:
+                assert call.resolved, f"unresolved call: {call}"
+                kind = call.kind
                 match kind:
                     case hir.CallOpKind.BINARY_OP:
-                        return f"{self.gen_expr(ucall.args[0])} {ucall.op} {self.gen_expr(ucall.args[1])}"
+                        return f"{self.gen_expr(call.args[0])} {call.op} {self.gen_expr(call.args[1])}"
                     case hir.CallOpKind.UNARY_OP:
-                        return f"{ucall.op}{self.gen_expr(ucall.args[0])}"
+                        return f"{call.op}{self.gen_expr(call.args[0])}"
                     case hir.CallOpKind.FUNC:
                         # TODO: fix this
-                        return f"{ucall.op}({','.join(self.gen_expr(arg) for arg in ucall.args)})"
+                        assert not isinstance(call.op, str)
+                        op = self.gen_expr(call.op)
+                        return f"{op}({','.join(self.gen_expr(arg) for arg in call.args)})"
+            case hir.Constant() as constant:
+                value = constant.value
+                if isinstance(value, int):
+                    return str(value)
+                elif isinstance(value, float):
+                    return str(value)
+                elif isinstance(value, bool):
+                    return "true" if value else "false"
+                elif isinstance(value, str):
+                    return f'"{value}"'
+                elif isinstance(value, hir.Function):
+                    return self.base.gen_function(value)
+                else:
+                    raise NotImplementedError(f"unsupported constant: {constant}")
             case _:
                 raise NotImplementedError(f"unsupported expression: {expr}")
 

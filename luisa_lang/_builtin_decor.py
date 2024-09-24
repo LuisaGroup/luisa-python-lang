@@ -1,9 +1,10 @@
 from types import UnionType
-from typing import Any, Callable, List, Set, TypeVar
+from typing import Any, Callable, List, Optional, Set, TypeVar
 import typing
 from luisa_lang import hir
 import inspect
-from luisa_lang._utils import _get_full_name
+from luisa_lang._utils import _get_full_name, get_union_args
+from luisa_lang._classinfo import _register_class, _class_typeinfo, MethodType, _get_cls_globalns
 import functools
 
 _T = TypeVar("_T", bound=type)
@@ -26,28 +27,21 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
         ctx = hir.GlobalContext.get()
         ctx.types[cls] = ty
 
-        cls_qualname = cls.__qualname__
-        module = inspect.getmodule(cls)
-        globalns = module.__dict__
-        globalns[cls.__name__] = cls
-        assert module is not None
-        assert (
-            "<locals>" not in cls_qualname
-        ), f"Cannot use local class {cls_qualname} as a DSL type. Must be a top-level class!"
-        ctx = hir.GlobalContext.get()
-
-        _retrieve_generic_params(cls)
+        _register_class(cls)
+        cls_info = _class_typeinfo(cls)
+        globalns = _get_cls_globalns(cls)
 
         def make_type_rule(
-            name: str, member: Any
+            name: str, method: MethodType
         ) -> Callable[[List[hir.Type]], hir.Type]:
 
-            # print(f'{cls_name}.{name}', signature)
-            signature = inspect.signature(member)
+            # # print(f'{cls_name}.{name}', signature)
+            member = getattr(cls, name)
+            signature = inspect.signature(member, globals=globalns)
             type_hints = typing.get_type_hints(member, globalns=globalns)
             parameters = signature.parameters
-            return_type = type_hints.get("return")
-            if return_type and not isinstance(return_type, type):
+            return_type = method.return_type
+            if not isinstance(return_type, type):
                 raise hir.TypeInferenceError(
                     f"Valid return type annotation required for {cls_name}.{name}"
                 )
@@ -76,22 +70,54 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
                             f"Parameter type annotation required for {cls_name}.{name}"
                         )
 
-                    def check(anno_ty: hir.Type | None):
-                        if anno_ty is None:
-                            raise hir.TypeInferenceError(
-                                f"Type {param_ty} is not a valid DSL type"
-                            )
-                        if arg != anno_ty:
-                            raise hir.TypeInferenceError(
-                                f"Expected {cls_name}.{name} to be called with {param_ty} but got {arg}"
-                            )
+                    def check(anno_tys: List[type | Any]):
+                        possible_failed_reasons: List[str] = []
+                        for anno_ty in anno_tys:
+                            if anno_ty == float:
+                                # match all hir.FloatType
+                                if isinstance(arg, hir.FloatType):
+                                    return
+                                else:
+                                    possible_failed_reasons.append(
+                                        f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
+                                    )
+                                    continue
+                            if anno_ty == int:
+                                if isinstance(arg, hir.IntType):
+                                    return
+                                else:
+                                    possible_failed_reasons.append(
+                                        f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
+                                    )
+                                    continue
+                            if anno_ty == bool:
+                                if isinstance(arg, hir.BoolType):
+                                    return
+                                else:
+                                    possible_failed_reasons.append(
+                                        f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
+                                    )
+                                    continue
 
-                    if isinstance(param_ty, UnionType):
-                        for a in param_ty.__args__:
-                            check(a)
-                    else:
-                        param_ir_ty = ctx.types.get(param_ty)
-                        check(param_ir_ty)
+                            param_ir_ty = ctx.types.get(anno_ty)
+                            if param_ir_ty is None:
+                                possible_failed_reasons.append(
+                                    f"Type {anno_ty} is not a valid DSL type"
+                                )
+                                continue
+                            if arg == param_ir_ty:
+                                return
+                            possible_failed_reasons.append(
+                                f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
+                            )
+                        raise hir.TypeInferenceError(
+                            f"Expected {cls_name}.{name} to be called with one of {possible_failed_reasons}"
+                        )
+
+                    union_args = get_union_args(param_ty)
+                    if union_args == []:
+                        union_args = [param_ty]
+                    check(union_args)
                 if return_type:
                     return ctx.types[return_type]
                 else:
@@ -100,14 +126,13 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
             return type_rule
 
         def make_builtin():
-            for name, member in inspect.getmembers(cls):
-                if inspect.isfunction(member):
-                    type_rule = make_type_rule(name, member)
-                    builtin = hir.BuiltinFunction(
-                        f"{cls_name}.{name}",
-                        hir.TypeRule.from_fn(type_rule),
-                    )
-                    ty.methods[name] = builtin
+            for name, member in cls_info.methods.items():
+                type_rule = make_type_rule(name, member)
+                builtin = hir.BuiltinFunction(
+                    f"{cls_name}.{name}",
+                    hir.TypeRule.from_fn(type_rule),
+                )
+                ty.methods[name] = builtin
 
         make_builtin()
         return cls

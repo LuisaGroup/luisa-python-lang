@@ -29,8 +29,16 @@ class GenericInstance:
     def __repr__(self):
         return f"{self.origin}[{', '.join(map(repr, self.args))}]"
 
+class UnionType:
+    types: List["VarType"]
 
-VarType = Union[TypeVar, Type, GenericInstance]
+    def __init__(self, types: List["VarType"]):
+        self.types = types
+
+    def __repr__(self):
+        return f"Union[{', '.join(map(repr, self.types))}]"
+
+VarType = Union[TypeVar, Type, GenericInstance, UnionType]
 
 def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
     match ty:
@@ -132,7 +140,7 @@ def _get_base_classinfo(cls: type, globalns) -> List[tuple[str, ClassType]]:
                 )
             for arg in base.__args__:
                 if isinstance(arg, typing.ForwardRef):
-                    arg = arg._evaluate(globalns, globalns, frozenset())
+                    arg: type = typing._eval_type(arg, globalns, globalns) #type: ignore
                 base_params.append(arg)
             if base_orig in _BUILTIN_ANNOTATION_BASES:
                 pass
@@ -144,13 +152,15 @@ def _get_base_classinfo(cls: type, globalns) -> List[tuple[str, ClassType]]:
                 info.append((base.__name__, _class_typeinfo(base)))
     return info
 
+def _get_cls_globalns(cls: type) -> Dict[str, Any]:
+    module = inspect.getmodule(cls)
+    assert module is not None
+    return module.__dict__
 
 def _register_class(cls: type) -> None:
     cls_qualname = cls.__qualname__
-    module = inspect.getmodule(cls)
-    globalns = module.__dict__
+    globalns = _get_cls_globalns(cls)
     globalns[cls.__name__] = cls
-    assert module is not None
     assert (
         "<locals>" not in cls_qualname
     ), f"Cannot use local class {cls_qualname} as a DSL type. Must be a top-level class!"
@@ -200,9 +210,14 @@ def _register_class(cls: type) -> None:
             return hint
         origin = typing.get_origin(hint)
         if origin:
-            assert isinstance(origin, type)
-            args = list(typing.get_args(hint))
-            return GenericInstance(origin, [parse_type_hint(arg) for arg in args])
+            if isinstance(origin, type):
+            # assert isinstance(origin, type), f"origin must be a type but got {origin}"
+                args = list(typing.get_args(hint))
+                return GenericInstance(origin, [parse_type_hint(arg) for arg in args])
+            elif origin is Union:
+                return UnionType([parse_type_hint(arg) for arg in typing.get_args(hint)])
+            else:
+                raise RuntimeError(f"Unsupported origin type: {origin}")
         if isinstance(hint, type):
             return hint
         raise RuntimeError(f"Unsupported type hint: {hint}")

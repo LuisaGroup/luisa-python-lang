@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 from luisa_lang import hir
 from luisa_lang._utils import report_error
 
@@ -7,15 +7,79 @@ class TypeInferencer:
     pass
 
 
+def _infer_cache(func: Callable[..., Any]) -> Callable[..., Any]:
+    def wrapper(inferencer: 'FuncTypeInferencer', node: hir.Node, *args) -> Optional[hir.Type]:
+        if id(node) in inferencer._cache:
+            return inferencer._cache[id(node)]
+        if node.type:
+            return node.type
+        ty = func(inferencer, node, *args)
+        node.type = ty
+        inferencer._cache[id(node)] = ty
+        return ty
+    return wrapper
+
+
+def is_function_fully_typed(func: hir.Function) -> bool:
+    for stmt in func.body:
+        if not is_stmt_fully_typed(stmt):
+            return False
+    return True
+
+
+def is_stmt_fully_typed(stmt: hir.Stmt) -> bool:
+    match stmt:
+        case hir.Assign(ref=ref, value=value):
+            return is_expr_fully_typed(value)
+        case hir.Return(value=value):
+            return value is None or is_expr_fully_typed(value)
+        case _:
+            raise NotImplementedError(f"Unsupported stmt type: {stmt}")
+
+
+def is_expr_fully_typed(expr: hir.Value) -> bool:
+    if not expr.type:
+        return False
+    match expr:
+        case hir.Load(ref=ref):
+            return is_ref_fully_typed(ref)
+        case hir.Call(op=op) if isinstance(op, str):
+            return False
+        case hir.Call(op=op) if isinstance(op, hir.Value):
+            return is_expr_fully_typed(op) and all(is_expr_fully_typed(arg) for arg in expr.args)
+        case hir.Member(base=base, field=field):
+            return is_ref_fully_typed(base)
+        case hir.Constant():
+            return True
+        case _:
+            raise NotImplementedError(f"Unsupported expr type: {expr}")
+
+
+def is_ref_fully_typed(ref: hir.Ref) -> bool:
+    match ref:
+        case hir.ValueRef(value=value):
+            return is_expr_fully_typed(value)
+        case hir.Var():
+            return ref.type is not None
+        case hir.Member(base=base, field=field):
+            return is_ref_fully_typed(base)
+        case _:
+            raise NotImplementedError(f"Unsupported ref type: {ref}")
+
+
 class FuncTypeInferencer:
     func: hir.Function
+    _cache: Dict[int, Optional[hir.Type]]
 
     def __init__(self, func: hir.Function) -> None:
         self.func = func
+        self._cache = {}
 
     def infer(self) -> None:
         for stmt in self.func.body:
             self.infer_stmt(stmt)
+        if is_function_fully_typed(self.func):
+            self.func.fully_typed = True
 
     def infer_stmt(self, stmt: hir.Stmt) -> None:
         match stmt:
@@ -39,30 +103,52 @@ class FuncTypeInferencer:
             case _:
                 raise NotImplementedError(f"Unsupported stmt type: {stmt}")
 
+    def _infer_member(self, member: hir.Member) -> Optional[hir.Type]:
+        if member.type:
+            return member.type
+        base = self.infer_ref(member.base)
+        if not base:
+            return None
+        field = member.field
+        return base.member(field)
+
+    @_infer_cache
     def infer_ref(self, ref: hir.Ref) -> Optional[hir.Type]:
         match ref:
             case hir.ValueRef(value=value):
-                ty = self.infer_expr(value)
-                if ty:
-                    ref.type = ty
-                return ty
+                return self.infer_expr(value)
             case hir.Var():
                 return ref.type
+            case hir.Member() as member:
+                return self._infer_member(member)
             case _:
                 raise NotImplementedError(f"Unsupported ref type: {ref}")
 
+    @_infer_cache
     def infer_expr(self, expr: hir.Value) -> Optional[hir.Type]:
         match expr:
             case hir.Load(ref=ref):
                 ty = self.infer_ref(ref)
-                if ty:
-                    expr.type = ty
                 return ty
             case hir.Call(op=op) if isinstance(op, str):
-                ty = self.infer_operator(expr)
-                if ty:
-                    expr.type = ty
+                ty = self._infer_operator(expr)
                 return ty
+            case hir.Call(op=op) if isinstance(op, hir.Value):
+                op_ty = self.infer_expr(op)
+                if not op_ty:
+                    return None
+                if not isinstance(op_ty, hir.FunctionType):
+                    raise hir.TypeInferenceError(
+                        f"Expected callable, got {op_ty}")
+                args = [self.infer_expr(arg) for arg in expr.args]
+                return self._infer_call_helper(op_ty.func_like, args)
+            case hir.Member() as member:
+                return self._infer_member(member)
+            case hir.Constant() as constant:
+                if isinstance(constant.value, hir.Function):
+                    return hir.FunctionType(constant.value)
+                raise NotImplementedError(
+                    f"Unsupported constant type: {constant}")
             case _:
                 raise NotImplementedError(f"Unsupported expr type: {expr}")
 
@@ -72,9 +158,22 @@ class FuncTypeInferencer:
         if isinstance(f, hir.BuiltinFunction):
             return f.type_rule.infer(args)
         else:
-            raise NotImplementedError(f"DOTO")
+            param_tys = []
+            for p in f.params:
+                assert p.type, f"Parameter {p.name} has no type"
+                param_tys.append(p.type)
+            if len(param_tys) != len(args):
+                raise hir.TypeInferenceError(
+                    f"Expected {len(param_tys)} arguments, got {len(args)}"
+                )
+            for i, (param_ty, arg) in enumerate(zip(param_tys, args)):
+                if param_ty != arg:
+                    raise hir.TypeInferenceError(
+                        f"Argument {i} expected {param_ty}, got {arg}"
+                    )
+            return f.return_type
 
-    def infer_operator(self, expr: hir.Call) -> Optional[hir.Type]:
+    def _infer_operator(self, expr: hir.Call) -> Optional[hir.Type]:
         op = expr.op
         assert isinstance(op, str)
         if expr.kind == hir.CallOpKind.BINARY_OP:
@@ -101,7 +200,10 @@ class FuncTypeInferencer:
 
             method_names = BINOP_TO_METHOD_NAMES[op]
             name, rname = method_names
-            return infer_binop(name, rname)
+            ty = infer_binop(name, rname)
+            if ty:
+                expr.resolved = True
+            return ty
         raise NotImplementedError(f"Unsupported operator: {op} {expr.kind}")
 
 

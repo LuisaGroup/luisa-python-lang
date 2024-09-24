@@ -160,11 +160,11 @@ _t = hir.SymbolicType("T")
 _n = hir.SymbolicConstant("N", typeof(u32))
 
 
-@_builtin_type(
-    hir.ParametricType(
-        "Array", [hir.TypeParameter(_t, bound=[])], hir.ArrayType(_t, _n)
-    )
-)
+# @_builtin_type(
+#     hir.ParametricType(
+#         "Array", [hir.TypeParameter(_t, bound=[])], hir.ArrayType(_t, _n)
+#     )
+# )
 class Array(Generic[_T, _N]):
     def __init__(self) -> None:
         return _intrinsic_impl()
@@ -179,11 +179,11 @@ class Array(Generic[_T, _N]):
         return _intrinsic_impl()
 
 
-@_builtin_type(
-    hir.ParametricType(
-        "Buffer", [hir.TypeParameter(_t, bound=[])], hir.OpaqueType("Buffer")
-    )
-)
+# @_builtin_type(
+#     hir.ParametricType(
+#         "Buffer", [hir.TypeParameter(_t, bound=[])], hir.OpaqueType("Buffer")
+#     )
+# )
 class Buffer(Generic[_T]):
     def __getitem__(self, index: int | u32 | u64) -> _T:
         return _intrinsic_impl()
@@ -195,11 +195,11 @@ class Buffer(Generic[_T]):
         return _intrinsic_impl()
 
 
-@_builtin_type(
-    hir.ParametricType(
-        "Pointer", [hir.TypeParameter(_t, bound=[])], hir.PointerType(_t)
-    )
-)
+# @_builtin_type(
+#     hir.ParametricType(
+#         "Pointer", [hir.TypeParameter(_t, bound=[])], hir.PointerType(_t)
+#     )
+# )
 class Pointer(Generic[_T]):
     def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> _T:
         return _intrinsic_impl()
@@ -217,19 +217,3 @@ class Pointer(Generic[_T]):
 
 
 # hir.GlobalContext.get().flush()
-
-
-def get_dsl_func(func: Callable[..., Any]) -> hir.Function:
-    func_ = hir.GlobalContext.get().functions.get(func)
-    success = func_ is not None
-    if not func_:
-        # check if __luisa_func__ is set
-        luisa_func = getattr(func, "__luisa_func__", None)
-        if luisa_func:
-            func_ = hir.GlobalContext.get().functions.get(luisa_func)
-            success = func_ is not None
-    if not success:
-        raise RuntimeError(f'function "{func}" not is not a valid DSL function')
-    assert func_
-    return func_
-       

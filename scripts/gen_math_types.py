@@ -25,7 +25,8 @@ def main() -> None:
             "floor",
             "log",
             "log10",
-            "log2" "sin",
+            "log2",
+            "sin",
             "sinh",
             "sqrt",
             "tan",
@@ -53,6 +54,9 @@ def main() -> None:
         print(
             "from luisa_lang._builtin_decor import _builtin, _builtin_type, _intrinsic_impl",
         )
+        print(
+            "from luisa_lang._classinfo import _register_class",
+        )
         print("import luisa_lang.hir as _hir")
         print("_ctx = _hir.GlobalContext.get()")
         print("_ctx.types[bool] = _hir.BoolType()")
@@ -68,12 +72,13 @@ def main() -> None:
             print("")
             for builtin in FLOAT_BULTINS_1:
                 print(
-                    f"@_builtin\ndef {builtin}(x: FloatType) -> FloatType: return _intrinsic_impl()"
+                    f"@_builtin\ndef {builtin}(x: _F1) -> _F1: return _intrinsic_impl()"
                 )
             for builtin in FLOAT_BULTINS_2:
                 print(
-                    f"@_builtin\ndef {builtin}(x: FloatType, y: FloatType) -> FloatType: return _intrinsic_impl()"
+                    f"@_builtin\ndef {builtin}(x: _F1, y: _F1) -> _F1: return _intrinsic_impl()"
                 )
+            print("_register_class(FloatBuiltin)")
 
         def gen_binop(op: str, ty: str, operand_ty: str):
             print(
@@ -158,6 +163,7 @@ class {ty}:
         )
         print(f'FloatType = tp.Union[{", ".join(float_types_quoted)}]')
         print(f'_F = tp.TypeVar("_F")')
+        print(f'_F1 = tp.TypeVar("_F1", {", ".join(float_types_quoted)})')
         gen_float_builtins()
         gen_scalar_type("f32", "float", Kind.FLOAT)
         gen_scalar_type("f64", "float", Kind.FLOAT)

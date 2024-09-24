@@ -6,15 +6,13 @@ import sys
 from typing import (
     Any,
     Callable,
-    Generic,
     List,
     Optional,
     Tuple,
     Dict,
-    Final,
-    TypeVar,
     Union,
 )
+from typing_extensions import override
 from luisa_lang._utils import Span
 from abc import ABC, abstractmethod
 
@@ -46,6 +44,14 @@ class Type(ABC):
     @abstractmethod
     def __hash__(self) -> int:
         pass
+
+    def member(self, field: Any) -> Optional['Type']:
+        if isinstance(field, str):
+            m = self.methods.get(field)
+            if not m:
+                return None
+            return FunctionType(m)
+        return None
 
 
 class UnitType(Type):
@@ -107,6 +113,42 @@ class IntType(ScalarType):
 
     def __repr__(self) -> str:
         return f"IntType({self.bits}, {self.signed})"
+
+
+class GenericFloatType(ScalarType):
+    @override
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, GenericFloatType)
+
+    @override
+    def __hash__(self) -> int:
+        return hash(GenericFloatType)
+
+    @override
+    def size(self) -> int:
+        raise RuntimeError("GenericFloatType has no size")
+
+    @override
+    def align(self) -> int:
+        raise RuntimeError("GenericFloatType has no align")
+
+
+class GenericIntType(ScalarType):
+    @override
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, GenericIntType)
+
+    @override
+    def __hash__(self) -> int:
+        return hash(GenericIntType)
+
+    @override
+    def size(self) -> int:
+        raise RuntimeError("GenericIntType has no size")
+
+    @override
+    def align(self) -> int:
+        raise RuntimeError("GenericIntType has no align")
 
 
 class FloatType(ScalarType):
@@ -246,11 +288,17 @@ class PointerType(Type):
 
 
 class StructType(Type):
-    fields: List[Tuple[str, Type]]
+    _fields: List[Tuple[str, Type]]
+    _field_dict: Dict[str, Type]
 
     def __init__(self, fields: List[Tuple[str, Type]]) -> None:
         super().__init__()
-        self.fields = fields
+        self._fields = fields
+        self._field_dict = {name: ty for name, ty in fields}
+
+    @property
+    def fields(self) -> List[Tuple[str, Type]]:
+        return self._fields
 
     def size(self) -> int:
         return sum(field.size() for _, field in self.fields)
@@ -262,6 +310,13 @@ class StructType(Type):
         return value is self or (
             isinstance(value, StructType) and value.fields == self.fields
         )
+
+    @override
+    def member(self, field: Any) -> Optional['Type']:
+        if isinstance(field, str):
+            if field in self._field_dict:
+                return self._field_dict[field]
+        return None
 
 
 class SymbolicType(Type):
@@ -369,6 +424,25 @@ class BoundType(Type):
         )
 
 
+class FunctionType(Type):
+    func_like: FunctionLike
+
+    def __init__(self, func_like: FunctionLike) -> None:
+        self.func_like = func_like
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, FunctionType) and id(value.func_like) == id(self.func_like)
+
+    def __hash__(self) -> int:
+        return hash((FunctionType, id(self.func_like)))
+
+    def size(self) -> int:
+        raise RuntimeError("FunctionType has no size")
+
+    def align(self) -> int:
+        raise RuntimeError("FunctionType has no align")
+
+
 class Node:
     type: Optional[Type]
     span: Optional[Span]
@@ -418,12 +492,6 @@ class Var(Ref):
         self.type = type
         self.byval = byval
 
-    def __hash__(self) -> int:
-        return self.name.__hash__()
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, Var) and other.name == self.name
-
 
 class Member(Ref):
     base: Ref
@@ -459,25 +527,33 @@ class CallOpKind(Enum):
     UNARY_OP = auto()
 
 
+class Constant(Value):
+    value: Any
+
+    def __init__(self, value: Any, span: Optional[Span] = None) -> None:
+        super().__init__(None, span)
+        self.value = value
+
+
 class Call(Value):
     op: Value | str
     args: List[Value]
     kind: CallOpKind
+    resolved: bool
 
     def __init__(
         self,
         op: Value | str,
         args: List[Value],
         kind: CallOpKind,
+        resolved: bool,
         span: Optional[Span] = None,
     ) -> None:
         super().__init__(op.type if isinstance(op, Value) else None, span)
         self.op = op
         self.args = args
         self.kind = kind
-
-    def is_unresolved(self) -> bool:
-        return isinstance(self.op, str)
+        self.resolved = resolved
 
 
 class TypeInferenceError(Exception):
@@ -558,6 +634,7 @@ class Function:
     builtin: bool
     export: bool
     locals: List[Var]
+    fully_typed: bool
 
     def __init__(
         self,
@@ -576,6 +653,7 @@ class Function:
         self.builtin = builtin
         self.export = export
         self.locals = locals
+        self.fully_typed = False
 
     @property
     def is_parametric(self) -> bool:
@@ -654,3 +732,18 @@ class FuncMetadata:
 
 class StructMetadata:
     pass
+
+
+def get_dsl_func(func: Callable[..., Any]) -> Optional[Function]:
+    func_ = GlobalContext.get().functions.get(func)
+    success = func_ is not None
+    if not func_:
+        # check if __luisa_func__ is set
+        luisa_func = getattr(func, "__luisa_func__", None)
+        if luisa_func:
+            func_ = GlobalContext.get().functions.get(luisa_func)
+            success = func_ is not None
+    if not success:
+        return None
+    assert func_
+    return func_

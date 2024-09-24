@@ -1,6 +1,7 @@
 import ast
 import textwrap
-from typing import Any, NoReturn, Optional, Tuple, TypeVar, overload
+import types
+from typing import Any, List, NoReturn, Optional, Tuple, TypeVar, overload
 import sourceinspect
 
 T = TypeVar("T")
@@ -29,7 +30,8 @@ def increment_lineno_and_col_offset(
         ):
             setattr(child, "end_lineno", end_lineno + lineno)
         if "col_offset" in child._attributes:
-            setattr(child, "col_offset", getattr(child, "col_offset", 0) + col_offset)
+            setattr(child, "col_offset", getattr(
+                child, "col_offset", 0) + col_offset)
         if (
             "end_col_offset" in child._attributes
             and (end_col_offset := getattr(child, "end_col_offset", 0)) is not None
@@ -53,7 +55,8 @@ def retrieve_ast_and_filename(f: object) -> Tuple[ast.AST, str]:
         source_file = "<unknown>"
     source_lines, lineno = sourceinspect.getsourcelines(f)
     src, indent = dedent_and_retrieve_indentation(source_lines)
-    tree = increment_lineno_and_col_offset(ast.parse(src), lineno - 1, indent + 1)
+    tree = increment_lineno_and_col_offset(
+        ast.parse(src), lineno - 1, indent + 1)
     for child in ast.walk(tree):
         setattr(child, "source_file", source_file)
     return tree, source_file
@@ -101,7 +104,8 @@ class Span:
         return Span(
             file=file,
             start=(getattr(ast, "lineno", 0), getattr(ast, "col_offset", 0)),
-            end=(getattr(ast, "end_lineno", 0), getattr(ast, "end_col_offset", 0)),
+            end=(getattr(ast, "end_lineno", 0),
+                 getattr(ast, "end_col_offset", 0)),
         )
 
 
@@ -121,6 +125,8 @@ def _report_error_tree(tree: ast.AST, message: str) -> NoReturn:
 def report_error(obj: Span | None, message: str) -> NoReturn: ...
 @overload
 def report_error(obj: ast.AST, message: str) -> NoReturn: ...
+
+
 def report_error(obj, message: str) -> NoReturn:
     if obj is None:
         raise RuntimeError(f"error: {message}")
@@ -130,3 +136,9 @@ def report_error(obj, message: str) -> NoReturn:
         _report_error_tree(obj, message)
     else:
         raise NotImplementedError(f"unsupported object {obj}")
+
+
+def get_union_args(union: Any) -> List[type]:
+    if hasattr(union, "__args__") or isinstance(union, types.UnionType):
+        return list(union.__args__)
+    return []

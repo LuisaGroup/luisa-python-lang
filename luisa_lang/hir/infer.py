@@ -8,7 +8,7 @@ class TypeInferencer:
 
 
 def _infer_cache(func: Callable[..., Any]) -> Callable[..., Any]:
-    def wrapper(inferencer: 'FuncTypeInferencer', node: hir.Node, *args) -> Optional[hir.Type]:
+    def wrapper(inferencer: 'FuncTypeInferencer', node: hir.TypedNode, *args) -> Optional[hir.Type]:
         if id(node) in inferencer._cache:
             return inferencer._cache[id(node)]
         if node.type:

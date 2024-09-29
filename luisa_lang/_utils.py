@@ -142,3 +142,8 @@ def get_union_args(union: Any) -> List[type]:
     if hasattr(union, "__args__") or isinstance(union, types.UnionType):
         return list(union.__args__)
     return []
+
+def checked_cast(t: type[T], obj: Any) -> T:
+    if not isinstance(obj, t):
+        raise TypeError(f"expected {t}, got {type(obj)}")
+    return obj

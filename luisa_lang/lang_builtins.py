@@ -42,15 +42,15 @@ def unroll(range_: Sequence[int]) -> Sequence[int]:
 def address_of(a: _T) -> Pointer[_T]:
     return _intrinsic_impl()
 
-class StaticEval:
-    def __init__(self):
-        pass
+# class StaticEval:
+#     def __init__(self):
+#         pass
 
-    def __enter__(self):
-        pass
+#     def __enter__(self):
+#         pass
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+#     def __exit__(self, exc_type, exc_val, exc_tb):
+#         pass
 
-    def __call__(self):
-        pass
+#     def __call__(self):
+#         pass

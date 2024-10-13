@@ -405,6 +405,7 @@ class u64:
 class bool2:
     x: bool
     y: bool
+    def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
@@ -430,6 +431,7 @@ class bool2:
 class float2:
     x: f32
     y: f32
+    def __init__(self, x: tp.Union['f32', float] = 0.0, y: tp.Union['f32', float] = 0.0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
@@ -455,6 +457,7 @@ class float2:
 class double2:
     x: f64
     y: f64
+    def __init__(self, x: tp.Union['f64', float] = 0.0, y: tp.Union['f64', float] = 0.0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
@@ -480,6 +483,7 @@ class double2:
 class byte2:
     x: i8
     y: i8
+    def __init__(self, x: tp.Union['i8', int] = 0, y: tp.Union['i8', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
@@ -505,6 +509,7 @@ class byte2:
 class ubyte2:
     x: u8
     y: u8
+    def __init__(self, x: tp.Union['u8', int] = 0, y: tp.Union['u8', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
@@ -530,6 +535,7 @@ class ubyte2:
 class short2:
     x: i16
     y: i16
+    def __init__(self, x: tp.Union['i16', int] = 0, y: tp.Union['i16', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
@@ -555,6 +561,7 @@ class short2:
 class ushort2:
     x: u16
     y: u16
+    def __init__(self, x: tp.Union['u16', int] = 0, y: tp.Union['u16', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
@@ -580,6 +587,7 @@ class ushort2:
 class int2:
     x: i32
     y: i32
+    def __init__(self, x: tp.Union['i32', int] = 0, y: tp.Union['i32', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
@@ -605,6 +613,7 @@ class int2:
 class uint2:
     x: u32
     y: u32
+    def __init__(self, x: tp.Union['u32', int] = 0, y: tp.Union['u32', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
@@ -630,6 +639,7 @@ class uint2:
 class long2:
     x: i64
     y: i64
+    def __init__(self, x: tp.Union['i64', int] = 0, y: tp.Union['i64', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
@@ -655,6 +665,7 @@ class long2:
 class ulong2:
     x: u64
     y: u64
+    def __init__(self, x: tp.Union['u64', int] = 0, y: tp.Union['u64', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
@@ -681,6 +692,7 @@ class bool3:
     x: bool
     y: bool
     z: bool
+    def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False, z: tp.Union['bool', bool] = False) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
@@ -707,6 +719,7 @@ class float3:
     x: f32
     y: f32
     z: f32
+    def __init__(self, x: tp.Union['f32', float] = 0.0, y: tp.Union['f32', float] = 0.0, z: tp.Union['f32', float] = 0.0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
@@ -733,6 +746,7 @@ class double3:
     x: f64
     y: f64
     z: f64
+    def __init__(self, x: tp.Union['f64', float] = 0.0, y: tp.Union['f64', float] = 0.0, z: tp.Union['f64', float] = 0.0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
@@ -759,6 +773,7 @@ class byte3:
     x: i8
     y: i8
     z: i8
+    def __init__(self, x: tp.Union['i8', int] = 0, y: tp.Union['i8', int] = 0, z: tp.Union['i8', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
@@ -785,6 +800,7 @@ class ubyte3:
     x: u8
     y: u8
     z: u8
+    def __init__(self, x: tp.Union['u8', int] = 0, y: tp.Union['u8', int] = 0, z: tp.Union['u8', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
@@ -811,6 +827,7 @@ class short3:
     x: i16
     y: i16
     z: i16
+    def __init__(self, x: tp.Union['i16', int] = 0, y: tp.Union['i16', int] = 0, z: tp.Union['i16', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
@@ -837,6 +854,7 @@ class ushort3:
     x: u16
     y: u16
     z: u16
+    def __init__(self, x: tp.Union['u16', int] = 0, y: tp.Union['u16', int] = 0, z: tp.Union['u16', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
@@ -863,6 +881,7 @@ class int3:
     x: i32
     y: i32
     z: i32
+    def __init__(self, x: tp.Union['i32', int] = 0, y: tp.Union['i32', int] = 0, z: tp.Union['i32', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
@@ -889,6 +908,7 @@ class uint3:
     x: u32
     y: u32
     z: u32
+    def __init__(self, x: tp.Union['u32', int] = 0, y: tp.Union['u32', int] = 0, z: tp.Union['u32', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
@@ -915,6 +935,7 @@ class long3:
     x: i64
     y: i64
     z: i64
+    def __init__(self, x: tp.Union['i64', int] = 0, y: tp.Union['i64', int] = 0, z: tp.Union['i64', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
@@ -941,6 +962,7 @@ class ulong3:
     x: u64
     y: u64
     z: u64
+    def __init__(self, x: tp.Union['u64', int] = 0, y: tp.Union['u64', int] = 0, z: tp.Union['u64', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
@@ -968,6 +990,7 @@ class bool4:
     y: bool
     z: bool
     w: bool
+    def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False, z: tp.Union['bool', bool] = False, w: tp.Union['bool', bool] = False) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
@@ -995,6 +1018,7 @@ class float4:
     y: f32
     z: f32
     w: f32
+    def __init__(self, x: tp.Union['f32', float] = 0.0, y: tp.Union['f32', float] = 0.0, z: tp.Union['f32', float] = 0.0, w: tp.Union['f32', float] = 0.0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
@@ -1022,6 +1046,7 @@ class double4:
     y: f64
     z: f64
     w: f64
+    def __init__(self, x: tp.Union['f64', float] = 0.0, y: tp.Union['f64', float] = 0.0, z: tp.Union['f64', float] = 0.0, w: tp.Union['f64', float] = 0.0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
@@ -1049,6 +1074,7 @@ class byte4:
     y: i8
     z: i8
     w: i8
+    def __init__(self, x: tp.Union['i8', int] = 0, y: tp.Union['i8', int] = 0, z: tp.Union['i8', int] = 0, w: tp.Union['i8', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
@@ -1076,6 +1102,7 @@ class ubyte4:
     y: u8
     z: u8
     w: u8
+    def __init__(self, x: tp.Union['u8', int] = 0, y: tp.Union['u8', int] = 0, z: tp.Union['u8', int] = 0, w: tp.Union['u8', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
@@ -1103,6 +1130,7 @@ class short4:
     y: i16
     z: i16
     w: i16
+    def __init__(self, x: tp.Union['i16', int] = 0, y: tp.Union['i16', int] = 0, z: tp.Union['i16', int] = 0, w: tp.Union['i16', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
@@ -1130,6 +1158,7 @@ class ushort4:
     y: u16
     z: u16
     w: u16
+    def __init__(self, x: tp.Union['u16', int] = 0, y: tp.Union['u16', int] = 0, z: tp.Union['u16', int] = 0, w: tp.Union['u16', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
@@ -1157,6 +1186,7 @@ class int4:
     y: i32
     z: i32
     w: i32
+    def __init__(self, x: tp.Union['i32', int] = 0, y: tp.Union['i32', int] = 0, z: tp.Union['i32', int] = 0, w: tp.Union['i32', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
@@ -1184,6 +1214,7 @@ class uint4:
     y: u32
     z: u32
     w: u32
+    def __init__(self, x: tp.Union['u32', int] = 0, y: tp.Union['u32', int] = 0, z: tp.Union['u32', int] = 0, w: tp.Union['u32', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
@@ -1211,6 +1242,7 @@ class long4:
     y: i64
     z: i64
     w: i64
+    def __init__(self, x: tp.Union['i64', int] = 0, y: tp.Union['i64', int] = 0, z: tp.Union['i64', int] = 0, w: tp.Union['i64', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
@@ -1238,6 +1270,7 @@ class ulong4:
     y: u64
     z: u64
     w: u64
+    def __init__(self, x: tp.Union['u64', int] = 0, y: tp.Union['u64', int] = 0, z: tp.Union['u64', int] = 0, w: tp.Union['u64', int] = 0) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __radd__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __iadd__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()

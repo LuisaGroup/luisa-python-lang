@@ -40,14 +40,14 @@ def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     from luisa_lang._utils import retrieve_ast_and_filename
 
     assert inspect.isfunction(f), f"{f} is not a function"
-    print(hir.GlobalContext.get)
+    # print(hir.GlobalContext.get)
     obj_ast, obj_file = retrieve_ast_and_filename(f)
     assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"
 
     ctx = hir.GlobalContext.get()
     func_globals: Any = getattr(f, "__globals__", {})
     parsing_ctx = parse.ParsingContext(func_globals)
-    print(ast.dump(obj_ast))
+    # print(ast.dump(obj_ast))
     func_def = obj_ast.body[0]
     if not isinstance(func_def, ast.FunctionDef):
         raise RuntimeError("Function definition expected.")

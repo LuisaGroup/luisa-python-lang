@@ -217,6 +217,13 @@ class VectorType(Type):
     def __hash__(self) -> int:
         return hash((VectorType, self.element, self.count))
 
+    @override
+    def member(self, field: Any) -> Optional['Type']:
+        comps = 'xyzw'[:self.count]
+        if isinstance(field, str) and field in comps:
+            return self.element
+        return Type.member(self, field)
+
 
 class ArrayType(Type):
     element: Type
@@ -303,7 +310,7 @@ class StructType(Type):
         if isinstance(field, str):
             if field in self._field_dict:
                 return self._field_dict[field]
-        return None
+        return Type.member(self, field)
 
 
 class SymbolicType(Type):
@@ -570,10 +577,10 @@ class Var(Ref):
 
 
 class Member(Ref):
-    base: Ref
+    base: Ref | Value
     field: str
 
-    def __init__(self, base: Ref, field: str, span: Optional[Span]) -> None:
+    def __init__(self, base: Ref | Value, field: str, span: Optional[Span]) -> None:
         super().__init__(None, span)
         self.base = base
         self.field = field
@@ -590,10 +597,10 @@ class Member(Ref):
 
 
 class Index(Ref):
-    base: Ref
+    base: Ref | Value
     index: Value
 
-    def __init__(self, base: Ref, index: Value, span: Optional[Span]) -> None:
+    def __init__(self, base: Ref | Value, index: Value, span: Optional[Span]) -> None:
         super().__init__(None, span)
         self.base = base
         self.index = index
@@ -643,9 +650,17 @@ class Constant(Value):
         super().__init__(None, span)
         self.value = value
 
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, Constant) and value.value == self.value
+
+    def __hash__(self) -> int:
+        return hash(self.value)
+
 
 class Call(Value):
     op: Value | str
+    """After type inference, op should be a Value."""
+
     args: List[Value]
     kind: CallOpKind
     resolved: bool
@@ -684,7 +699,17 @@ class Call(Value):
 
 
 class TypeInferenceError(Exception):
-    pass
+    node: Node | None
+    message: str
+
+    def __init__(self, node: Node | None, message: str) -> None:
+        self.node = node
+        self.message = message
+
+    def __str__(self) -> str:
+        if self.node is None:
+            return f"Type inference error: {self.message}"
+        return f"Type inference error at {self.node.span}: {self.message}"
 
 
 class TypeRule(ABC):
@@ -912,3 +937,17 @@ def get_dsl_func(func: Callable[..., Any]) -> Optional[Function]:
         return None
     assert func_
     return func_
+
+
+def get_dsl_type(cls: type) -> Optional[Type]:
+    return GlobalContext.get().types.get(cls)
+
+
+def is_type_compatible_to(ty:Type, target:Type)->bool:
+    if ty == target:
+        return True
+    if isinstance(target, FloatType):
+        return isinstance(ty, GenericFloatType)
+    if isinstance(target, IntType):
+        return isinstance(ty, GenericIntType)
+    return False

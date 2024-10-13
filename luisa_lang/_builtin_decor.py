@@ -11,16 +11,6 @@ _T = TypeVar("_T", bound=type)
 _F = TypeVar("_F", bound=Callable[..., Any])
 
 
-@functools.lru_cache(maxsize=None)
-def _retrieve_generic_params(cls: type) -> Set[TypeVar]:
-    if hasattr(cls, "__orig_bases__"):
-        orig_bases = cls.__orig_bases__
-        for base in orig_bases:
-            print(base, typing.get_args(base))
-            _retrieve_generic_params(base)
-    return set()
-
-
 def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
     def decorator(cls: _T) -> _T:
         cls_name = _get_full_name(cls)
@@ -42,40 +32,43 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
             parameters = signature.parameters
             return_type = method.return_type
             if not isinstance(return_type, type):
-                raise hir.TypeInferenceError(
-                    f"Valid return type annotation required for {cls_name}.{name}"
-                )
+                raise hir.TypeInferenceError(None,
+                                             f"Valid return type annotation required for {cls_name}.{name}"
+                                             )
 
             def type_rule(args: List[hir.Type]) -> hir.Type:
-                if len(args) > len(parameters):
-                    raise hir.TypeInferenceError(
-                        f"Too many arguments for {cls_name}.{name} expected at most {len(parameters)} but got {len(args)}"
-                    )
+
                 parameters_list = list(parameters.values())
+                if name == '__init__':
+                    parameters_list = parameters_list[1:]
+                if len(args) > len(parameters_list):
+                    raise hir.TypeInferenceError(None,
+                                                 f"Too many arguments for {cls_name}.{name} expected at most {len(parameters_list)} but got {len(args)}"
+                                                 )
                 for i, arg in enumerate(args):
                     param = parameters_list[i]
                     param_ty = type_hints.get(param.name)
                     if param.name == "self":
                         if arg != ty:
                             if i != 0:
-                                raise hir.TypeInferenceError(
-                                    f"Expected {cls_name}.{name} to be called with an instance of {cls_name} as the first argument but got {arg}"
-                                )
-                            raise hir.TypeInferenceError(
-                                f"Expected {cls_name}.{name} to be called with an instance of {cls_name} but got {arg}"
-                            )
+                                raise hir.TypeInferenceError(None,
+                                                             f"Expected {cls_name}.{name} to be called with an instance of {cls_name} as the first argument but got {arg}"
+                                                             )
+                            raise hir.TypeInferenceError(None,
+                                                         f"Expected {cls_name}.{name} to be called with an instance of {cls_name} but got {arg}"
+                                                         )
                         continue
                     if param_ty is None:
-                        raise hir.TypeInferenceError(
-                            f"Parameter type annotation required for {cls_name}.{name}"
-                        )
+                        raise hir.TypeInferenceError(None,
+                                                     f"Parameter type annotation required for {cls_name}.{name}"
+                                                     )
 
                     def check(anno_tys: List[type | Any]):
                         possible_failed_reasons: List[str] = []
                         for anno_ty in anno_tys:
                             if anno_ty == float:
                                 # match all hir.FloatType
-                                if isinstance(arg, hir.FloatType):
+                                if isinstance(arg, hir.FloatType) or isinstance(arg, hir.GenericFloatType):
                                     return
                                 else:
                                     possible_failed_reasons.append(
@@ -83,7 +76,7 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
                                     )
                                     continue
                             if anno_ty == int:
-                                if isinstance(arg, hir.IntType):
+                                if isinstance(arg, hir.IntType) or isinstance(arg, hir.GenericIntType):
                                     return
                                 else:
                                     possible_failed_reasons.append(
@@ -110,14 +103,16 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
                             possible_failed_reasons.append(
                                 f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
                             )
-                        raise hir.TypeInferenceError(
-                            f"Expected {cls_name}.{name} to be called with one of {possible_failed_reasons}"
-                        )
+                        raise hir.TypeInferenceError(None,
+                                                     f"Expected {cls_name}.{name} to be called with one of {possible_failed_reasons}"
+                                                     )
 
                     union_args = get_union_args(param_ty)
                     if union_args == []:
                         union_args = [param_ty]
                     check(union_args)
+                if name == '__init__':
+                    return ty
                 if return_type:
                     return ctx.types[return_type]
                 else:
@@ -140,7 +135,7 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
     return decorator
 
 
-def _builtin(func: _F, *args, **kwargs) -> _F:
+def _builtin(func: _F) -> _F:
     return func
 
 

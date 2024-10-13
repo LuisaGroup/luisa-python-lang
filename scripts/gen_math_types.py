@@ -145,8 +145,17 @@ class {ty}{inherits_str}:
                 f"""@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[{scalar_ty}]), {size}))
 class {ty}:
 {fields_def}
-"""
-            )
+""")        
+            # literal_scalar_default = '0' if literal_scalar_ty == 'int' else '0.0'
+            literal_scalar_default:str
+            if literal_scalar_ty == 'int':
+                literal_scalar_default = '0'
+            elif literal_scalar_ty == 'float':
+                literal_scalar_default = '0.0'
+            else:
+                literal_scalar_default = 'False'
+            print('    def __init__(self, '+", ".join([f"{comp}: tp.Union[\'{scalar_ty}\', {literal_scalar_ty}] = {literal_scalar_default}" for comp in comps]) + ') -> None: return _intrinsic_impl()')
+
             gen_common_binop(
                 ty, f" tp.Union['{ty}', {scalar_ty}, {literal_scalar_ty}]", Kind.FLOAT
             )

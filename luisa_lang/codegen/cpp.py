@@ -1,7 +1,8 @@
+from functools import cache
 from luisa_lang import hir
 from luisa_lang._utils import unwrap
 from luisa_lang.codegen import CodeGen, ScratchBuffer
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any, Callable, Dict, Set, Tuple, Union
 
 from luisa_lang.hir.defs import GlobalContext
 from luisa_lang.hir import get_dsl_func
@@ -25,24 +26,58 @@ class TypeCodeGenCache:
         match ty:
             case hir.IntType(bits=bits, signed=signed):
                 if signed:
-                    return f"int{bits}_t"
+                    return f"i{bits}"
                 else:
-                    return f"uint{bits}_t"
+                    return f"u{bits}"
             case hir.FloatType(bits=bits):
-                return f"float{bits}_t"
+                return f"f{bits}"
             case hir.BoolType():
                 return "bool"
+            case hir.VectorType(element=element, count=count):
+                return f"vec<{self.gen(element)}, {count}>"
             case _:
                 raise NotImplementedError(f"unsupported type: {ty}")
 
 
+_OPERATORS: Set[str] = set([
+    '__add__',
+    '__sub__',
+    '__mul__',
+    '__truediv__',
+    '__floordiv__',
+    '__mod__',
+    '__pow__',
+    '__and__',
+    '__or__',
+    '__xor__',
+    '__lshift__',
+    '__rshift__',
+    '__eq__',
+    '__ne__',
+    '__lt__',
+    '__le__',
+    '__gt__',
+    '__ge__',
+])
+@cache
+def map_builtin_to_cpp_func(name: str) -> str:
+    comps = name.split(".")
+    if comps[0] == "luisa_lang" and comps[1] == "math_types":
+        if comps[3] in _OPERATORS:
+            return f'{comps[3]}<{comps[2]}>'
+        return f'{comps[2]}_{comps[3]}'
+
+    else:
+        raise NotImplementedError(f"unsupported builtin function: {name}")
+
+
 class Mangling:
-    cache: Dict[hir.Type | hir.Function, str]
+    cache: Dict[hir.Type | hir.FunctionLike, str]
 
     def __init__(self) -> None:
         self.cache = {}
 
-    def mangle(self, obj: Union[hir.Type, hir.Function]) -> str:
+    def mangle(self, obj: Union[hir.Type, hir.FunctionLike]) -> str:
         if obj in self.cache:
             return self.cache[obj]
         else:
@@ -50,7 +85,7 @@ class Mangling:
             self.cache[obj] = res
             return res
 
-    def mangle_impl(self, obj: Union[hir.Type, hir.Function]) -> str:
+    def mangle_impl(self, obj: Union[hir.Type, hir.FunctionLike]) -> str:
         def mangle_name(name: str) -> str:
             comps = name.split(".")
             mangled = "N"
@@ -75,9 +110,14 @@ class Mangling:
                 return f"P{self.mangle(element)}"
             case hir.ArrayType(element=element, count=count):
                 return f"A{count}{self.mangle(element)}"
+            case hir.VectorType(element=element, count=count):
+                return f"V{count}{self.mangle(element)}"
             case hir.Function(name=name, params=params, return_type=ret):
                 name = mangle_name(name)
                 return f"F{name}_{self.mangle(ret)}{''.join(self.mangle(unwrap(p.type)) for p in params)}"
+            case hir.BuiltinFunction(name=name):
+                name = map_builtin_to_cpp_func(name)
+                return f"__builtin_{name}"
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 
@@ -140,7 +180,10 @@ class FuncCodeGen:
             case hir.Var() as var:
                 return var.name
             case hir.Member() as member:
-                base = self.gen_ref(member.base)
+                if isinstance(member.base, hir.Ref):
+                    base = self.gen_ref(member.base)
+                else:
+                    base = self.gen_expr(member.base)
                 return f"{base}.{member.field}"
             case hir.ValueRef() as value_ref:
                 return self.gen_expr(value_ref.value)
@@ -154,16 +197,10 @@ class FuncCodeGen:
             case hir.Call() as call:
                 assert call.resolved, f"unresolved call: {call}"
                 kind = call.kind
-                match kind:
-                    case hir.CallOpKind.BINARY_OP:
-                        return f"{self.gen_expr(call.args[0])} {call.op} {self.gen_expr(call.args[1])}"
-                    case hir.CallOpKind.UNARY_OP:
-                        return f"{call.op}{self.gen_expr(call.args[0])}"
-                    case hir.CallOpKind.FUNC:
-                        # TODO: fix this
-                        assert not isinstance(call.op, str)
-                        op = self.gen_expr(call.op)
-                        return f"{op}({','.join(self.gen_expr(arg) for arg in call.args)})"
+                assert kind == hir.CallOpKind.FUNC and isinstance(
+                    call.op, hir.Value)
+                op = self.gen_expr(call.op)
+                return f"{op}({','.join(self.gen_expr(arg) for arg in call.args)})"
             case hir.Constant() as constant:
                 value = constant.value
                 if isinstance(value, int):
@@ -176,8 +213,11 @@ class FuncCodeGen:
                     return f'"{value}"'
                 elif isinstance(value, hir.Function):
                     return self.base.gen_function(value)
+                elif isinstance(value, hir.BuiltinFunction):
+                    return self.base.mangling.mangle(value)
                 else:
-                    raise NotImplementedError(f"unsupported constant: {constant}")
+                    raise NotImplementedError(
+                        f"unsupported constant: {constant}")
             case _:
                 raise NotImplementedError(f"unsupported expression: {expr}")
 

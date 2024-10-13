@@ -17,6 +17,8 @@ from luisa_lang.hir import (
 from typing import NoReturn, cast, Set, reveal_type
 from enum import Enum
 
+from luisa_lang.hir.defs import get_dsl_type
+
 
 # def _retrieve_metadata(obj: Any) -> Optional[hir.FuncMetadata | hir.StructMetadata]:
 #     meta = getattr(obj, '__lc_metadata', None)
@@ -226,7 +228,8 @@ class ParsingContext:
                 return parent
             parent.chain.append((AccessKind.SUBSCRIPT, [tree.slice]))
             return parent
-        report_error(tree, f"unsupported access chain {tree}")
+        return None
+        # report_error(tree, f"unsupported access chain {tree}")
 
     def parse_type(self, type_tree: ast.AST) -> Optional[Type]:
         acess_chain: AccessChain | None = self._parse_access_chain(type_tree)
@@ -258,7 +261,7 @@ class FuncParser:
         self.arg_types = []
         self.return_type = None
         self._init_signature()
-        print(self.arg_types, "->", self.return_type)
+        # print(self.arg_types, "->", self.return_type)
 
     def _init_signature(
         self,
@@ -300,6 +303,7 @@ class FuncParser:
             or isinstance(expr, ast.Subscript)
         ):
             ref = self.parse_ref(expr)
+            assert isinstance(ref, hir.Ref)
             return hir.Load(ref)
         if isinstance(expr, ast.Constant):
             return self.parse_const(expr)
@@ -333,7 +337,12 @@ class FuncParser:
             return hir.Call(func, args, kind=hir.CallOpKind.FUNC, resolved=True, span=span)
         report_error(expr, f"unsupported expression {expr}")
 
-    def parse_ref(self, expr: ast.expr, maybe_new_var=False) -> hir.Ref:
+    def parse_ref(self, expr: ast.expr, maybe_new_var=False) -> hir.Ref | hir.Value:
+        """
+        Attempt to parse a reference from the given AST expression.
+        In particule, it tries to parse expressions like Subscript, Name, Attribute.
+        For other cases, it will return a Value.
+        """
         span = hir.Span.from_ast(expr)
         access_chain: AccessChain | None = self.p_ctx._parse_access_chain(expr)
         if not access_chain:
@@ -352,7 +361,9 @@ class FuncParser:
             elif isinstance(expr, ast.Attribute):
                 obj = self.parse_ref(expr.value)
                 return hir.Member(obj, expr.attr, span)
-            report_error(expr, f"unsupported reference {expr}")
+            else:
+                return self.parse_expr(expr)
+            # report_error(expr, f"unsupported reference {expr}")
         resolved, remaining = access_chain.resolve()
         if remaining is None or remaining.chain == []:
             if callable(resolved):
@@ -360,9 +371,16 @@ class FuncParser:
                 if dsl_func is None:
                     report_error(expr, f"expected DSL function")
                 return hir.ValueRef(hir.Constant(dsl_func, span))
+            elif isinstance(resolved, hir.Type):
+                init = resolved.member("__init__")
+                if not init:
+                    report_error(expr, f"expected type constructor")
+                if not isinstance(init, hir.FunctionType):
+                    report_error(expr, f"expected callable type constructor")
+                return hir.ValueRef(hir.Constant(init.func_like, span))
             else:
-                report_error(expr, f"expected callable")
-        print(resolved, remaining)
+                report_error(expr, f"expected callable or type constructor but got {resolved}")
+        # print(resolved, remaining)
         parent = resolved
         for i in range(len(remaining.chain)):
             access = remaining.chain[i]
@@ -386,6 +404,7 @@ class FuncParser:
             if not isinstance(stmt.target, ast.Name):
                 report_error(stmt, f"expected name")
             var = self.parse_ref(stmt.target, maybe_new_var=True)
+            assert isinstance(var, hir.Ref)
             if stmt.value is None:
                 if not isinstance(var, hir.Var):
                     report_error(stmt, f"expected variable")
@@ -400,6 +419,7 @@ class FuncParser:
                 report_error(target, f"expected name")
             var = self.parse_ref(target, maybe_new_var=True)
             value = self.parse_expr(stmt.value)
+            assert isinstance(var, hir.Ref)
             return hir.Assign(var, None, value)
         if isinstance(stmt, ast.Return):
             if stmt.value is None:

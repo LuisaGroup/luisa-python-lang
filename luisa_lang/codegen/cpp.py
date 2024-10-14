@@ -232,6 +232,21 @@ class FuncCodeGen:
                 ref = self.gen_ref(assign.ref)
                 value = self.gen_expr(assign.value)
                 self.body.writeln(f"{ref} = {value};")
+            case hir.If() as if_stmt:
+                cond = self.gen_expr(if_stmt.cond)
+                self.body.writeln(f"if ({cond}) {{")
+                self.body.indent += 1
+                for stmt in if_stmt.then_body:
+                    self.gen_stmt(stmt)
+                self.body.indent -= 1
+                self.body.writeln("}")
+                if if_stmt.else_body:
+                    self.body.writeln("else {")
+                    self.body.indent += 1
+                    for stmt in if_stmt.else_body:
+                        self.gen_stmt(stmt)
+                    self.body.indent -= 1
+                    self.body.writeln("}")
             case _:
                 raise NotImplementedError(f"unsupported statement: {stmt}")
 

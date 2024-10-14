@@ -3,7 +3,7 @@ from typing import Any, Callable, List, Optional, Set, TypeVar
 import typing
 from luisa_lang import hir
 import inspect
-from luisa_lang._utils import _get_full_name, get_union_args
+from luisa_lang._utils import get_full_name, get_union_args
 from luisa_lang._classinfo import _register_class, _class_typeinfo, MethodType, _get_cls_globalns
 import functools
 
@@ -13,7 +13,7 @@ _F = TypeVar("_F", bound=Callable[..., Any])
 
 def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
     def decorator(cls: _T) -> _T:
-        cls_name = _get_full_name(cls)
+        cls_name = get_full_name(cls)
         ctx = hir.GlobalContext.get()
         ctx.types[cls] = ty
 
@@ -66,45 +66,19 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
                     def check(anno_tys: List[type | Any]):
                         possible_failed_reasons: List[str] = []
                         for anno_ty in anno_tys:
-                            if anno_ty == float:
-                                # match all hir.FloatType
-                                if isinstance(arg, hir.FloatType) or isinstance(arg, hir.GenericFloatType):
-                                    return
-                                else:
-                                    possible_failed_reasons.append(
-                                        f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
-                                    )
-                                    continue
-                            if anno_ty == int:
-                                if isinstance(arg, hir.IntType) or isinstance(arg, hir.GenericIntType):
-                                    return
-                                else:
-                                    possible_failed_reasons.append(
-                                        f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
-                                    )
-                                    continue
-                            if anno_ty == bool:
-                                if isinstance(arg, hir.BoolType):
-                                    return
-                                else:
-                                    possible_failed_reasons.append(
-                                        f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
-                                    )
-                                    continue
-
                             param_ir_ty = ctx.types.get(anno_ty)
                             if param_ir_ty is None:
                                 possible_failed_reasons.append(
                                     f"Type {anno_ty} is not a valid DSL type"
                                 )
                                 continue
-                            if arg == param_ir_ty:
+                            if hir.is_type_compatible_to(arg, param_ir_ty):
                                 return
                             possible_failed_reasons.append(
                                 f"Expected {cls_name}.{name} to be called with {anno_ty} but got {arg}"
                             )
                         raise hir.TypeInferenceError(None,
-                                                     f"Expected {cls_name}.{name} to be called with one of {possible_failed_reasons}"
+                                                     f"Possible reasons {possible_failed_reasons}"
                                                      )
 
                     union_args = get_union_args(param_ty)

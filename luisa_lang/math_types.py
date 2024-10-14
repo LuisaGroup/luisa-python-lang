@@ -96,6 +96,12 @@ class f32(FloatBuiltin['f32']):
     def __mod__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['f32', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['f32', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['f32', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['f32', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['f32', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['f32', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
@@ -120,6 +126,12 @@ class f64(FloatBuiltin['f64']):
     def __mod__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['f64', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['f64', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['f64', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['f64', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['f64', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['f64', float]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
@@ -144,6 +156,12 @@ class i8:
     def __mod__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['i8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['i8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['i8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['i8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['i8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['i8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __floordiv__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
     def __ifloordiv__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
@@ -178,6 +196,12 @@ class u8:
     def __mod__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['u8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['u8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['u8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['u8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['u8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['u8', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __floordiv__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
     def __ifloordiv__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
@@ -212,6 +236,12 @@ class i16:
     def __mod__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['i16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['i16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['i16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['i16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['i16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['i16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __floordiv__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
     def __ifloordiv__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
@@ -246,6 +276,12 @@ class u16:
     def __mod__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['u16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['u16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['u16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['u16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['u16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['u16', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __floordiv__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
     def __ifloordiv__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
@@ -280,6 +316,12 @@ class i32:
     def __mod__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['i32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['i32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['i32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['i32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['i32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['i32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __floordiv__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
     def __ifloordiv__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
@@ -314,6 +356,12 @@ class u32:
     def __mod__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['u32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['u32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['u32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['u32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['u32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['u32', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __floordiv__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
     def __ifloordiv__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
@@ -348,6 +396,12 @@ class i64:
     def __mod__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['i64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['i64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['i64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['i64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['i64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['i64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __floordiv__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
     def __ifloordiv__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
@@ -382,6 +436,12 @@ class u64:
     def __mod__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['u64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['u64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['u64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['u64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['u64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['u64', int]) -> 'bool': return _intrinsic_impl() # type: ignore[override]
     def __floordiv__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
     def __ifloordiv__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
@@ -418,6 +478,12 @@ class bool2:
     def __mod__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
@@ -444,6 +510,12 @@ class float2:
     def __mod__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
@@ -470,6 +542,12 @@ class double2:
     def __mod__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
@@ -496,6 +574,12 @@ class byte2:
     def __mod__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
@@ -522,6 +606,12 @@ class ubyte2:
     def __mod__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
@@ -548,6 +638,12 @@ class short2:
     def __mod__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
@@ -574,6 +670,12 @@ class ushort2:
     def __mod__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
@@ -600,6 +702,12 @@ class int2:
     def __mod__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
@@ -626,6 +734,12 @@ class uint2:
     def __mod__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
@@ -652,6 +766,12 @@ class long2:
     def __mod__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
@@ -678,6 +798,12 @@ class ulong2:
     def __mod__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
@@ -705,6 +831,12 @@ class bool3:
     def __mod__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
@@ -732,6 +864,12 @@ class float3:
     def __mod__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
@@ -759,6 +897,12 @@ class double3:
     def __mod__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
@@ -786,6 +930,12 @@ class byte3:
     def __mod__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
@@ -813,6 +963,12 @@ class ubyte3:
     def __mod__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
@@ -840,6 +996,12 @@ class short3:
     def __mod__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
@@ -867,6 +1029,12 @@ class ushort3:
     def __mod__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
@@ -894,6 +1062,12 @@ class int3:
     def __mod__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
@@ -921,6 +1095,12 @@ class uint3:
     def __mod__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
@@ -948,6 +1128,12 @@ class long3:
     def __mod__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
@@ -975,6 +1161,12 @@ class ulong3:
     def __mod__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
@@ -1003,6 +1195,12 @@ class bool4:
     def __mod__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
@@ -1031,6 +1229,12 @@ class float4:
     def __mod__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
@@ -1059,6 +1263,12 @@ class double4:
     def __mod__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
@@ -1087,6 +1297,12 @@ class byte4:
     def __mod__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
@@ -1115,6 +1331,12 @@ class ubyte4:
     def __mod__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
@@ -1143,6 +1365,12 @@ class short4:
     def __mod__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
@@ -1171,6 +1399,12 @@ class ushort4:
     def __mod__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
@@ -1199,6 +1433,12 @@ class int4:
     def __mod__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
@@ -1227,6 +1467,12 @@ class uint4:
     def __mod__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
@@ -1255,6 +1501,12 @@ class long4:
     def __mod__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
@@ -1283,6 +1535,12 @@ class ulong4:
     def __mod__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __rmod__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __imod__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __lt__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __truediv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __rtruediv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __itruediv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()

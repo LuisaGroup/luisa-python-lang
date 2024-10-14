@@ -62,7 +62,7 @@ def retrieve_ast_and_filename(f: object) -> Tuple[ast.AST, str]:
     return tree, source_file
 
 
-def _get_full_name(obj: Any) -> str:
+def get_full_name(obj: Any) -> str:
     module = ""
     if hasattr(obj, "__module__"):
         module = obj.__module__

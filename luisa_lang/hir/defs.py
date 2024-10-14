@@ -133,6 +133,10 @@ class GenericFloatType(ScalarType):
     @override
     def align(self) -> int:
         raise RuntimeError("GenericFloatType has no align")
+    
+    @override
+    def __repr__(self) -> str:
+        return f"GenericFloatType()"
 
 
 class GenericIntType(ScalarType):
@@ -152,6 +156,9 @@ class GenericIntType(ScalarType):
     def align(self) -> int:
         raise RuntimeError("GenericIntType has no align")
 
+    @override
+    def __repr__(self) -> str:
+        return f"GenericIntType()"
 
 class FloatType(ScalarType):
     bits: int
@@ -788,6 +795,48 @@ class Assign(Stmt):
         return [self.ref, self.value]
 
 
+class If(Stmt):
+    cond: Value
+    then_body: List[Stmt]
+    else_body: List[Stmt]
+
+    def __init__(
+        self, cond: Value, then_body: List[Stmt], else_body: List[Stmt], span: Optional[Span] = None
+    ) -> None:
+        super().__init__(span)
+        self.cond = cond
+        self.then_body = then_body
+        self.else_body = else_body
+
+    @override
+    def replace_child(self, old: Node, new: Node) -> None:
+        if old is self.cond:
+            assert isinstance(new, Value)
+            self.cond = new
+        for i, stmt in enumerate(self.then_body):
+            if old is stmt:
+                assert isinstance(new, Stmt)
+                self.then_body[i] = new
+            else:
+                stmt.replace_child(old, new)
+
+        for i, stmt in enumerate(self.else_body):
+            if old is stmt:
+                assert isinstance(new, Stmt)
+                self.else_body[i] = new
+            else:
+                stmt.replace_child(old, new)
+
+    @override
+    def children(self) -> List[Node]:
+        c = self.cond.children()
+        for s in self.then_body:
+            c.extend(s.children())
+        for s in self.else_body:
+            c.extend(s.children())
+        return c
+
+
 class Return(Stmt):
     value: Optional[Value]
 
@@ -906,7 +955,12 @@ class GlobalContext:
 
     def __init__(self) -> None:
         assert _global_context is None, "GlobalContext should be a singleton"
-        self.types = {type(None): UnitType()}
+        self.types = {
+            type(None): UnitType(),
+            int: GenericIntType(),
+            float: GenericFloatType(),
+            bool: BoolType(),
+        }
         self.functions = {}
         # self.deferred = []
 
@@ -943,7 +997,7 @@ def get_dsl_type(cls: type) -> Optional[Type]:
     return GlobalContext.get().types.get(cls)
 
 
-def is_type_compatible_to(ty:Type, target:Type)->bool:
+def is_type_compatible_to(ty: Type, target: Type) -> bool:
     if ty == target:
         return True
     if isinstance(target, FloatType):

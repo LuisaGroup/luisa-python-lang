@@ -319,6 +319,7 @@ class FuncParser:
                 ast.Mod: "%",
                 ast.Pow: "**",
                 ast.LShift: "<<",
+                ast.RShift: ">>"
             }
             op = m0[type(expr.op)]
             return hir.Call(op, [lhs, rhs], kind=hir.CallOpKind.BINARY_OP, resolved=False, span=span)
@@ -331,6 +332,27 @@ class FuncParser:
             }
             op = m1[type(expr.op)]
             return hir.Call(op, [operand], kind=hir.CallOpKind.UNARY_OP, resolved=False, span=span)
+        if isinstance(expr, ast.Compare):
+            comop_to_str = {
+                ast.Eq: "==",
+                ast.NotEq: "!=",
+                ast.Lt: "<",
+                ast.LtE: "<=",
+                ast.Gt: ">",
+                ast.GtE: ">=",
+            }
+            parsed_expr = self.parse_expr(expr.left)
+            left_cmp_expr: hir.Value = parsed_expr
+            for i, cmpop in enumerate(expr.ops):
+                right = self.parse_expr(expr.comparators[i])
+                op = comop_to_str[type(cmpop)]
+                cmp_expr_tmp = hir.Call(op, [left_cmp_expr, right], kind=hir.CallOpKind.BINARY_OP, resolved=False, span=span)
+                left_cmp_expr = right
+                if i > 0:
+                    parsed_expr = hir.Call('and', [parsed_expr, cmp_expr_tmp], kind=hir.CallOpKind.BINARY_OP, resolved=False, span=span)
+                else:
+                    parsed_expr = cmp_expr_tmp
+            return parsed_expr
         if isinstance(expr, ast.Call):
             func = self.parse_expr(expr.func)
             args = [self.parse_expr(arg) for arg in expr.args]
@@ -379,7 +401,8 @@ class FuncParser:
                     report_error(expr, f"expected callable type constructor")
                 return hir.ValueRef(hir.Constant(init.func_like, span))
             else:
-                report_error(expr, f"expected callable or type constructor but got {resolved}")
+                report_error(
+                    expr, f"expected callable or type constructor but got {resolved}")
         # print(resolved, remaining)
         parent = resolved
         for i in range(len(remaining.chain)):
@@ -428,6 +451,19 @@ class FuncParser:
                 return hir.Return(None)
             value = self.parse_expr(stmt.value)
             return hir.Return(value)
+        if isinstance(stmt, ast.If):
+            if_test = self.parse_expr(stmt.test)
+            if_body: List[hir.Stmt] = []
+            for s in stmt.body:
+                parsed_stmt = self.parse_stmt(s)
+                if parsed_stmt is not None:
+                    if_body.append(parsed_stmt)
+            if_else: List[hir.Stmt] = []
+            for s in stmt.orelse:
+                parsed_stmt = self.parse_stmt(s)
+                if parsed_stmt is not None:
+                    if_else.append(parsed_stmt)
+            return hir.If(if_test, if_body, if_else)
         if isinstance(stmt, ast.Pass):
             return None
         report_error(stmt, f"unsupported statement {stmt}")

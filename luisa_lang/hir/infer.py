@@ -33,6 +33,16 @@ def is_stmt_fully_typed(stmt: hir.Stmt) -> bool:
             return is_expr_fully_typed(value)
         case hir.Return(value=value):
             return value is None or is_expr_fully_typed(value)
+        case hir.If(cond=cond, then_body=then_body, else_body=else_body):
+            if not is_expr_fully_typed(cond):
+                return False
+            for stmt in then_body:
+                if not is_stmt_fully_typed(stmt):
+                    return False
+            for stmt in else_body:
+                if not is_stmt_fully_typed(stmt):
+                    return False
+            return True
         case _:
             raise NotImplementedError(f"Unsupported stmt type: {stmt}")
 
@@ -102,6 +112,12 @@ class FuncTypeInferencer:
                         stmt.span,
                         f"Return type mismatch: expected {self.func.return_type}, got void",
                     )
+            case hir.If(cond=cond, then_body=then_body, else_body=else_body):
+                self.infer_expr(cond)
+                for stmt in then_body:
+                    self.infer_stmt(stmt)
+                for stmt in else_body:
+                    self.infer_stmt(stmt)
             case _:
                 raise NotImplementedError(f"Unsupported stmt type: {stmt}")
 
@@ -224,12 +240,12 @@ class FuncTypeInferencer:
                 try:
                     # check if args[0] has the method {name} defined
                     if (method := left.methods.get(name, None)) and method:
-                        ty = self._infer_call_helper(expr, method, [right, left])
+                        ty = self._infer_call_helper(expr, method, [left, right])
                         if ty:
                             return ty, method
                     # check if args[1] has the method {rname} defined
                     if (method := right.methods.get(rname, None)) and method:
-                        ty = self._infer_call_helper(expr, method, [left, right])
+                        ty = self._infer_call_helper(expr, method, [right, left])
                         if ty:
                             return ty, method
                     raise hir.TypeInferenceError(

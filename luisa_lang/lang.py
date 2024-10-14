@@ -14,7 +14,7 @@ from typing import (
     overload,
     Any,
 )
-from luisa_lang._utils import _get_full_name
+from luisa_lang._utils import get_full_name
 from luisa_lang.math_types import *
 from luisa_lang._builtin_decor import _builtin_type, _builtin, _intrinsic_impl
 import luisa_lang.hir as hir
@@ -51,13 +51,14 @@ def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     func_def = obj_ast.body[0]
     if not isinstance(func_def, ast.FunctionDef):
         raise RuntimeError("Function definition expected.")
-    func_parser = parse.FuncParser(_get_full_name(f), func_def, parsing_ctx)
+    func_parser = parse.FuncParser(get_full_name(f), func_def, parsing_ctx)
     func_ir = func_parser.parse_body()
     ctx.functions[f] = func_ir
     if kind == _ObjKind.FUNC:
 
         def dummy(*args, **kwargs):
-            raise RuntimeError("DSL function should only be called in DSL context.")
+            raise RuntimeError(
+                "DSL function should only be called in DSL context.")
 
         setattr(dummy, "__luisa_func__", f)
         return cast(_T, dummy)
@@ -65,10 +66,28 @@ def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
         return cast(_T, f)
 
 
-def _dsl_decorator_impl(obj: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
+def _dsl_struct_impl(cls: type, attrs: Dict[str, Any]) -> type:
+    import sourceinspect
+    from luisa_lang._utils import retrieve_ast_and_filename
 
+    obj_ast, obj_file = retrieve_ast_and_filename(cls)
+    print(ast.dump(obj_ast))
+    assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"
+
+    ctx = hir.GlobalContext.get()
+    cls_def = obj_ast.body[0]
+    from luisa_lang._classinfo import _get_cls_globalns, _register_class, _class_typeinfo
+    _register_class(cls)
+    cls_info = _class_typeinfo(cls)
+    globalns = _get_cls_globalns(cls)
+
+    return cls
+
+
+def _dsl_decorator_impl(obj: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     if kind == _ObjKind.STRUCT:
-        return obj
+        assert isinstance(obj, type), f"{obj} is not a type"
+        return cast(_T, _dsl_struct_impl(obj, attrs))
     elif kind == _ObjKind.FUNC or kind == _ObjKind.KERNEL:
         return _dsl_func_impl(obj, kind, attrs)
     raise NotImplementedError()
@@ -89,13 +108,18 @@ def struct(cls: type) -> type:
             return 4.0 / 3.0 * math.pi * self.radius ** 3
     ```
     """
-    return cls
+    return _dsl_decorator_impl(cls, _ObjKind.FUNC, {})
 
 
 @overload
 def kernel(f: _KernelType) -> _KernelType: ...
+
+
 @overload
-def kernel(export: bool = False, **kwargs) -> Callable[[_KernelType], _KernelType]: ...
+def kernel(export: bool = False, **kwargs) -> Callable[[
+    _KernelType], _KernelType]: ...
+
+
 def kernel(*args, **kwargs) -> _KernelType | Callable[[_KernelType], _KernelType]:
     if len(args) == 1 and len(kwargs) == 0:
         f = args[0]
@@ -120,8 +144,13 @@ out = InoutMarker("out")
 
 @overload
 def func(f: _F) -> _F: ...
+
+
 @overload
-def func(inline: bool | Literal["always"] = False, **kwargs) -> Callable[[_F], _F]: ...
+def func(inline: bool | Literal["always"]
+         = False, **kwargs) -> Callable[[_F], _F]: ...
+
+
 def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
     """
     Mark a function as a DSL function.

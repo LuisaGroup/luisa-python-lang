@@ -1,10 +1,13 @@
+from luisa_lang._classinfo import VarType, GenericInstance, UnionType,  _get_cls_globalns, _register_class, _class_typeinfo
 from enum import Enum, auto
 from typing_extensions import TypeAliasType
 from typing import (
     Callable,
     Dict,
+    List,
     Optional,
     Sequence,
+    Tuple,
     TypeAlias,
     TypeVar,
     Union,
@@ -14,7 +17,7 @@ from typing import (
     overload,
     Any,
 )
-from luisa_lang._utils import get_full_name
+from luisa_lang._utils import get_full_name, unique_hash
 from luisa_lang.math_types import *
 from luisa_lang._builtin_decor import _builtin_type, _builtin, _intrinsic_impl
 import luisa_lang.hir as hir
@@ -37,21 +40,15 @@ class _ObjKind(Enum):
 
 def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     import sourceinspect
-    from luisa_lang._utils import retrieve_ast_and_filename
-
     assert inspect.isfunction(f), f"{f} is not a function"
     # print(hir.GlobalContext.get)
-    obj_ast, obj_file = retrieve_ast_and_filename(f)
-    assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"
 
     ctx = hir.GlobalContext.get()
     func_globals: Any = getattr(f, "__globals__", {})
     parsing_ctx = parse.ParsingContext(func_globals)
     # print(ast.dump(obj_ast))
-    func_def = obj_ast.body[0]
-    if not isinstance(func_def, ast.FunctionDef):
-        raise RuntimeError("Function definition expected.")
-    func_parser = parse.FuncParser(get_full_name(f), func_def, parsing_ctx)
+
+    func_parser = parse.FuncParser(get_full_name(f), f, parsing_ctx)
     func_ir = func_parser.parse_body()
     ctx.functions[f] = func_ir
     if kind == _ObjKind.FUNC:
@@ -66,21 +63,38 @@ def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
         return cast(_T, f)
 
 
-def _dsl_struct_impl(cls: type, attrs: Dict[str, Any]) -> type:
-    import sourceinspect
-    from luisa_lang._utils import retrieve_ast_and_filename
-
-    obj_ast, obj_file = retrieve_ast_and_filename(cls)
-    print(ast.dump(obj_ast))
-    assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"
-
+def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
     ctx = hir.GlobalContext.get()
-    cls_def = obj_ast.body[0]
-    from luisa_lang._classinfo import _get_cls_globalns, _register_class, _class_typeinfo
+
     _register_class(cls)
     cls_info = _class_typeinfo(cls)
     globalns = _get_cls_globalns(cls)
+    globalns[cls.__name__] = cls
 
+    def get_ir_type(var_ty: VarType) -> hir.Type:
+        if isinstance(var_ty, UnionType):
+            raise RuntimeError("Struct fields cannot be UnionType")
+        if isinstance(var_ty, TypeVar):
+            raise NotImplementedError()
+        if isinstance(var_ty, GenericInstance):
+            raise NotImplementedError()
+        return ctx.types[var_ty]
+
+    fields: List[Tuple[str, hir.Type]] = []
+    for name, field in cls_info.fields.items():
+        fields.append((name, get_ir_type(field)))
+    ir_ty = hir.StructType(f'{cls.__name__}_{unique_hash(cls.__qualname__)}', fields)
+
+    parsing_ctx = parse.ParsingContext(globalns)
+    func_parsers: List[parse.FuncParser] = []
+    for name, method in cls_info.methods.items():
+        method_object = getattr(cls, name)
+        func_parser = parse.FuncParser(
+            get_full_name(method_object), method, parsing_ctx)
+        func_parsers.append(func_parser)
+    for func_parser in func_parsers:
+        func_parser.parse_body()
+    ctx.types[cls] = ir_ty
     return cls
 
 
@@ -93,7 +107,7 @@ def _dsl_decorator_impl(obj: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     raise NotImplementedError()
 
 
-def struct(cls: type) -> type:
+def struct(cls: type[_T]) -> type[_T]:
     """
     Mark a class as a DSL struct.
 
@@ -108,7 +122,7 @@ def struct(cls: type) -> type:
             return 4.0 / 3.0 * math.pi * self.radius ** 3
     ```
     """
-    return _dsl_decorator_impl(cls, _ObjKind.FUNC, {})
+    return _dsl_decorator_impl(cls, _ObjKind.STRUCT, {})
 
 
 @overload

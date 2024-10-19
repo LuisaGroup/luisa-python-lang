@@ -10,9 +10,11 @@ from luisa_lang.hir import get_dsl_func
 
 class TypeCodeGenCache:
     cache: Dict[hir.Type, str]
+    impl: ScratchBuffer
 
     def __init__(self) -> None:
         self.cache = {}
+        self.impl = ScratchBuffer(0)
 
     def gen(self, ty: hir.Type) -> str:
         if ty in self.cache:
@@ -35,6 +37,12 @@ class TypeCodeGenCache:
                 return "bool"
             case hir.VectorType(element=element, count=count):
                 return f"vec<{self.gen(element)}, {count}>"
+            case hir.StructType(name=name, fields=fields):
+                self.impl.writeln(f'struct {name} {{')
+                for field in fields:
+                    self.impl.writeln(f'    {self.gen(field[1])} {field[0]};')
+                self.impl.writeln('};')
+                return name
             case _:
                 raise NotImplementedError(f"unsupported type: {ty}")
 
@@ -59,6 +67,8 @@ _OPERATORS: Set[str] = set([
     '__gt__',
     '__ge__',
 ])
+
+
 @cache
 def map_builtin_to_cpp_func(name: str) -> str:
     comps = name.split(".")
@@ -69,6 +79,17 @@ def map_builtin_to_cpp_func(name: str) -> str:
 
     else:
         raise NotImplementedError(f"unsupported builtin function: {name}")
+
+
+def mangle_name(name: str) -> str:
+    comps = name.split(".")
+    mangled = "N"
+    for i, c in enumerate(comps):
+        mangled += f"{len(c)}{c}"
+        if i != len(comps) - 1:
+            mangled += "C"
+    mangled += "E"
+    return mangled
 
 
 class Mangling:
@@ -86,15 +107,6 @@ class Mangling:
             return res
 
     def mangle_impl(self, obj: Union[hir.Type, hir.FunctionLike]) -> str:
-        def mangle_name(name: str) -> str:
-            comps = name.split(".")
-            mangled = "N"
-            for i, c in enumerate(comps):
-                mangled += f"{len(c)}{c}"
-                if i != len(comps) - 1:
-                    mangled += "C"
-            mangled += "E"
-            return mangled
 
         match obj:
             case hir.IntType(bits=bits, signed=signed):
@@ -118,6 +130,8 @@ class Mangling:
             case hir.BuiltinFunction(name=name):
                 name = map_builtin_to_cpp_func(name)
                 return f"__builtin_{name}"
+            case hir.StructType(name=name):
+                return name
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 
@@ -150,6 +164,9 @@ class CppCodeGen(CodeGen):
         func_code_gen.gen()
         self.generated_code.merge(func_code_gen.body)
         return name
+    
+    def finalize_code(self)->str:
+        return self.type_cache.impl.body + self.generated_code.body
 
 
 class FuncCodeGen:

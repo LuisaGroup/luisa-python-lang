@@ -6,6 +6,7 @@ import luisa_lang
 from luisa_lang._utils import report_error
 import luisa_lang.hir as hir
 import sys
+from luisa_lang._utils import retrieve_ast_and_filename
 from luisa_lang.hir import (
     Type,
     BoundType,
@@ -252,16 +253,38 @@ class FuncParser:
     arg_types: List[Type]
     return_type: Optional[Type]
     name: str
+    parsed_func: Function
 
-    def __init__(self, name: str, func: ast.FunctionDef, p_ctx: ParsingContext) -> None:
+    def __init__(self, name: str, func: object, p_ctx: ParsingContext) -> None:
+        obj_ast, _obj_file = retrieve_ast_and_filename(func)
+        assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"
+        if not isinstance(obj_ast.body[0], ast.FunctionDef):
+            raise RuntimeError("Function definition expected.")
+
         self.name = name
         self.p_ctx = p_ctx
         self.vars = {}
-        self.func = func
+        self.func = obj_ast.body[0]
         self.arg_types = []
         self.return_type = None
         self._init_signature()
         # print(self.arg_types, "->", self.return_type)
+
+        params = []
+        args = self.func.args
+        for i, arg_type in enumerate(self.arg_types):
+            span = hir.Span.from_ast(args.args[i])
+            params.append(hir.Var(f"arg{i}", arg_type, span))
+        assert self.return_type is not None
+        # a sorted list of vars
+        vars = [self.vars[v] for v in sorted(self.vars.keys())]
+        self.parsed_func = Function(
+            self.name,
+            params,
+            self.return_type,
+            [],
+            vars,
+        )
 
     def _init_signature(
         self,
@@ -346,10 +369,12 @@ class FuncParser:
             for i, cmpop in enumerate(expr.ops):
                 right = self.parse_expr(expr.comparators[i])
                 op = comop_to_str[type(cmpop)]
-                cmp_expr_tmp = hir.Call(op, [left_cmp_expr, right], kind=hir.CallOpKind.BINARY_OP, resolved=False, span=span)
+                cmp_expr_tmp = hir.Call(
+                    op, [left_cmp_expr, right], kind=hir.CallOpKind.BINARY_OP, resolved=False, span=span)
                 left_cmp_expr = right
                 if i > 0:
-                    parsed_expr = hir.Call('and', [parsed_expr, cmp_expr_tmp], kind=hir.CallOpKind.BINARY_OP, resolved=False, span=span)
+                    parsed_expr = hir.Call('and', [
+                                           parsed_expr, cmp_expr_tmp], kind=hir.CallOpKind.BINARY_OP, resolved=False, span=span)
                 else:
                     parsed_expr = cmp_expr_tmp
             return parsed_expr
@@ -419,6 +444,7 @@ class FuncParser:
         return parent
 
     def parse_stmt(self, stmt: ast.stmt) -> Optional[hir.Stmt]:
+        span = hir.Span.from_ast(stmt)
         if isinstance(stmt, ast.AnnAssign):
             type_annotation = stmt.annotation
             ty = self.p_ctx.parse_type(type_annotation)
@@ -431,26 +457,24 @@ class FuncParser:
             if stmt.value is None:
                 if not isinstance(var, hir.Var):
                     report_error(stmt, f"expected variable")
-                return hir.VarDecl(var, ty)
+                return hir.VarDecl(var, ty, span=span)
             value = self.parse_expr(stmt.value)
-            return hir.Assign(var, ty, value)
+            return hir.Assign(var, ty, value, span=span)
         if isinstance(stmt, ast.Assign):
             if len(stmt.targets) != 1:
                 report_error(stmt, f"expected single target")
             target = stmt.targets[0]
-            if not isinstance(target, ast.Name):
-                report_error(target, f"expected name")
             var = self.parse_ref(target, maybe_new_var=True)
             value = self.parse_expr(stmt.value)
             assert isinstance(var, hir.Ref)
-            return hir.Assign(var, None, value)
+            return hir.Assign(var, None, value, span=span)
         if isinstance(stmt, ast.Return):
             if stmt.value is None:
                 if not isinstance(self.return_type, hir.UnitType):
                     report_error(stmt, f"expected return value")
                 return hir.Return(None)
             value = self.parse_expr(stmt.value)
-            return hir.Return(value)
+            return hir.Return(value, span=span)
         if isinstance(stmt, ast.If):
             if_test = self.parse_expr(stmt.test)
             if_body: List[hir.Stmt] = []
@@ -463,26 +487,17 @@ class FuncParser:
                 parsed_stmt = self.parse_stmt(s)
                 if parsed_stmt is not None:
                     if_else.append(parsed_stmt)
-            return hir.If(if_test, if_body, if_else)
+            return hir.If(if_test, if_body, if_else, span=span)
         if isinstance(stmt, ast.Pass):
             return None
         report_error(stmt, f"unsupported statement {stmt}")
 
     def parse_body(self) -> hir.Function:
+        assert not self.parsed_func.complete
         body = self.func.body
         parsed_body = [self.parse_stmt(stmt) for stmt in body]
-        params = []
-        args = self.func.args
-        for i, arg_type in enumerate(self.arg_types):
-            span = hir.Span.from_ast(args.args[i])
-            params.append(hir.Var(f"arg{i}", arg_type, span))
-        assert self.return_type is not None
-        # a sorted list of vars
-        vars = [self.vars[v] for v in sorted(self.vars.keys())]
-        return Function(
-            self.name,
-            params,
-            self.return_type,
-            [x for x in parsed_body if x is not None],
-            vars,
-        )
+
+        self.parsed_func.body = [
+            x for x in parsed_body if x is not None]
+        self.parsed_func.complete = True
+        return self.parsed_func

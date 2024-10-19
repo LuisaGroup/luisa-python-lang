@@ -133,7 +133,7 @@ class GenericFloatType(ScalarType):
     @override
     def align(self) -> int:
         raise RuntimeError("GenericFloatType has no align")
-    
+
     @override
     def __repr__(self) -> str:
         return f"GenericFloatType()"
@@ -159,6 +159,7 @@ class GenericIntType(ScalarType):
     @override
     def __repr__(self) -> str:
         return f"GenericIntType()"
+
 
 class FloatType(ScalarType):
     bits: int
@@ -289,11 +290,13 @@ class PointerType(Type):
 
 
 class StructType(Type):
+    name: str
     _fields: List[Tuple[str, Type]]
     _field_dict: Dict[str, Type]
 
-    def __init__(self, fields: List[Tuple[str, Type]]) -> None:
+    def __init__(self, name: str, fields: List[Tuple[str, Type]]) -> None:
         super().__init__()
+        self.name = name
         self._fields = fields
         self._field_dict = {name: ty for name, ty in fields}
 
@@ -307,9 +310,11 @@ class StructType(Type):
     def align(self) -> int:
         return max(field.align() for _, field in self.fields)
 
+    @override
     def __eq__(self, value: object) -> bool:
         return value is self or (
-            isinstance(value, StructType) and value.fields == self.fields
+            isinstance(
+                value, StructType) and value.fields == self.fields and value.name == self.name
         )
 
     @override
@@ -318,6 +323,10 @@ class StructType(Type):
             if field in self._field_dict:
                 return self._field_dict[field]
         return Type.member(self, field)
+    
+    @override
+    def __hash__(self) -> int:
+        return hash((StructType, tuple(self.fields), self.name))
 
 
 class SymbolicType(Type):
@@ -739,15 +748,6 @@ class TypeRuleFn(TypeRule):
         return self.fn(args)
 
 
-class BuiltinFunction:
-    name: str
-    type_rule: TypeRule
-
-    def __init__(self, name: str, type_rule: TypeRule) -> None:
-        self.name = name
-        self.type_rule = type_rule
-
-
 class Stmt(Node):
     def __init__(self, span: Optional[Span] = None) -> None:
         super().__init__()
@@ -855,6 +855,15 @@ class Return(Stmt):
         return [self.value] if self.value is not None else []
 
 
+class BuiltinFunction:
+    name: str
+    type_rule: TypeRule
+
+    def __init__(self, name: str, type_rule: TypeRule) -> None:
+        self.name = name
+        self.type_rule = type_rule
+
+
 class Function:
     name: str
     params: List[Var]
@@ -864,6 +873,7 @@ class Function:
     export: bool
     locals: List[Var]
     fully_typed: bool
+    complete: bool
 
     def __init__(
         self,
@@ -874,6 +884,7 @@ class Function:
         locals: List[Var],
         builtin: bool = False,
         export: bool = False,
+        complete: bool = False,
     ) -> None:
         self.name = name
         self.params = params
@@ -883,6 +894,7 @@ class Function:
         self.export = export
         self.locals = locals
         self.fully_typed = False
+        self.complete = complete
 
     @property
     def is_parametric(self) -> bool:

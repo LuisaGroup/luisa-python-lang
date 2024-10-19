@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, cast
 from luisa_lang import hir
 from luisa_lang._utils import report_error
+from luisa_lang.hir.defs import is_type_compatible_to
 
 
 class TypeInferencer:
@@ -96,9 +97,14 @@ class FuncTypeInferencer:
     def infer_stmt(self, stmt: hir.Stmt) -> None:
         match stmt:
             case hir.Assign(ref=ref, value=value):
+                ref_ty = self.infer_ref(ref)
                 ty = self.infer_expr(value)
-                if ty:
+                if ty and not ref_ty:
                     ref.type = ty
+                elif ref_ty and ty:
+                    if not is_type_compatible_to(ty, ref_ty):
+                        raise hir.TypeInferenceError(
+                            stmt, f"Type mismatch in assignment: expected {ref_ty}, got {ty}")
             case hir.Return(value=value):
                 if value:
                     ty = self.infer_expr(value)
@@ -240,12 +246,14 @@ class FuncTypeInferencer:
                 try:
                     # check if args[0] has the method {name} defined
                     if (method := left.methods.get(name, None)) and method:
-                        ty = self._infer_call_helper(expr, method, [left, right])
+                        ty = self._infer_call_helper(
+                            expr, method, [left, right])
                         if ty:
                             return ty, method
                     # check if args[1] has the method {rname} defined
                     if (method := right.methods.get(rname, None)) and method:
-                        ty = self._infer_call_helper(expr, method, [right, left])
+                        ty = self._infer_call_helper(
+                            expr, method, [right, left])
                         if ty:
                             return ty, method
                     raise hir.TypeInferenceError(

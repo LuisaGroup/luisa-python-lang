@@ -3,6 +3,7 @@ import textwrap
 import types
 from typing import Any, List, NoReturn, Optional, Tuple, TypeVar, overload
 import sourceinspect
+from hashlib import sha256
 
 T = TypeVar("T")
 
@@ -147,3 +148,6 @@ def checked_cast(t: type[T], obj: Any) -> T:
     if not isinstance(obj, t):
         raise TypeError(f"expected {t}, got {type(obj)}")
     return obj
+
+def unique_hash(s: str) -> str:
+    return sha256(s.encode()).hexdigest().upper()[:8]

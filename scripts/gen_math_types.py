@@ -55,11 +55,10 @@ def main() -> None:
             "from luisa_lang._builtin_decor import _builtin, _builtin_type, _intrinsic_impl",
         )
         print(
-            "from luisa_lang._classinfo import _register_class",
+            "from luisa_lang._classinfo import register_class",
         )
         print("import luisa_lang.hir as _hir")
         print("_ctx = _hir.GlobalContext.get()")
-        print("_ctx.types[bool] = _hir.BoolType()")
 
         def gen_float_builtins():
             print("class FloatBuiltin(tp.Generic[_F]):")
@@ -78,7 +77,7 @@ def main() -> None:
                 print(
                     f"@_builtin\ndef {builtin}(x: _F1, y: _F1) -> _F1: return _intrinsic_impl()"
                 )
-            print("_register_class(FloatBuiltin)")
+            print("register_class(FloatBuiltin)")
 
         def gen_binop(op: str, ty: str, operand_ty: str):
             print(
@@ -87,7 +86,14 @@ def main() -> None:
 """
             )
 
-        def gen_common_binop(ty: str, operand_ty: str, kind: Kind):
+        def gen_cmpop(op: str, ty: str, operand_ty: str,retrun_ty:str):
+            print(
+                f"""
+    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return _intrinsic_impl() # type: ignore[override]
+"""
+            )
+
+        def gen_common_binop(ty: str, operand_ty: str, mask_ty:str, kind: Kind):
             def gen(op: str, inplace: bool = True):
                 gen_binop(f"__{op}__", ty, operand_ty)
                 gen_binop(f"__r{op}__", ty, operand_ty)
@@ -100,6 +106,12 @@ def main() -> None:
                 gen("sub")
                 gen("mul")
                 gen("mod")
+                gen_cmpop("__lt__", ty, operand_ty, mask_ty)
+                gen_cmpop("__le__", ty, operand_ty, mask_ty)
+                gen_cmpop("__gt__", ty, operand_ty, mask_ty)
+                gen_cmpop("__ge__", ty, operand_ty, mask_ty)
+            gen_cmpop("__eq__", ty, operand_ty, mask_ty)
+            gen_cmpop("__ne__", ty, operand_ty, mask_ty)
             if kind == Kind.INT:
                 gen("floordiv")
             if kind == Kind.FLOAT:
@@ -113,6 +125,12 @@ def main() -> None:
                 gen("and")
                 gen("or")
                 gen("xor")
+
+        def gen_unaryop(op: str, ty: str):
+            print(
+                f"""
+    def __{op}__(self) -> '{ty}': return _intrinsic_impl()
+""")
 
         def gen_scalar_type(ty: str, literal_ty: str, kind: Kind):
             nonlocal exports
@@ -133,10 +151,15 @@ class {ty}{inherits_str}:
     def __init__(self, _value: tp.Union['{ty}', {literal_ty}]) -> None: return _intrinsic_impl()
 """
             )
-            gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", kind)           
+            gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", 'bool', kind)
+            if kind == Kind.FLOAT or kind == Kind.INT:
+                gen_unaryop("neg", ty)
+                gen_unaryop("pos", ty)
+            if kind == Kind.INT or kind == Kind.BOOL:
+                gen_unaryop("invert", ty)           
             print("")
 
-        def gen_vector_type(ty: str, scalar_ty: str, literal_scalar_ty: str, size: int):
+        def gen_vector_type(ty: str, scalar_ty: str, literal_scalar_ty: str,mask_ty:str, size: int):
             nonlocal exports
             exports.append(ty)
             comps = "xyzw"[:size]
@@ -157,7 +180,7 @@ class {ty}:
             print('    def __init__(self, '+", ".join([f"{comp}: tp.Union[\'{scalar_ty}\', {literal_scalar_ty}] = {literal_scalar_default}" for comp in comps]) + ') -> None: return _intrinsic_impl()')
 
             gen_common_binop(
-                ty, f" tp.Union['{ty}', {scalar_ty}, {literal_scalar_ty}]", Kind.FLOAT
+                ty, f" tp.Union['{ty}', {scalar_ty}, {literal_scalar_ty}]",mask_ty, Kind.FLOAT
             )
             print("")
 
@@ -182,14 +205,14 @@ class {ty}:
             gen_scalar_type(f"u{bits}", f"int", Kind.INT)
 
         for size in [2, 3, 4]:
-            gen_vector_type(f"bool{size}", "bool", "bool", size)
-            gen_vector_type(f"float{size}", "f32", "float", size)
-            gen_vector_type(f"double{size}", "f64", "float", size)
+            gen_vector_type(f"bool{size}", "bool", "bool", f"bool{size}",size)
+            gen_vector_type(f"float{size}", "f32", "float", f"bool{size}",size)
+            gen_vector_type(f"double{size}", "f64", "float",f"bool{size}", size)
             names = {8: "byte", 16: "short", 32: "int", 64: "long"}
             for bits in [8, 16, 32, 64]:
                 name = names[bits]
-                gen_vector_type(f"{name}{size}", f"i{bits}", "int", size)
-                gen_vector_type(f"u{name}{size}", f"u{bits}", "int", size)
+                gen_vector_type(f"{name}{size}", f"i{bits}", "int",f"bool{size}", size)
+                gen_vector_type(f"u{name}{size}", f"u{bits}", "int",f"bool{size}", size)
         print("__all__ = " + str(exports))
 
 

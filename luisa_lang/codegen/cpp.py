@@ -1,6 +1,6 @@
 from functools import cache
 from luisa_lang import hir
-from luisa_lang._utils import unwrap
+from luisa_lang._utils import unique_hash, unwrap
 from luisa_lang.codegen import CodeGen, ScratchBuffer
 from typing import Any, Callable, Dict, Set, Tuple, Union
 
@@ -82,14 +82,7 @@ def map_builtin_to_cpp_func(name: str) -> str:
 
 
 def mangle_name(name: str) -> str:
-    comps = name.split(".")
-    mangled = "N"
-    for i, c in enumerate(comps):
-        mangled += f"{len(c)}{c}"
-        if i != len(comps) - 1:
-            mangled += "C"
-    mangled += "E"
-    return mangled
+    return name.replace(".", "_")
 
 
 class Mangling:
@@ -126,7 +119,7 @@ class Mangling:
                 return f"V{count}{self.mangle(element)}"
             case hir.Function(name=name, params=params, return_type=ret):
                 name = mangle_name(name)
-                return f"F{name}_{self.mangle(ret)}{''.join(self.mangle(unwrap(p.type)) for p in params)}"
+                return f'{name}_' + unique_hash(f"F{name}_{self.mangle(ret)}{''.join(self.mangle(unwrap(p.type)) for p in params)}")
             case hir.BuiltinFunction(name=name):
                 name = map_builtin_to_cpp_func(name)
                 return f"__builtin_{name}"
@@ -164,8 +157,8 @@ class CppCodeGen(CodeGen):
         func_code_gen.gen()
         self.generated_code.merge(func_code_gen.body)
         return name
-    
-    def finalize_code(self)->str:
+
+    def finalize_code(self) -> str:
         return self.type_cache.impl.body + self.generated_code.body
 
 
@@ -175,6 +168,7 @@ class FuncCodeGen:
     name: str
     signature: str
     func: hir.Function
+    params: Set[str]
 
     def gen_var(self, var: hir.Var) -> str:
         assert var.type
@@ -191,6 +185,7 @@ class FuncCodeGen:
         params = ",".join(self.gen_var(p) for p in func.params)
         self.signature = f'extern "C" auto {self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
         self.body = ScratchBuffer()
+        self.params = set(p.name for p in func.params)
 
     def gen_ref(self, ref: hir.Ref) -> str:
         match ref:
@@ -264,11 +259,15 @@ class FuncCodeGen:
                         self.gen_stmt(stmt)
                     self.body.indent -= 1
                     self.body.writeln("}")
+            case hir.VarDecl() as var_decl:
+                pass
             case _:
                 raise NotImplementedError(f"unsupported statement: {stmt}")
 
     def gen_locals(self):
         for local in self.func.locals:
+            if local.name in self.params:
+                continue
             assert (
                 local.type
             ), f"Local variable {local.name} contains unresolved type, please resolve it via TypeInferencer"

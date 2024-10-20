@@ -1,4 +1,4 @@
-from luisa_lang._classinfo import VarType, GenericInstance, UnionType,  _get_cls_globalns, _register_class, _class_typeinfo
+from luisa_lang._classinfo import VarType, GenericInstance, UnionType,  _get_cls_globalns, register_class, _class_typeinfo
 from enum import Enum, auto
 from typing_extensions import TypeAliasType
 from typing import (
@@ -66,7 +66,7 @@ def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
 def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
     ctx = hir.GlobalContext.get()
 
-    _register_class(cls)
+    register_class(cls)
     cls_info = _class_typeinfo(cls)
     globalns = _get_cls_globalns(cls)
     globalns[cls.__name__] = cls
@@ -84,17 +84,18 @@ def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
     for name, field in cls_info.fields.items():
         fields.append((name, get_ir_type(field)))
     ir_ty = hir.StructType(f'{cls.__name__}_{unique_hash(cls.__qualname__)}', fields)
-
+    ctx.types[cls] = ir_ty
     parsing_ctx = parse.ParsingContext(globalns)
     func_parsers: List[parse.FuncParser] = []
     for name, method in cls_info.methods.items():
         method_object = getattr(cls, name)
         func_parser = parse.FuncParser(
-            get_full_name(method_object), method, parsing_ctx)
+            get_full_name(method_object), method_object, parsing_ctx,self_type=ir_ty)
         func_parsers.append(func_parser)
+        ir_ty.methods[name] = func_parser.parsed_func
     for func_parser in func_parsers:
         func_parser.parse_body()
-    ctx.types[cls] = ir_ty
+
     return cls
 
 

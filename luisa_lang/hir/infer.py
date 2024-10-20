@@ -44,6 +44,8 @@ def is_stmt_fully_typed(stmt: hir.Stmt) -> bool:
                 if not is_stmt_fully_typed(stmt):
                     return False
             return True
+        case hir.VarDecl(var=var, expected_type=ty):
+            return var.type is not None and ty is not None
         case _:
             raise NotImplementedError(f"Unsupported stmt type: {stmt}")
 
@@ -124,6 +126,14 @@ class FuncTypeInferencer:
                     self.infer_stmt(stmt)
                 for stmt in else_body:
                     self.infer_stmt(stmt)
+            case hir.VarDecl(var=var, expected_type=ty):
+                if not var.type:
+                    var.type = ty
+                elif var.type != ty:
+                    report_error(
+                        stmt.span,
+                        f"Internal Compiler Error: Type mismatch in variable declaration: expected {ty}, got {var.type}",
+                    )
             case _:
                 raise NotImplementedError(f"Unsupported stmt type: {stmt}")
 
@@ -224,7 +234,7 @@ class FuncTypeInferencer:
                     f"Expected {len(param_tys)} arguments, got {len(args)}"
                 )
             for i, (param_ty, arg) in enumerate(zip(param_tys, args)):
-                if param_ty != arg:
+                if not is_type_compatible_to(arg, param_ty):
                     raise hir.TypeInferenceError(
                         node,
                         f"Argument {i} expected {param_ty}, got {arg}"
@@ -274,9 +284,30 @@ class FuncTypeInferencer:
             if ty:
                 expr.resolved = True
             return ty
+        elif expr.kind == hir.CallOpKind.UNARY_OP:
+            def helper():
+                operand_ty = self.infer_expr(expr.args[0])
+                if not operand_ty:
+                    return None
+                method_name = UNARY_OP_TO_METHOD_NAMES[op]
+                if (method := operand_ty.methods.get(method_name, None)) and method:
+                    ty = self._infer_call_helper(expr, method, [operand_ty])
+                    if ty:
+                        expr.op = hir.Constant(method)
+                        expr.kind = hir.CallOpKind.FUNC
+                        expr.resolved = True
+                        return ty
+                return None
+            return helper()
+
         raise NotImplementedError(f"Unsupported operator: {op} {expr.kind}")
 
 
+UNARY_OP_TO_METHOD_NAMES: Dict[str, str] = {
+    "+": "__pos__",
+    "-": "__neg__",
+    "~": "__invert__",
+}
 BINOP_TO_METHOD_NAMES: Dict[str, List[str]] = {
     "+": ["__add__", "__radd__"],
     "-": ["__sub__", "__rsub__"],

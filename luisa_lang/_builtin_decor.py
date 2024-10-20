@@ -4,7 +4,7 @@ import typing
 from luisa_lang import hir
 import inspect
 from luisa_lang._utils import get_full_name, get_union_args
-from luisa_lang._classinfo import _register_class, _class_typeinfo, MethodType, _get_cls_globalns
+from luisa_lang._classinfo import register_class, _class_typeinfo, MethodType, _get_cls_globalns
 import functools
 
 _T = TypeVar("_T", bound=type)
@@ -17,7 +17,7 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
         ctx = hir.GlobalContext.get()
         ctx.types[cls] = ty
 
-        _register_class(cls)
+        register_class(cls)
         cls_info = _class_typeinfo(cls)
         globalns = _get_cls_globalns(cls)
 

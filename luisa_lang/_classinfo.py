@@ -157,7 +157,7 @@ def _get_cls_globalns(cls: type) -> Dict[str, Any]:
     assert module is not None
     return module.__dict__
 
-def _register_class(cls: type) -> None:
+def register_class(cls: type) -> None:
     cls_qualname = cls.__qualname__
     globalns = _get_cls_globalns(cls)
     globalns[cls.__name__] = cls

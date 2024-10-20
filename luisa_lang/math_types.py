@@ -1,10 +1,9 @@
 # fmt: off
 import typing as tp
 from luisa_lang._builtin_decor import _builtin, _builtin_type, _intrinsic_impl
-from luisa_lang._classinfo import _register_class
+from luisa_lang._classinfo import register_class
 import luisa_lang.hir as _hir
 _ctx = _hir.GlobalContext.get()
-_ctx.types[bool] = _hir.BoolType()
 FLOAT_TYPES: tp.Final[tp.List[str]] = ["f32", "f64", "float2", "double2", "float3", "double3", "float4", "double4"]
 FloatType = tp.Union["f32", "f64", "float2", "double2", "float3", "double3", "float4", "double4"]
 _F = tp.TypeVar("_F")
@@ -80,7 +79,7 @@ def trunc(x: _F1) -> _F1: return _intrinsic_impl()
 def atan2(x: _F1, y: _F1) -> _F1: return _intrinsic_impl()
 @_builtin
 def copysign(x: _F1, y: _F1) -> _F1: return _intrinsic_impl()
-_register_class(FloatBuiltin)
+register_class(FloatBuiltin)
 @_builtin_type(_hir.FloatType(32))
 class f32(FloatBuiltin['f32']):
     def __init__(self, _value: tp.Union['f32', float]) -> None: return _intrinsic_impl()
@@ -110,6 +109,8 @@ class f32(FloatBuiltin['f32']):
     def __ipow__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
+    def __neg__(self) -> 'f32': return _intrinsic_impl()
+    def __pos__(self) -> 'f32': return _intrinsic_impl()
 
 @_builtin_type(_hir.FloatType(64))
 class f64(FloatBuiltin['f64']):
@@ -140,6 +141,8 @@ class f64(FloatBuiltin['f64']):
     def __ipow__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
+    def __neg__(self) -> 'f64': return _intrinsic_impl()
+    def __pos__(self) -> 'f64': return _intrinsic_impl()
 
 @_builtin_type(_hir.IntType(8, True))
 class i8:
@@ -180,6 +183,9 @@ class i8:
     def __xor__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
     def __rxor__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
     def __ixor__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
+    def __neg__(self) -> 'i8': return _intrinsic_impl()
+    def __pos__(self) -> 'i8': return _intrinsic_impl()
+    def __invert__(self) -> 'i8': return _intrinsic_impl()
 
 @_builtin_type(_hir.IntType(8, False))
 class u8:
@@ -220,6 +226,9 @@ class u8:
     def __xor__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
     def __rxor__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
     def __ixor__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
+    def __neg__(self) -> 'u8': return _intrinsic_impl()
+    def __pos__(self) -> 'u8': return _intrinsic_impl()
+    def __invert__(self) -> 'u8': return _intrinsic_impl()
 
 @_builtin_type(_hir.IntType(16, True))
 class i16:
@@ -260,6 +269,9 @@ class i16:
     def __xor__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
     def __rxor__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
     def __ixor__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
+    def __neg__(self) -> 'i16': return _intrinsic_impl()
+    def __pos__(self) -> 'i16': return _intrinsic_impl()
+    def __invert__(self) -> 'i16': return _intrinsic_impl()
 
 @_builtin_type(_hir.IntType(16, False))
 class u16:
@@ -300,6 +312,9 @@ class u16:
     def __xor__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
     def __rxor__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
     def __ixor__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
+    def __neg__(self) -> 'u16': return _intrinsic_impl()
+    def __pos__(self) -> 'u16': return _intrinsic_impl()
+    def __invert__(self) -> 'u16': return _intrinsic_impl()
 
 @_builtin_type(_hir.IntType(32, True))
 class i32:
@@ -340,6 +355,9 @@ class i32:
     def __xor__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
     def __rxor__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
     def __ixor__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
+    def __neg__(self) -> 'i32': return _intrinsic_impl()
+    def __pos__(self) -> 'i32': return _intrinsic_impl()
+    def __invert__(self) -> 'i32': return _intrinsic_impl()
 
 @_builtin_type(_hir.IntType(32, False))
 class u32:
@@ -380,6 +398,9 @@ class u32:
     def __xor__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
     def __rxor__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
     def __ixor__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
+    def __neg__(self) -> 'u32': return _intrinsic_impl()
+    def __pos__(self) -> 'u32': return _intrinsic_impl()
+    def __invert__(self) -> 'u32': return _intrinsic_impl()
 
 @_builtin_type(_hir.IntType(64, True))
 class i64:
@@ -420,6 +441,9 @@ class i64:
     def __xor__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
     def __rxor__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
     def __ixor__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
+    def __neg__(self) -> 'i64': return _intrinsic_impl()
+    def __pos__(self) -> 'i64': return _intrinsic_impl()
+    def __invert__(self) -> 'i64': return _intrinsic_impl()
 
 @_builtin_type(_hir.IntType(64, False))
 class u64:
@@ -460,6 +484,9 @@ class u64:
     def __xor__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
     def __rxor__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
     def __ixor__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
+    def __neg__(self) -> 'u64': return _intrinsic_impl()
+    def __pos__(self) -> 'u64': return _intrinsic_impl()
+    def __invert__(self) -> 'u64': return _intrinsic_impl()
 
 @_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[bool]), 2))
 class bool2:

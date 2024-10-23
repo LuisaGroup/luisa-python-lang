@@ -144,10 +144,26 @@ def get_union_args(union: Any) -> List[type]:
         return list(union.__args__)
     return []
 
+
+def get_typevar_constrains_and_bounds(t: TypeVar) -> Tuple[List[Any], Optional[Any]]:
+    """
+    Find the constraints and bounds of a TypeVar.
+    Only one of the two can be present.
+    """
+    constraints = []
+    bound = None
+    if hasattr(t, "__constraints__"):
+        constraints = list(t.__constraints__)
+    if hasattr(t, "__bound__"):
+        bound = t.__bound__
+    return constraints, bound
+
+
 def checked_cast(t: type[T], obj: Any) -> T:
     if not isinstance(obj, t):
         raise TypeError(f"expected {t}, got {type(obj)}")
     return obj
+
 
 def unique_hash(s: str) -> str:
     return sha256(s.encode()).hexdigest().upper()[:8]

@@ -23,8 +23,69 @@ PATH_PREFIX = "luisa_lang"
 FunctionLike = Union["Function", "BuiltinFunction"]
 
 
+# @dataclass
+# class FunctionTemplateResolveResult:
+#     func: Optional[FunctionLike]
+#     matched: bool
+
+
+FunctionTemplateResolvingArgs = List[Tuple[str, Union['Type', 'Value']]]
+"""
+[Function parameter name, Type or Value].
+The reason for using parameter name instead of GenericParameter is that python supports passing type[T] as a parameter,
+"""
+
+FunctionTemplateResolvingFunc = Callable[[
+    FunctionTemplateResolvingArgs], FunctionLike]
+
+
+class FunctionTemplate:
+    """
+    Contains a delegate that can be resolved to a function.
+    This is to support generic functions as well as meta-programming.
+    Since each time the function is called in DSL, user meta-programming code in the function body
+    will be called, we need to keep the AST of the function.
+
+    """
+    parsing_func: FunctionTemplateResolvingFunc
+    __resolved: Dict[Tuple[Tuple[str,
+                                 Union['Type', 'Value']], ...], FunctionLike]
+    is_generic: bool
+    name: str
+    params: List[str]
+    """Function parameters (NOT type parameters)"""
+
+    def __init__(self, name: str, params: List[str], parsing_func: FunctionTemplateResolvingFunc, is_generic: bool) -> None:
+        self.parsing_func = parsing_func
+        self.__resolved = {}
+        self.params = params
+        self.is_generic = is_generic
+        self.name = name
+
+    def resolve(self, args: FunctionTemplateResolvingArgs | None) -> FunctionLike:
+        args = args or []
+        if not self.is_generic:
+            key = tuple(args)
+        else:
+            key = tuple()
+        if key in self.__resolved:
+            return self.__resolved[key]
+        func = self.parsing_func(args)
+        self.__resolved[key] = func
+        return func
+
+    def reset(self) -> None:
+        self.__resolved = {}
+
+
+def resolve_function(f: FunctionTemplate | FunctionLike, args: FunctionTemplateResolvingArgs | None) -> FunctionLike:
+    if isinstance(f, FunctionTemplate):
+        return f.resolve(args)
+    return f
+
+
 class Type(ABC):
-    methods: Dict[str, FunctionLike]
+    methods: Dict[str, Union[FunctionTemplate, "BuiltinFunction"]]
     is_builtin: bool
 
     def __init__(self):
@@ -53,6 +114,12 @@ class Type(ABC):
             if not m:
                 return None
             return FunctionType(m)
+        return None
+
+    def resolved_method(self, name: str, args: FunctionTemplateResolvingArgs | None) -> Optional[FunctionLike]:
+        m = self.methods.get(name)
+        if m:
+            return resolve_function(m, args)
         return None
 
 
@@ -87,6 +154,9 @@ class BoolType(ScalarType):
     def __hash__(self) -> int:
         return hash(BoolType)
 
+    def __str__(self) -> str:
+        return "bool"
+
 
 class IntType(ScalarType):
     bits: int
@@ -116,6 +186,9 @@ class IntType(ScalarType):
     def __repr__(self) -> str:
         return f"IntType({self.bits}, {self.signed})"
 
+    def __str__(self) -> str:
+        return f"{'i' if self.signed else 'u'}{self.bits}"
+
 
 class GenericFloatType(ScalarType):
     @override
@@ -138,6 +211,10 @@ class GenericFloatType(ScalarType):
     def __repr__(self) -> str:
         return f"GenericFloatType()"
 
+    @override
+    def __str__(self) -> str:
+        return "float"
+
 
 class GenericIntType(ScalarType):
     @override
@@ -159,6 +236,10 @@ class GenericIntType(ScalarType):
     @override
     def __repr__(self) -> str:
         return f"GenericIntType()"
+
+    @override
+    def __str__(self) -> str:
+        return "int"
 
 
 class FloatType(ScalarType):
@@ -183,12 +264,15 @@ class FloatType(ScalarType):
     def __hash__(self) -> int:
         return hash((FloatType, self.bits))
 
+    def __str__(self) -> str:
+        return f"f{self.bits}"
+
 
 class VectorType(Type):
-    element: ScalarType
+    element: Type
     count: int
 
-    def __init__(self, element: ScalarType, count: int) -> None:
+    def __init__(self, element: Type, count: int) -> None:
         super().__init__()
         self.element = element
         self.count = count
@@ -224,6 +308,9 @@ class VectorType(Type):
 
     def __hash__(self) -> int:
         return hash((VectorType, self.element, self.count))
+
+    def __str__(self) -> str:
+        return f"<{self.count} x {self.element}>"
 
     @override
     def member(self, field: Any) -> Optional['Type']:
@@ -265,6 +352,9 @@ class ArrayType(Type):
     def __hash__(self) -> int:
         return hash((ArrayType, self.element, self.count))
 
+    def __str__(self) -> str:
+        return f"[{self.count} x {self.element}]"
+
 
 class PointerType(Type):
     element: Type
@@ -288,11 +378,48 @@ class PointerType(Type):
     def __hash__(self) -> int:
         return hash((PointerType, self.element))
 
+    def __str__(self) -> str:
+        return f"*{self.element}"
+
+
+class TupleType(Type):
+    elements: List[Type]
+
+    def __init__(self, elements: List[Type]) -> None:
+        super().__init__()
+        self.elements = elements
+
+    def size(self) -> int:
+        return sum(element.size() for element in self.elements)
+
+    def align(self) -> int:
+        return max(element.align() for element in self.elements)
+
+    def __eq__(self, value: object) -> bool:
+        return self is value or (isinstance(value, TupleType) and value.elements == self.elements)
+
+    def __repr__(self) -> str:
+        return f"TupleType({self.elements})"
+
+    def __hash__(self) -> int:
+        return hash((TupleType, tuple(self.elements)))
+
+    def __str__(self) -> str:
+        return f"({', '.join(str(e) for e in self.elements)})"
+
+    @override
+    def member(self, field: Any) -> Optional['Type']:
+        if isinstance(field, int):
+            if field < len(self.elements):
+                return self.elements[field]
+        return Type.member(self, field)
+
 
 class StructType(Type):
     name: str
     _fields: List[Tuple[str, Type]]
     _field_dict: Dict[str, Type]
+    # _monomorphification_cache: Dict[Tuple['GenericParameter', Type | 'Value'], Type]
 
     def __init__(self, name: str, fields: List[Tuple[str, Type]]) -> None:
         super().__init__()
@@ -310,6 +437,9 @@ class StructType(Type):
     def align(self) -> int:
         return max(field.align() for _, field in self.fields)
 
+    def __str__(self) -> str:
+        return self.name
+
     @override
     def __eq__(self, value: object) -> bool:
         return value is self or (
@@ -323,43 +453,78 @@ class StructType(Type):
             if field in self._field_dict:
                 return self._field_dict[field]
         return Type.member(self, field)
-    
+
     @override
     def __hash__(self) -> int:
         return hash((StructType, tuple(self.fields), self.name))
 
 
-class SymbolicType(Type):
-    """A type that is not yet resolved."""
+class TypeBound:
+    pass
 
-    name: str
 
-    def __init__(self, name: str) -> None:
-        super().__init__()
-        self.name = name
+class AnyBound(TypeBound):
+    pass
 
-    def size(self) -> int:
-        raise RuntimeError("SymbolicType has no size")
 
-    def align(self) -> int:
-        raise RuntimeError("SymbolicType has no align")
+class SubtypeBound(TypeBound):
+    super_type: Type
+
+    def __init__(self, super_type: Type) -> None:
+        self.super_type = super_type
+
+    def __repr__(self) -> str:
+        return f"SubtypeBound({self.super_type})"
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, SymbolicType) and value.name == self.name
-
-    def __hash__(self) -> int:
-        return hash((SymbolicType, self.name))
+        return isinstance(value, SubtypeBound) and value.super_type == self.super_type
 
 
-class TypeParameter:
-    symbol: Union[SymbolicType, "SymbolicConstant"]
-    bound: List[Type]
+class UnionBound(TypeBound):
+    bounds: List[SubtypeBound]
+
+    def __init__(self, bounds: List[SubtypeBound]) -> None:
+        self.bounds = bounds
+
+    def __repr__(self) -> str:
+        return f"UnionBound({self.bounds})"
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, UnionBound) and value.bounds == self.bounds
+
+
+class GenericParameter:
+    """
+    A GenericParameter contains three parts:
+        name@ctx_name: bound
+    """
+    name: str
+    """ name of the generic parameter in source code, e.g. 'T'"""
+    ctx_name: str
+    """ a string describing the context (where the generic parameter is defined), e.g. 'some_function' """
+    bound: TypeBound | None
 
     def __init__(
-        self, symbol: Union[SymbolicType, "SymbolicConstant"], bound: List[Type]
+        self, name: str, ctx_name: str, bound: TypeBound | None = None
     ) -> None:
-        self.symbol = symbol
+        self.name = name
+        self.ctx_name = ctx_name
         self.bound = bound
+
+    def __eq__(self, value: object) -> bool:
+        return (
+            value is self or (
+                isinstance(value, GenericParameter)
+                and value.name == self.name
+                and value.ctx_name == self.ctx_name)
+        )
+
+    def __hash__(self) -> int:
+        return hash((GenericParameter, self.name, self.ctx_name))
+
+    def __repr__(self) -> str:
+        bound_str = f" : {self.bound}" if self.bound else ""
+        return f"GenericParameter({self.name}, {self.ctx_name}, {bound_str})"
 
 
 class OpaqueType(Type):
@@ -381,17 +546,45 @@ class OpaqueType(Type):
     def __hash__(self) -> int:
         return hash((OpaqueType, self.name))
 
+    def __str__(self) -> str:
+        return self.name
+
+
+class SymbolicType(Type):
+    param: GenericParameter
+
+    def __init__(self, param: GenericParameter) -> None:
+        super().__init__()
+        self.param = param
+
+    def size(self) -> int:
+        raise RuntimeError("SymbolicType has no size")
+
+    def align(self) -> int:
+        raise RuntimeError("SymbolicType has no align")
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, SymbolicType) and value.param == self.param
+
+    def __hash__(self) -> int:
+        return hash((SymbolicType, self.param))
+
+    def __str__(self) -> str:
+        return f'~{self.param.name}@{self.param.ctx_name}'
+
+    def __repr__(self) -> str:
+        return f"SymbolicType({self.param})"
+
 
 class ParametricType(Type):
-    """A parametric type that is not yet resolved."""
-
-    name: str
-    params: List[TypeParameter]
+    """
+    The definition of a parametric type, e.g. class Foo[T]: ...
+    """
+    params: List[GenericParameter]
     body: Type
 
-    def __init__(self, name: str, params: List[TypeParameter], body: Type) -> None:
+    def __init__(self, params: List[GenericParameter], body: Type) -> None:
         super().__init__()
-        self.name = name
         self.params = params
         self.body = body
 
@@ -404,19 +597,21 @@ class ParametricType(Type):
     def __eq__(self, value: object) -> bool:
         return (
             isinstance(value, ParametricType)
-            and value.name == self.name
             and value.params == self.params
         )
 
     def __hash__(self) -> int:
-        return hash((ParametricType, self.name, tuple(self.params)))
+        return hash((ParametricType, tuple(self.params)))
 
 
 class BoundType(Type):
+    """
+    An instance of a parametric type, e.g. Foo[int]
+    """
     generic: ParametricType
-    args: List[Type]
+    args: List[Union[Type, 'SymbolicConstant']]
 
-    def __init__(self, generic: ParametricType, args: List[Type]) -> None:
+    def __init__(self, generic: ParametricType, args: List[Union[Type, 'SymbolicConstant']]) -> None:
         self.generic = generic
         self.args = args
 
@@ -435,9 +630,10 @@ class BoundType(Type):
 
 
 class FunctionType(Type):
-    func_like: FunctionLike
+    func_like: FunctionLike | FunctionTemplate
 
-    def __init__(self, func_like: FunctionLike) -> None:
+    def __init__(self, func_like: FunctionLike | FunctionTemplate) -> None:
+        super().__init__()
         self.func_like = func_like
 
     def __eq__(self, value: object) -> bool:
@@ -552,13 +748,13 @@ class Value(TypedNode):
 
 
 class SymbolicConstant(Value):
-    name: str
+    generic: GenericParameter
 
     def __init__(
-        self, name: str, type: Optional[Type] = None, span: Optional[Span] = None
+        self, generic: GenericParameter, type: Optional[Type] = None, span: Optional[Span] = None
     ) -> None:
         super().__init__(type, span)
-        self.name = name
+        self.generic = generic
 
 
 class ValueRef(Ref):
@@ -866,6 +1062,7 @@ class BuiltinFunction:
 
 class Function:
     name: str
+    generic_params: Dict[str, GenericParameter]
     params: List[Var]
     return_type: Type
     body: List[Stmt]
@@ -878,6 +1075,7 @@ class Function:
     def __init__(
         self,
         name: str,
+        generic_params: Dict[str, GenericParameter],
         params: List[Var],
         return_type: Type,
         body: List[Stmt],
@@ -887,6 +1085,7 @@ class Function:
         complete: bool = False,
     ) -> None:
         self.name = name
+        self.generic_params = generic_params
         self.params = params
         self.return_type = return_type
         self.body = body
@@ -895,6 +1094,10 @@ class Function:
         self.locals = locals
         self.fully_typed = False
         self.complete = complete
+
+    @property
+    def is_generic(self) -> bool:
+        return len(self.generic_params) > 0
 
     @property
     def is_parametric(self) -> bool:
@@ -918,6 +1121,104 @@ class Function:
         rebuild_usedef_chain(list(roots))
 
 
+def match_template_args(
+        template: List[Tuple[str, Union[Type, Value]]],
+        args: List[Type | Value]) -> Dict[GenericParameter, Type | Value]:
+    mapping: Dict[GenericParameter, Type | Value] = {}
+
+    def unify(a: Type | Value, b: Type | Value):
+        """
+        Perform unification on two types or values, only a could contain generic parameters.
+        """
+        if a is b:
+            return
+        if (isinstance(a, Type) and isinstance(b, Value)) or (isinstance(b, Type) and isinstance(a, Value)):
+            return TypeInferenceError(None, "type and value cannot be unified")
+        if isinstance(a, Type) and isinstance(b, Type):
+            # unify type
+            match a:
+                case SymbolicType():
+                    if a.param.name in mapping:
+                        return unify(mapping[a.param], b)
+                    if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
+                        raise TypeInferenceError(None,
+                                                 "float/int literal cannot be used to infer generic type directly, wrap it with a concrete type")
+                    mapping[a.param] = b
+                    return
+                case VectorType():
+                    if not isinstance(b, VectorType):
+                        raise TypeInferenceError(
+                            None, f"expected {a}, got {b}")
+                    if a.count != b.count:
+                        raise TypeInferenceError(
+                            None, f"vector length mismach, expected {a}, got {b}")
+                    unify(a.element, b.element)
+                case ArrayType():
+                    if not isinstance(b, ArrayType):
+                        raise TypeInferenceError(
+                            None, f"expected {a}, got {b}")
+                    # TODO: handle generic array length
+                    if a.count != b.count:
+                        raise TypeInferenceError(
+                            None, f"array length mismach, expected {a}, got {b}")
+                    unify(a.element, b.element)
+                case PointerType():
+                    if not isinstance(b, PointerType):
+                        raise TypeInferenceError(
+                            None, f"expected {a}, got {b}")
+                    unify(a.element, b.element)
+                case TupleType():
+                    if not isinstance(b, TupleType):
+                        raise TypeInferenceError(
+                            None, f"expected {a}, got {b}")
+                    if len(a.elements) != len(b.elements):
+                        raise TypeInferenceError(
+                            None, f"expected {a}, got {b}")
+                    for ea, eb in zip(a.elements, b.elements):
+                        unify(ea, eb)
+                case StructType():
+                    raise RuntimeError(
+                        "StructType should not appear in match_template_args")
+                    # if not isinstance(b, StructType):
+                    #     raise TypeInferenceError(
+                    #         None, f"expected {a}, got {b}")
+                    # if len(a.fields) != len(b.fields):
+                    #     raise TypeInferenceError(
+                    #         None, f"field cound mismatch, expected {a}, got {b}")
+                    # for (fa, ta), (fb, tb) in zip(a.fields, b.fields):
+                    #     if fa != fb:
+                    #         raise TypeInferenceError(
+                    #             None, f"field name mismatch,expected {a}, got {b}")
+                    #     unify(ta, tb)
+                case BoundType():
+                    raise NotImplementedError()
+                case ParametricType():
+                    raise RuntimeError(
+                        "ParametricType should not appear in match_template_args")
+                case _:
+                    if not is_type_compatible_to(b, a):
+                        raise TypeInferenceError(
+                            None, f"expected {a}, got {b}")
+        if isinstance(a, Value) and isinstance(b, Value):
+            raise NotImplementedError()
+        return False
+    assert len(template) == len(args)
+    for i in range(len(template)):
+        unify(template[i][1], args[i])
+    return mapping
+
+
+def match_func_template_args(sig: Function, args: FunctionTemplateResolvingArgs) -> Dict[GenericParameter, Type | Value]:
+    if len(sig.params) != len(args):
+        raise TypeInferenceError(
+            None, f"expected {len(sig.params)} arguments, got {len(args)}")
+
+    template_args: List[Tuple[str, Union[Type, Value]]] = []
+    for param in sig.params:
+        assert param.type is not None
+        template_args.append((param.name, param.type))
+    matching_args = [arg[1] for arg in args]
+    return match_template_args(template_args, matching_args)
 # K = TypeVar("K")
 # V = TypeVar("V")
 
@@ -955,7 +1256,7 @@ _global_context: Optional["GlobalContext"] = None
 
 class GlobalContext:
     types: Dict[type, Type]
-    functions: Dict[Callable[..., Any], Function]
+    functions: Dict[Callable[..., Any], FunctionTemplate]
     # deferred: List[Callable[[], None]]
 
     @staticmethod
@@ -990,18 +1291,14 @@ class StructMetadata:
     pass
 
 
-def get_dsl_func(func: Callable[..., Any]) -> Optional[Function]:
+def get_dsl_func(func: Callable[..., Any]) -> Optional[FunctionTemplate]:
     func_ = GlobalContext.get().functions.get(func)
-    success = func_ is not None
+    # print(func, GlobalContext.get().functions)
     if not func_:
         # check if __luisa_func__ is set
         luisa_func = getattr(func, "__luisa_func__", None)
-        if luisa_func:
-            func_ = GlobalContext.get().functions.get(luisa_func)
-            success = func_ is not None
-    if not success:
-        return None
-    assert func_
+        if luisa_func and isinstance(luisa_func, FunctionTemplate):
+            func_ = luisa_func
     return func_
 
 

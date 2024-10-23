@@ -38,29 +38,57 @@ class _ObjKind(Enum):
     KERNEL = auto()
 
 
+def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dict[str, Any], self_type: Optional[hir.Type] = None):
+    parsing_ctx = parse.ParsingContext(func_name, func_globals)
+    func_sig_parser = parse.FuncParser(func_name, f, parsing_ctx, self_type)
+    func_sig = func_sig_parser.parsed_func
+    params = [v.name for v in func_sig_parser.params]
+    is_generic = func_sig_parser.p_ctx.type_vars != {}
+
+    def parsing_func(args: hir.FunctionTemplateResolvingArgs) -> hir.FunctionLike:
+        parsing_ctx = parse.ParsingContext(func_name, func_globals)
+        if is_generic:
+            mapping = hir.match_func_template_args(func_sig, args)
+            if len(mapping) != len(func_sig.generic_params):
+                raise hir.TypeInferenceError(
+                    None, "not all type parameters are resolved")
+            for p in func_sig.generic_params.values():
+                if p not in mapping:
+                    raise hir.TypeInferenceError(
+                        None, f"type parameter {p} is not resolved")
+                parsing_ctx.bound_type_vars[p.name] = mapping[p]
+                print(f'binding {p.name} = {mapping[p]}')
+        func_parser = parse.FuncParser(func_name, f, parsing_ctx, self_type)
+        func_ir = func_parser.parse_body()
+        return func_ir
+
+    return hir.FunctionTemplate(func_name, params, parsing_func, is_generic)
+
+
 def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     import sourceinspect
     assert inspect.isfunction(f), f"{f} is not a function"
     # print(hir.GlobalContext.get)
 
     ctx = hir.GlobalContext.get()
+    func_name = get_full_name(f)
     func_globals: Any = getattr(f, "__globals__", {})
-    parsing_ctx = parse.ParsingContext(func_globals)
-    # print(ast.dump(obj_ast))
 
-    func_parser = parse.FuncParser(get_full_name(f), f, parsing_ctx)
-    func_ir = func_parser.parse_body()
-    ctx.functions[f] = func_ir
+    def make_parser(args: hir.FunctionTemplateResolvingArgs) -> parse.FuncParser:
+        parsing_ctx = parse.ParsingContext(func_name, func_globals)
+        for name, value in args:
+            parsing_ctx.bound_type_vars[name] = value
+        func_parser = parse.FuncParser(func_name, f, parsing_ctx)
+        return func_parser
+
     if kind == _ObjKind.FUNC:
-
-        def dummy(*args, **kwargs):
-            raise RuntimeError(
-                "DSL function should only be called in DSL context.")
-
-        setattr(dummy, "__luisa_func__", f)
-        return cast(_T, dummy)
-    else:
+        template = _make_func_template(f, func_name, func_globals)
+        ctx.functions[f] = template
+        setattr(f, "__luisa_func__", template)
         return cast(_T, f)
+    else:
+        raise NotImplementedError()
+        # return cast(_T, f)
 
 
 def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
@@ -83,19 +111,15 @@ def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
     fields: List[Tuple[str, hir.Type]] = []
     for name, field in cls_info.fields.items():
         fields.append((name, get_ir_type(field)))
-    ir_ty = hir.StructType(f'{cls.__name__}_{unique_hash(cls.__qualname__)}', fields)
+    ir_ty = hir.StructType(
+        f'{cls.__name__}_{unique_hash(cls.__qualname__)}', fields)
     ctx.types[cls] = ir_ty
-    parsing_ctx = parse.ParsingContext(globalns)
-    func_parsers: List[parse.FuncParser] = []
+
     for name, method in cls_info.methods.items():
         method_object = getattr(cls, name)
-        func_parser = parse.FuncParser(
-            get_full_name(method_object), method_object, parsing_ctx,self_type=ir_ty)
-        func_parsers.append(func_parser)
-        ir_ty.methods[name] = func_parser.parsed_func
-    for func_parser in func_parsers:
-        func_parser.parse_body()
-
+        template = _make_func_template(
+            method_object, get_full_name(method_object), globalns, self_type=ir_ty)
+        ir_ty.methods[name] = template
     return cls
 
 
@@ -200,8 +224,9 @@ def typeof(value: Any) -> hir.Type:
     return hir.GlobalContext.get().types[type(value)]
 
 
-_t = hir.SymbolicType("T")
-_n = hir.SymbolicConstant("N", typeof(u32))
+_t = hir.SymbolicType(hir.GenericParameter("_T", "luisa_lang.lang"))
+_n = hir.SymbolicConstant(hir.GenericParameter(
+    "_N", "luisa_lang.lang")), typeof(u32)
 
 
 # @_builtin_type(

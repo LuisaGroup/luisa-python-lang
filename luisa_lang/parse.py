@@ -4,7 +4,7 @@ from types import ModuleType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, overload
 import typing
 import luisa_lang
-from luisa_lang._utils import report_error
+from luisa_lang._utils import get_typevar_constrains_and_bounds, report_error
 import luisa_lang.hir as hir
 import sys
 from luisa_lang._utils import retrieve_ast_and_filename
@@ -142,6 +142,11 @@ class AccessChain:
                     if access is None:
                         return hir_ty, None
                     raise NotImplementedError()
+            elif isinstance(cur, hir.Type):
+                if access is None:
+                    return cur, None
+                else:
+                    raise NotImplementedError()
             elif isinstance(cur, typing.TypeVar):
                 # generic
                 if access is None:
@@ -166,14 +171,25 @@ class ParsingContext:
     globals: Dict[str, Any]
     global_ctx: hir.GlobalContext
     name_eval_cache: Dict[str, Optional[Any]]
+    ctx_name: str
+    bound_type_vars: Dict[str, Union[hir.Type, hir.Value]]
+    type_vars: Dict[typing.TypeVar,
+                    Tuple[hir.GenericParameter, Union[hir.Type, hir.Value]]]
 
-    def __init__(self, globals: Dict[str, Any]):
+    def __init__(self, ctx_name: str, globals: Dict[str, Any]):
         self.globals = globals
         self.global_ctx = hir.GlobalContext.get()
         self.name_eval_cache = {}
-
+        self.ctx_name = ctx_name
+        self.type_vars = {}
+        self.bound_type_vars = {}
+    
     def __eval_name(self, name: str) -> Optional[Any]:
         try:
+            if name in self.name_eval_cache:
+                return self.name_eval_cache[name]
+            if name in self.bound_type_vars:
+                return self.bound_type_vars[name]
             result = eval(name, self.globals)
             self.name_eval_cache[name] = result
             return result
@@ -248,21 +264,57 @@ class ParsingContext:
         return None
         # report_error(tree, f"unsupported access chain {tree}")
 
-    def parse_type(self, type_tree: ast.AST) -> Optional[Type]:
+    def parse_type(self, type_tree: ast.AST, allow_new_typevar: bool = False) -> Optional[Type]:
         acess_chain: AccessChain | None = self._parse_access_chain(
             type_tree, True)
         if acess_chain is None:
             return None
-        print(acess_chain)
+        # print(acess_chain)
         resolved, remaining = acess_chain.resolve()
         if remaining is not None:
-            report_error(type_tree, f"failed to resolve type")
+            report_error(type_tree, f"failed to resolve type. {resolved},{remaining}")
         if isinstance(resolved, hir.Type):
             return resolved
         if isinstance(resolved, typing.TypeVar):
-            raise NotImplementedError("TODO: resolve typevar")
+            # if resolved.__name__ in self.bound_type_vars:
+            #     ty_or_val = self.bound_type_vars[resolved.__name__]
+            #     if not isinstance(ty_or_val, hir.Type):
+            #         report_error(
+            #             type_tree, f"expected generic parameter {resolved} to be a type but got a value: {ty_or_val}")
+            #     return ty_or_val
+            if resolved in self.type_vars:
+                _, ty_or_val = self.type_vars[resolved]
+                if isinstance(ty_or_val, hir.Type):
+                    return ty_or_val
+                else:
+                    report_error(
+                        type_tree, f"expected generic parameter {resolved} to be a type but got a value: {ty_or_val}")
+            elif allow_new_typevar:
+                ty_bound: hir.TypeBound | None = None
+                # create new type var
+                constraints, bound = get_typevar_constrains_and_bounds(
+                    resolved)
+                if constraints:
+                    raise NotImplementedError(
+                        "TypeVar constraints not supported")
+                elif bound:
+                    if bound == typing.Any:
+                        ty_bound = hir.AnyBound()
+                    else:
+                        bounding_super_type = self.global_ctx.types.get(bound)
+                        if not bounding_super_type:
+                            report_error(
+                                type_tree, f"failed to parse type bound")
+                        ty_bound = hir.SubtypeBound(bounding_super_type)
+                param = hir.GenericParameter(
+                    resolved.__name__, self.ctx_name, ty_bound)
+                generic_ty = hir.SymbolicType(param)
+                self.type_vars[resolved] = (param, generic_ty)
+                return generic_ty
+            else:
+                report_error(
+                    type_tree, f"undefined type parameter {resolved}. type parameter must be included in the function signature or class definition")
         return None
-
 
 class FuncParser:
     p_ctx: ParsingContext
@@ -274,6 +326,7 @@ class FuncParser:
     name: str
     parsed_func: Function
     self_type: Optional[Type]
+    signature_initialized: bool
 
     def __init__(self, name: str, func: object, p_ctx: ParsingContext, self_type: Optional[Type] = None) -> None:
         obj_ast, _obj_file = retrieve_ast_and_filename(func)
@@ -288,14 +341,21 @@ class FuncParser:
         self.return_type = None
         self.self_type = self_type
         self.params = []
+        self.signature_initialized = False
         self._init_signature()
+        self.signature_initialized = True
         # print(self.arg_types, "->", self.return_type)
 
         assert self.return_type is not None
+        generic_params: Dict[str, hir.GenericParameter] = {}
+        for tv in self.p_ctx.type_vars:
+            param, _ = self.p_ctx.type_vars[tv]
+            generic_params[param.name] = param
         # a sorted list of vars
         vars = [self.vars[v] for v in sorted(self.vars.keys())]
         self.parsed_func = Function(
             self.name,
+            generic_params,
             self.params,
             self.return_type,
             [],
@@ -330,7 +390,7 @@ class FuncParser:
                 else:
                     report_error(arg,
                                  "function argument must have type annotation; leave it to Any for implicit template functions")
-            if (arg_ty := p_ctx.parse_type(arg.annotation)) is not None:
+            if (arg_ty := p_ctx.parse_type(arg.annotation, True)) is not None:
                 self.arg_types.append(arg_ty)
                 self.vars[arg.arg] = hir.Var(
                     arg.arg, arg_ty, hir.Span.from_ast(arg))
@@ -343,7 +403,7 @@ class FuncParser:
             if func.returns is None:
                 self.return_type = hir.UnitType()
             else:
-                self.return_type = p_ctx.parse_type(func.returns)
+                self.return_type = p_ctx.parse_type(func.returns, True)
 
     def parse_const(self, const: ast.Constant) -> hir.Value:
         span = hir.Span.from_ast(const)

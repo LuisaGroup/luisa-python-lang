@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, cast
 from luisa_lang import hir
 from luisa_lang._utils import report_error
 from luisa_lang.hir.defs import is_type_compatible_to
-
+import traceback
 
 class TypeInferencer:
     pass
@@ -91,6 +91,8 @@ class FuncTypeInferencer:
         self.func = func
 
     def infer(self) -> None:
+        if self.func.fully_typed:
+            return
         for stmt in self.func.body:
             self.infer_stmt(stmt)
         if is_function_fully_typed(self.func):
@@ -201,7 +203,9 @@ class FuncTypeInferencer:
             case hir.Member() as member:
                 return self._infer_member(member)
             case hir.Constant() as constant:
-                if isinstance(constant.value, hir.Function) or isinstance(constant.value, hir.BuiltinFunction):
+                if isinstance(constant.value, hir.Function) \
+                        or isinstance(constant.value, hir.FunctionTemplate)\
+                        or isinstance(constant.value, hir.BuiltinFunction):
                     return hir.FunctionType(constant.value)
                 if isinstance(constant.value, float):
                     return hir.GenericFloatType()
@@ -215,7 +219,7 @@ class FuncTypeInferencer:
                 raise NotImplementedError(f"Unsupported expr type: {expr}")
 
     def _infer_call_helper(
-        self, node: hir.Node, f: hir.FunctionLike, args: List[hir.Type]
+        self, node: hir.Call, f: hir.FunctionLike | hir.FunctionTemplate, args: List[hir.Type]
     ) -> Optional[hir.Type]:
         if isinstance(f, hir.BuiltinFunction):
             try:
@@ -223,7 +227,37 @@ class FuncTypeInferencer:
             except hir.TypeInferenceError as e:
                 e.node = node
                 raise e
+        elif isinstance(f, hir.FunctionTemplate):
+            if self.func.is_generic:
+                raise hir.TypeInferenceError(
+                    node,
+                    f"TODO: infer generic function {f.name}")
+            if f.is_generic:
+                template_resolve_args: hir.FunctionTemplateResolvingArgs = []
+                template_params = f.params
+                if len(template_params) != len(args):
+                    raise hir.TypeInferenceError(
+                        node,
+                        f"Expected {len(template_params)} arguments, got {len(args)}")
+                for i, (param, arg) in enumerate(zip(template_params, args)):
+                    template_resolve_args.append((param, arg))
+                try:
+                    resolved_f = f.resolve(template_resolve_args)
+                except Exception as e:
+                    # traceback.print_exc()
+                    raise hir.TypeInferenceError(
+                        node,
+                        f"Failed to resolve function template {f.name}: {e}")
+            else:
+                resolved_f = f.resolve(None)
+            node.op = hir.Constant(resolved_f)
+            node.op.type = hir.FunctionType(resolved_f)
+            return self._infer_call_helper(node, resolved_f, args)
         else:
+            if f.is_generic:
+                raise hir.TypeInferenceError(
+                    node,
+                    f"Cannot infer generic function {f.name}")
             param_tys = []
             for p in f.params:
                 assert p.type, f"Parameter {p.name} has no type"
@@ -254,14 +288,15 @@ class FuncTypeInferencer:
 
             def infer_binop(name: str, rname: str) -> Optional[Tuple[hir.Type, hir.FunctionLike]]:
                 try:
+                    # TODO: generic operator overloading
                     # check if args[0] has the method {name} defined
-                    if (method := left.methods.get(name, None)) and method:
+                    if (method := left.resolved_method(name, None)) and method:
                         ty = self._infer_call_helper(
                             expr, method, [left, right])
                         if ty:
                             return ty, method
                     # check if args[1] has the method {rname} defined
-                    if (method := right.methods.get(rname, None)) and method:
+                    if (method := right.resolved_method(rname, None)) and method:
                         ty = self._infer_call_helper(
                             expr, method, [right, left])
                         if ty:
@@ -290,7 +325,7 @@ class FuncTypeInferencer:
                 if not operand_ty:
                     return None
                 method_name = UNARY_OP_TO_METHOD_NAMES[op]
-                if (method := operand_ty.methods.get(method_name, None)) and method:
+                if (method := operand_ty.resolved_method(method_name, None)) and method:
                     ty = self._infer_call_helper(expr, method, [operand_ty])
                     if ty:
                         expr.op = hir.Constant(method)
@@ -301,6 +336,11 @@ class FuncTypeInferencer:
             return helper()
 
         raise NotImplementedError(f"Unsupported operator: {op} {expr.kind}")
+
+
+def run_inference_on_function(func: hir.Function) -> None:
+    inferencer = FuncTypeInferencer(func)
+    inferencer.infer()
 
 
 UNARY_OP_TO_METHOD_NAMES: Dict[str, str] = {

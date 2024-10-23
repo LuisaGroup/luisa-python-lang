@@ -115,5 +115,6 @@ def _builtin(func: _F) -> _F:
 
 def _intrinsic_impl(*args, **kwargs) -> Any:
     raise NotImplementedError(
-        "intrinsic functions should not be called in normal Python code"
+        "intrinsic functions should not be called in host-side Python code. "
+        "Did you mistakenly called a DSL function?"
     )

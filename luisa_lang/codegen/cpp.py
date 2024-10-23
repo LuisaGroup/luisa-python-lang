@@ -6,6 +6,7 @@ from typing import Any, Callable, Dict, Set, Tuple, Union
 
 from luisa_lang.hir.defs import GlobalContext
 from luisa_lang.hir import get_dsl_func
+from luisa_lang.hir.infer import run_inference_on_function
 
 
 class TypeCodeGenCache:
@@ -146,11 +147,13 @@ class CppCodeGen(CodeGen):
         if callable(func):
             dsl_func = get_dsl_func(func)
             assert dsl_func is not None
-            func = dsl_func
+            assert not dsl_func.is_generic, f"Generic functions should be resolved before codegen: {func}"
+            func_tmp = dsl_func.resolve([])
+            assert isinstance(func_tmp, hir.Function), f"Expected function, got {func_tmp}"
+            func = func_tmp
         if id(func) in self.func_cache:
             return self.func_cache[id(func)][1]
-        inferencer = hir.FuncTypeInferencer(func)
-        inferencer.infer()
+        run_inference_on_function(func)
         func_code_gen = FuncCodeGen(self, func)
         name = func_code_gen.name
         self.func_cache[id(func)] = (func, name)

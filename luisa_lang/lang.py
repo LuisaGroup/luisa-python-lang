@@ -57,9 +57,10 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
                     raise hir.TypeInferenceError(
                         None, f"type parameter {p} is not resolved")
                 parsing_ctx.bound_type_vars[p.name] = mapping[p]
-                print(f'binding {p.name} = {mapping[p]}')
+                # print(f'binding {p.name} = {mapping[p]}')
         func_parser = parse.FuncParser(func_name, f, parsing_ctx, self_type)
         func_ir = func_parser.parse_body()
+        hir.run_inference_on_function(func_ir)
         return func_ir
 
     return hir.FunctionTemplate(func_name, params, parsing_func, is_generic)
@@ -112,7 +113,7 @@ def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
     for name, field in cls_info.fields.items():
         fields.append((name, get_ir_type(field)))
     ir_ty = hir.StructType(
-        f'{cls.__name__}_{unique_hash(cls.__qualname__)}', fields)
+        f'{cls.__name__}_{unique_hash(cls.__qualname__)}', cls.__qualname__, fields)
     ctx.types[cls] = ir_ty
 
     for name, method in cls_info.methods.items():

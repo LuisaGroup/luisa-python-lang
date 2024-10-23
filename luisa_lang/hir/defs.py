@@ -417,14 +417,16 @@ class TupleType(Type):
 
 class StructType(Type):
     name: str
+    display_name: str
     _fields: List[Tuple[str, Type]]
     _field_dict: Dict[str, Type]
     # _monomorphification_cache: Dict[Tuple['GenericParameter', Type | 'Value'], Type]
 
-    def __init__(self, name: str, fields: List[Tuple[str, Type]]) -> None:
+    def __init__(self, name: str,   display_name: str, fields: List[Tuple[str, Type]]) -> None:
         super().__init__()
         self.name = name
         self._fields = fields
+        self.display_name = display_name
         self._field_dict = {name: ty for name, ty in fields}
 
     @property
@@ -438,7 +440,7 @@ class StructType(Type):
         return max(field.align() for _, field in self.fields)
 
     def __str__(self) -> str:
-        return self.name
+        return self.display_name
 
     @override
     def __eq__(self, value: object) -> bool:
@@ -920,8 +922,8 @@ class TypeInferenceError(Exception):
 
     def __str__(self) -> str:
         if self.node is None:
-            return f"Type inference error: {self.message}"
-        return f"Type inference error at {self.node.span}: {self.message}"
+            return f"Type inference error:\n\t{self.message}"
+        return f"Type inference error at {self.node.span}:\n\t{self.message}"
 
 
 class TypeRule(ABC):

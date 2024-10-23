@@ -247,7 +247,7 @@ class FuncTypeInferencer:
                     # traceback.print_exc()
                     raise hir.TypeInferenceError(
                         node,
-                        f"Failed to resolve function template {f.name}: {e}")
+                        f"Error during instantiating function template {f.name}: {e}")
             else:
                 resolved_f = f.resolve(None)
             node.op = hir.Constant(resolved_f)
@@ -306,6 +306,7 @@ class FuncTypeInferencer:
                         f"Operator {op} not defined for types {left} and {right}"
                     )
                 except hir.TypeInferenceError as e:
+                    e.node = expr
                     raise e
 
             method_names = BINOP_TO_METHOD_NAMES[op]
@@ -339,6 +340,7 @@ class FuncTypeInferencer:
 
 
 def run_inference_on_function(func: hir.Function) -> None:
+    # print(f"Running type inference on function {func.name}")
     inferencer = FuncTypeInferencer(func)
     inferencer.infer()
 

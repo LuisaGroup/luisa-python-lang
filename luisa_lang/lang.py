@@ -50,6 +50,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
         if is_generic:
             mapping = hir.match_func_template_args(func_sig, args)
             if len(mapping) != len(func_sig.generic_params):
+                print(mapping, func_sig.generic_params)
                 raise hir.TypeInferenceError(
                     None, "not all type parameters are resolved")
             for p in func_sig.generic_params.values():
@@ -57,7 +58,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
                     raise hir.TypeInferenceError(
                         None, f"type parameter {p} is not resolved")
                 parsing_ctx.bound_type_vars[p.name] = mapping[p]
-                # print(f'binding {p.name} = {mapping[p]}')
+                print(f'binding {p.name} = {mapping[p]}')
         func_parser = parse.FuncParser(func_name, f, parsing_ctx, self_type)
         func_ir = func_parser.parse_body()
         hir.run_inference_on_function(func_ir)

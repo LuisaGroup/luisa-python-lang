@@ -119,6 +119,7 @@ class Mangling:
             case hir.VectorType(element=element, count=count):
                 return f"V{count}{self.mangle(element)}"
             case hir.Function(name=name, params=params, return_type=ret):
+                assert ret
                 name = mangle_name(name)
                 return f'{name}_' + unique_hash(f"F{name}_{self.mangle(ret)}{''.join(self.mangle(unwrap(p.type)) for p in params)}")
             case hir.BuiltinFunction(name=name):
@@ -186,6 +187,7 @@ class FuncCodeGen:
         self.name = base.mangling.mangle(func)
         self.func = func
         params = ",".join(self.gen_var(p) for p in func.params)
+        assert func.return_type
         self.signature = f'extern "C" auto {self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
         self.body = ScratchBuffer()
         self.params = set(p.name for p in func.params)

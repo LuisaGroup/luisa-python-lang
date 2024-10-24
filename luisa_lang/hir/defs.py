@@ -135,6 +135,9 @@ class UnitType(Type):
 
     def __hash__(self) -> int:
         return hash(UnitType)
+    
+    def __str__(self) -> str:
+        return "NoneType"
 
 
 class ScalarType(Type):
@@ -1066,7 +1069,7 @@ class Function:
     name: str
     generic_params: Dict[str, GenericParameter]
     params: List[Var]
-    return_type: Type
+    return_type: Type | None
     body: List[Stmt]
     builtin: bool
     export: bool
@@ -1079,7 +1082,7 @@ class Function:
         name: str,
         generic_params: Dict[str, GenericParameter],
         params: List[Var],
-        return_type: Type,
+        return_type: Type | None,
         body: List[Stmt],
         locals: List[Var],
         builtin: bool = False,

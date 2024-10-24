@@ -22,6 +22,8 @@ def _infer_cache(func: F) -> F:
 
 
 def is_function_fully_typed(func: hir.Function) -> bool:
+    if not func.return_type:
+        return False
     for stmt in func.body:
         if not is_stmt_fully_typed(stmt):
             return False
@@ -112,7 +114,9 @@ class FuncTypeInferencer:
             case hir.Return(value=value):
                 if value:
                     ty = self.infer_expr(value)
-                    if self.func.return_type != ty:
+                    if not self.func.return_type:
+                        self.func.return_type = ty
+                    elif self.func.return_type != ty:
                         report_error(
                             stmt.span,
                             f"Return type mismatch: expected {self.func.return_type}, got {ty}",
@@ -247,7 +251,7 @@ class FuncTypeInferencer:
                     # traceback.print_exc()
                     raise hir.TypeInferenceError(
                         node,
-                        f"Error during instantiating function template {f.name}: {e}")
+                        f"Error during instantiating function template {f.name}: {e}") from e
             else:
                 resolved_f = f.resolve(None)
             node.op = hir.Constant(resolved_f)

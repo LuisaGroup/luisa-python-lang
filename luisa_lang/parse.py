@@ -154,6 +154,13 @@ class AccessChain:
                 else:
                     raise RuntimeError(
                         "Associated type not supported by Python")
+            elif cur is typing.Any:
+                # generic
+                if access is None:
+                    return cur, None
+                else:
+                    raise RuntimeError(
+                        "Associated type not supported by Python")
             if chain_idx is None:
                 if len(self.chain) == 0:
                     break
@@ -175,6 +182,7 @@ class ParsingContext:
     bound_type_vars: Dict[str, Union[hir.Type, hir.Value]]
     type_vars: Dict[typing.TypeVar,
                     Tuple[hir.GenericParameter, Union[hir.Type, hir.Value]]]
+    any_cnt: int
 
     def __init__(self, ctx_name: str, globals: Dict[str, Any]):
         self.globals = globals
@@ -183,7 +191,8 @@ class ParsingContext:
         self.ctx_name = ctx_name
         self.type_vars = {}
         self.bound_type_vars = {}
-    
+        self.any_cnt = 0
+
     def __eval_name(self, name: str) -> Optional[Any]:
         try:
             if name in self.name_eval_cache:
@@ -264,17 +273,38 @@ class ParsingContext:
         return None
         # report_error(tree, f"unsupported access chain {tree}")
 
-    def parse_type(self, type_tree: ast.AST, allow_new_typevar: bool = False) -> Optional[Type]:
+    def parse_type(self, type_tree: ast.AST, is_sig_params: bool = False) -> Optional[Type]:
+        """
+        `is_sig_params` should be set if is parsing function arguments
+        """
         acess_chain: AccessChain | None = self._parse_access_chain(
             type_tree, True)
         if acess_chain is None:
             return None
         # print(acess_chain)
         resolved, remaining = acess_chain.resolve()
-        if remaining is not None:
-            report_error(type_tree, f"failed to resolve type. {resolved},{remaining}")
+        if remaining is not None and remaining != []:
+            report_error(
+                type_tree, f"failed to resolve type. {resolved},{remaining}")
         if isinstance(resolved, hir.Type):
             return resolved
+        if resolved == typing.Any:
+            if is_sig_params:
+                # create a new generic parameter
+                param = hir.GenericParameter(
+                    f"Any#{self.any_cnt}", self.ctx_name, None)
+                type_var = typing.TypeVar(              # type: ignore
+                    f"Any#{self.any_cnt}", bound=Any)   # type: ignore
+                self.any_cnt += 1
+                if param.name in self.bound_type_vars:
+                    any_ty = self.bound_type_vars[param.name]
+                    assert isinstance(any_ty, hir.Type)
+                    return any_ty
+                generic_ty = hir.SymbolicType(param)
+                self.type_vars[type_var] = (param, generic_ty)
+                return generic_ty
+            else:
+                return None
         if isinstance(resolved, typing.TypeVar):
             # if resolved.__name__ in self.bound_type_vars:
             #     ty_or_val = self.bound_type_vars[resolved.__name__]
@@ -289,7 +319,7 @@ class ParsingContext:
                 else:
                     report_error(
                         type_tree, f"expected generic parameter {resolved} to be a type but got a value: {ty_or_val}")
-            elif allow_new_typevar:
+            elif is_sig_params:
                 ty_bound: hir.TypeBound | None = None
                 # create new type var
                 constraints, bound = get_typevar_constrains_and_bounds(
@@ -316,6 +346,7 @@ class ParsingContext:
                     type_tree, f"undefined type parameter {resolved}. type parameter must be included in the function signature or class definition")
         return None
 
+
 class FuncParser:
     p_ctx: ParsingContext
     vars: Dict[str, hir.Var]
@@ -330,6 +361,7 @@ class FuncParser:
 
     def __init__(self, name: str, func: object, p_ctx: ParsingContext, self_type: Optional[Type] = None) -> None:
         obj_ast, _obj_file = retrieve_ast_and_filename(func)
+        print(ast.dump(obj_ast))
         assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"
         if not isinstance(obj_ast.body[0], ast.FunctionDef):
             raise RuntimeError("Function definition expected.")
@@ -346,7 +378,7 @@ class FuncParser:
         self.signature_initialized = True
         # print(self.arg_types, "->", self.return_type)
 
-        assert self.return_type is not None
+        # assert self.return_type is not None
         generic_params: Dict[str, hir.GenericParameter] = {}
         for tv in self.p_ctx.type_vars:
             param, _ = self.p_ctx.type_vars[tv]
@@ -401,9 +433,11 @@ class FuncParser:
             self.return_type = self.self_type
         else:
             if func.returns is None:
+                self.return_type = None
+            elif isinstance(func.returns,ast.Constant) and func.returns.value is None:
                 self.return_type = hir.UnitType()
             else:
-                self.return_type = p_ctx.parse_type(func.returns, True)
+                self.return_type = p_ctx.parse_type(func.returns, False)
 
     def parse_const(self, const: ast.Constant) -> hir.Value:
         span = hir.Span.from_ast(const)

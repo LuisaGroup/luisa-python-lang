@@ -15,7 +15,7 @@ from typing import (
     cast,
 )
 from typing_extensions import override
-from luisa_lang._utils import Span
+from luisa_lang.utils import Span
 from abc import ABC, abstractmethod
 
 PATH_PREFIX = "luisa_lang"
@@ -135,7 +135,7 @@ class UnitType(Type):
 
     def __hash__(self) -> int:
         return hash(UnitType)
-    
+
     def __str__(self) -> str:
         return "NoneType"
 
@@ -642,7 +642,7 @@ class FunctionType(Type):
         self.func_like = func_like
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, FunctionType) and id(value.func_like) == id(self.func_like)
+        return isinstance(value, FunctionType) and value.func_like is self.func_like
 
     def __hash__(self) -> int:
         return hash((FunctionType, id(self.func_like)))
@@ -863,8 +863,8 @@ class CallOpKind(Enum):
 class Constant(Value):
     value: Any
 
-    def __init__(self, value: Any, span: Optional[Span] = None) -> None:
-        super().__init__(None, span)
+    def __init__(self, value: Any, type: Type | None = None, span: Optional[Span] = None) -> None:
+        super().__init__(type, span)
         self.value = value
 
     def __eq__(self, value: object) -> bool:
@@ -1224,37 +1224,7 @@ def match_func_template_args(sig: Function, args: FunctionTemplateResolvingArgs)
         template_args.append((param.name, param.type))
     matching_args = [arg[1] for arg in args]
     return match_template_args(template_args, matching_args)
-# K = TypeVar("K")
-# V = TypeVar("V")
 
-
-# class Env(Generic[K, V]):
-#     _map: Dict[K, V]
-#     _parent: Optional["Env[K, V]"]
-
-#     def __init__(self) -> None:
-#         self._map = {}
-#         self._parent = None
-
-#     def fork(self) -> "Env[K, V]":
-#         env = Env[K, V]()
-#         env._parent = self
-#         return env
-
-#     def lookup(self, key: K) -> Optional[V]:
-#         res = self._map.get(key)
-#         if res is not None:
-#             return res
-#         if self._parent is not None:
-#             return self._parent.lookup(key)
-#         return None
-
-#     def bind(self, key: K, value: V) -> None:
-#         self._map[key] = value
-
-
-# Item = Union[Type, Function, BuiltinFunction]
-# ItemEnv = Env[Path, Item]
 
 _global_context: Optional["GlobalContext"] = None
 
@@ -1262,7 +1232,6 @@ _global_context: Optional["GlobalContext"] = None
 class GlobalContext:
     types: Dict[type, Type]
     functions: Dict[Callable[..., Any], FunctionTemplate]
-    # deferred: List[Callable[[], None]]
 
     @staticmethod
     def get() -> "GlobalContext":
@@ -1280,12 +1249,6 @@ class GlobalContext:
             bool: BoolType(),
         }
         self.functions = {}
-        # self.deferred = []
-
-    # def flush(self) -> None:
-    #     for fn in self.deferred:
-    #         fn()
-    #     self.deferred = []
 
 
 class FuncMetadata:

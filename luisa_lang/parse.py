@@ -4,10 +4,10 @@ from types import ModuleType
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, overload
 import typing
 import luisa_lang
-from luisa_lang._utils import get_typevar_constrains_and_bounds, report_error
+from luisa_lang.utils import get_typevar_constrains_and_bounds, report_error
 import luisa_lang.hir as hir
 import sys
-from luisa_lang._utils import retrieve_ast_and_filename
+from luisa_lang.utils import retrieve_ast_and_filename
 from luisa_lang.hir import (
     Type,
     BoundType,

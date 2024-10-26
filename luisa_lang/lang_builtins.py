@@ -20,10 +20,43 @@ def block_id() -> uint3:
     return _intrinsic_impl()
 
 
-@_builtin
-def static_eval(a: Any) -> Any:
-    """Evaluate a python expression in DSL context."""
+class ConstexprBlock:
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def __call__(self):
+        pass
+
+
+class _ConstexprBlockMarker:
+    pass
+
+
+@overload
+def constexpr(a: _ConstexprBlockMarker) -> ConstexprBlock: ...
+
+
+@overload
+def constexpr(a: _T) -> _T: ...
+
+
+def constexpr(a: _T | _ConstexprBlockMarker = _ConstexprBlockMarker()) -> Union[_T, ConstexprBlock]:
+    """
+    Allowing mixing normal python object as compile-time value with DSL code.
+    Usage:
+        - `lc.constexpr(e)` marks the expression `e` as a compile-time value.
+        - `with lc.constexpr() as block: ...` marks the block as a compile-time block.
+    """
+    if isinstance(a, _ConstexprBlockMarker):
+        return ConstexprBlock()
     return a
+
 
 @_builtin
 def device_log(_: Any):
@@ -43,14 +76,4 @@ def address_of(a: _T) -> Pointer[_T]:
     return _intrinsic_impl()
 
 # class StaticEval:
-#     def __init__(self):
-#         pass
-
-#     def __enter__(self):
-#         pass
-
-#     def __exit__(self, exc_type, exc_val, exc_tb):
-#         pass
-
-#     def __call__(self):
-#         pass
+#

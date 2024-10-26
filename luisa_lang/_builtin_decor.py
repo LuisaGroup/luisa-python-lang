@@ -3,8 +3,8 @@ from typing import Any, Callable, List, Optional, Set, TypeVar
 import typing
 from luisa_lang import hir
 import inspect
-from luisa_lang._utils import get_full_name, get_union_args
-from luisa_lang._classinfo import register_class, _class_typeinfo, MethodType, _get_cls_globalns
+from luisa_lang.utils import get_full_name, get_union_args
+from luisa_lang.classinfo import register_class, class_typeinfo, MethodType, _get_cls_globalns
 import functools
 
 _T = TypeVar("_T", bound=type)
@@ -18,7 +18,7 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
         ctx.types[cls] = ty
 
         register_class(cls)
-        cls_info = _class_typeinfo(cls)
+        cls_info = class_typeinfo(cls)
         globalns = _get_cls_globalns(cls)
 
         def make_type_rule(

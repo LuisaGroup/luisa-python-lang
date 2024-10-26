@@ -1,6 +1,6 @@
 from functools import cache
 from luisa_lang import hir
-from luisa_lang._utils import unique_hash, unwrap
+from luisa_lang.utils import unique_hash, unwrap
 from luisa_lang.codegen import CodeGen, ScratchBuffer
 from typing import Any, Callable, Dict, Set, Tuple, Union
 

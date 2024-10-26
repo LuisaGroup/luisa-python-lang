@@ -29,6 +29,7 @@ class GenericInstance:
     def __repr__(self):
         return f"{self.origin}[{', '.join(map(repr, self.args))}]"
 
+
 class UnionType:
     types: List["VarType"]
 
@@ -38,7 +39,23 @@ class UnionType:
     def __repr__(self):
         return f"Union[{', '.join(map(repr, self.types))}]"
 
-VarType = Union[TypeVar, Type, GenericInstance, UnionType]
+class AnyType:
+    def __repr__(self):
+        return "Any"
+    
+    def __eq__(self, other):
+        return isinstance(other, AnyType)
+
+class SelfType:
+    def __repr__(self):
+        return "Self"
+
+    def __eq__(self, other):
+        return isinstance(other, SelfType)
+
+
+VarType = Union[TypeVar, Type, GenericInstance, UnionType, SelfType, AnyType]
+
 
 def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
     match ty:
@@ -49,24 +66,27 @@ def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
         case _:
             return ty
 
+
 class MethodType:
     type_vars: List[TypeVar]
     args: List[VarType]
     return_type: VarType
     env: Dict[TypeVar, VarType]
+    is_static: bool
 
     def __init__(
-        self, type_vars: List[TypeVar], args: List[VarType], return_type: VarType, env: Optional[Dict[TypeVar, VarType]] = None
+        self, type_vars: List[TypeVar], args: List[VarType], return_type: VarType, env: Optional[Dict[TypeVar, VarType]] = None, is_static: bool = False
     ):
         self.type_vars = type_vars
         self.args = args
         self.return_type = return_type
         self.env = env or {}
+        self.is_static = is_static
 
     def __repr__(self):
         # [a, b, c](x: T, y: U) -> V
         return f"[{', '.join(map(repr, self.type_vars))}]({', '.join(map(repr, self.args))}) -> {self.return_type}"
-    
+
     def substitute(self, env: Dict[TypeVar, VarType]) -> "MethodType":
         return MethodType([], [subst_type(arg, env) for arg in self.args], subst_type(self.return_type, env), env)
 
@@ -108,23 +128,26 @@ class ClassType:
             )
         env = dict(zip(self.type_vars, type_args))
         return ClassType(
-            [], {name: subst_type(ty, env) for name, ty in self.fields.items()}, {name: method.substitute(env) for name, method in self.methods.items()}
+            [], {name: subst_type(ty, env) for name, ty in self.fields.items()}, {
+                name: method.substitute(env) for name, method in self.methods.items()}
         )
+
 
 _CLS_TYPE_INFO: Dict[type, ClassType] = {}
 
 
-def _class_typeinfo(cls: type) -> ClassType:
+def class_typeinfo(cls: type) -> ClassType:
     if cls in _CLS_TYPE_INFO:
         return _CLS_TYPE_INFO[cls]
     raise RuntimeError(f"Class {cls} is not registered.")
 
 
-
 def _is_class_registered(cls: type) -> bool:
     return cls in _CLS_TYPE_INFO
 
+
 _BUILTIN_ANNOTATION_BASES = set([typing.Generic, typing.Protocol, object])
+
 
 def _get_base_classinfo(cls: type, globalns) -> List[tuple[str, ClassType]]:
     if not hasattr(cls, "__orig_bases__"):
@@ -140,22 +163,98 @@ def _get_base_classinfo(cls: type, globalns) -> List[tuple[str, ClassType]]:
                 )
             for arg in base.__args__:
                 if isinstance(arg, typing.ForwardRef):
-                    arg: type = typing._eval_type(arg, globalns, globalns) #type: ignore
+                    arg: type = typing._eval_type(  # type: ignore
+                        arg, globalns, globalns)  # type: ignore
                 base_params.append(arg)
             if base_orig in _BUILTIN_ANNOTATION_BASES:
                 pass
             else:
-                base_info = _class_typeinfo(base_orig)
-                info.append((base.__name__, base_info.instantiate(base_params)))
+                base_info = class_typeinfo(base_orig)
+                info.append(
+                    (base.__name__, base_info.instantiate(base_params)))
         else:
             if _is_class_registered(base):
-                info.append((base.__name__, _class_typeinfo(base)))
+                info.append((base.__name__, class_typeinfo(base)))
     return info
+
 
 def _get_cls_globalns(cls: type) -> Dict[str, Any]:
     module = inspect.getmodule(cls)
     assert module is not None
     return module.__dict__
+
+
+def parse_type_hint(hint: Any) -> VarType:
+    if hint is None:
+        return NoneType
+    if isinstance(hint, TypeVar):
+        return hint
+    origin = typing.get_origin(hint)
+    if origin:
+        if isinstance(origin, type):
+            # assert isinstance(origin, type), f"origin must be a type but got {origin}"
+            args = list(typing.get_args(hint))
+            return GenericInstance(origin, [parse_type_hint(arg) for arg in args])
+        elif origin is Union:
+            return UnionType([parse_type_hint(arg) for arg in typing.get_args(hint)])
+        else:
+            raise RuntimeError(f"Unsupported origin type: {origin}")
+    if isinstance(hint, type):
+        return hint
+    if hint == typing.Self:
+        return SelfType()
+    raise RuntimeError(f"Unsupported type hint: {hint}")
+
+
+def extract_type_vars_from_hint(hint: typing.Any) -> List[TypeVar]:
+    if isinstance(hint, TypeVar):
+        return [hint]
+    if hasattr(hint, "__args__"):  # Handle custom generic types like Foo[T]
+        type_vars = []
+        for arg in hint.__args__:
+            type_vars.extend(extract_type_vars_from_hint(arg))
+        return type_vars
+    return []
+
+
+def get_type_vars(func: typing.Callable) -> List[TypeVar]:
+    type_hints = typing.get_type_hints(func)
+    type_vars = []
+    for hint in type_hints.values():
+        type_vars.extend(extract_type_vars_from_hint(hint))
+    return list(set(type_vars))  # Return unique type vars
+
+
+def parse_func_signature(func: object, globalns: Dict[str, Any], foreign_type_vars: List[TypeVar], self_type: Optional[VarType] = None, is_static: bool = False) -> MethodType:
+    assert inspect.isfunction(func)
+    signature = inspect.signature(func)
+    method_type_hints = typing.get_type_hints(func, globalns)
+    param_types: List[VarType] = []
+    type_vars = get_type_vars(func)
+    for param in signature.parameters.values():
+        if param.name == "self":
+            assert self_type is not None
+            param_types.append(self_type)
+        else:
+            param_types.append(parse_type_hint(
+                method_type_hints[param.name]))
+    if "return" in method_type_hints:
+        return_type = parse_type_hint(method_type_hints.get("return"))
+    else:
+        return_type = AnyType()
+    # remove foreign type vars from type_vars
+    type_vars = [tv for tv in type_vars if tv not in foreign_type_vars]
+    return MethodType(type_vars, param_types, return_type, is_static=is_static)
+
+
+def is_static(cls: type, method_name: str) -> bool:
+    method = getattr(cls, method_name, None)
+    if method is None:
+        return False
+    # Using inspect to retrieve the method directly from the class
+    method = cls.__dict__.get(method_name, None)
+    return isinstance(method, staticmethod)
+
 
 def register_class(cls: type) -> None:
     cls_qualname = cls.__qualname__
@@ -202,47 +301,20 @@ def register_class(cls: type) -> None:
             continue
         local_methods.add(name)
 
-    def parse_type_hint(hint: Any) -> VarType:
-
-        if hint is None:
-            return NoneType
-        if isinstance(hint, TypeVar):
-            return hint
-        origin = typing.get_origin(hint)
-        if origin:
-            if isinstance(origin, type):
-            # assert isinstance(origin, type), f"origin must be a type but got {origin}"
-                args = list(typing.get_args(hint))
-                return GenericInstance(origin, [parse_type_hint(arg) for arg in args])
-            elif origin is Union:
-                return UnionType([parse_type_hint(arg) for arg in typing.get_args(hint)])
-            else:
-                raise RuntimeError(f"Unsupported origin type: {origin}")
-        if isinstance(hint, type):
-            return hint
-        raise RuntimeError(f"Unsupported type hint: {hint}")
-
     cls_ty = ClassType([], {}, {})
     for _base_name, base_info in base_infos:
         cls_ty.fields.update(base_info.fields)
         cls_ty.methods.update(base_info.methods)
+
     if type_vars:
         for tv in type_vars:
             cls_ty.type_vars.append(tv)
+    self_ty: VarType = SelfType()
     for name, member in inspect.getmembers(cls):
         if name in local_methods:
-            assert inspect.isfunction(member)
-            signature = inspect.signature(member)
-            method_type_hints = typing.get_type_hints(member)
-            param_types: List[VarType] = []
-            for param in signature.parameters.values():
-                if param.name == "self":
-                    param_types.append(cls)
-                else:
-                    param_types.append(parse_type_hint(
-                        method_type_hints[param.name]))
-            return_type = parse_type_hint(method_type_hints.get("return"))
-            cls_ty.methods[name] = MethodType([], param_types, return_type)
+            # print(f'Found local method: {name} in {cls}')
+            cls_ty.methods[name] = parse_func_signature(
+                member, globalns, cls_ty.type_vars, self_ty, is_static=is_static(cls, name))
     for name in local_fields:
         cls_ty.fields[name] = parse_type_hint(type_hints[name])
     _CLS_TYPE_INFO[cls] = cls_ty

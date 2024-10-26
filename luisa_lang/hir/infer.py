@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, cast
 from luisa_lang import hir
-from luisa_lang._utils import report_error
+from luisa_lang.utils import report_error
 from luisa_lang.hir.defs import is_type_compatible_to
 import traceback
 

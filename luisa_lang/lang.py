@@ -1,4 +1,4 @@
-from luisa_lang._classinfo import VarType, GenericInstance, UnionType,  _get_cls_globalns, register_class, _class_typeinfo
+from luisa_lang.classinfo import VarType, GenericInstance, UnionType,  _get_cls_globalns, register_class, class_typeinfo
 from enum import Enum, auto
 from typing_extensions import TypeAliasType
 from typing import (
@@ -17,7 +17,7 @@ from typing import (
     overload,
     Any,
 )
-from luisa_lang._utils import get_full_name, unique_hash
+from luisa_lang.utils import get_full_name, unique_hash
 from luisa_lang.math_types import *
 from luisa_lang._builtin_decor import _builtin_type, _builtin, _intrinsic_impl
 import luisa_lang.hir as hir
@@ -97,7 +97,7 @@ def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
     ctx = hir.GlobalContext.get()
 
     register_class(cls)
-    cls_info = _class_typeinfo(cls)
+    cls_info = class_typeinfo(cls)
     globalns = _get_cls_globalns(cls)
     globalns[cls.__name__] = cls
 
@@ -218,12 +218,19 @@ def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
     return decorator
 
 
-def typeof(value: Any) -> hir.Type:
+def type_of_opt(value: Any) -> Optional[hir.Type]:
     if isinstance(value, hir.Type):
         return value
     if isinstance(value, type):
         return hir.GlobalContext.get().types[value]
-    return hir.GlobalContext.get().types[type(value)]
+    return hir.GlobalContext.get().types.get(type(value))
+
+
+def typeof(value: Any) -> hir.Type:
+    ty = type_of_opt(value)
+    if ty is None:
+        raise TypeError(f"Cannot determine type of {value}")
+    return ty
 
 
 _t = hir.SymbolicType(hir.GenericParameter("_T", "luisa_lang.lang"))

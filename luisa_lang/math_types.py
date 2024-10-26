@@ -1,7 +1,7 @@
 # fmt: off
 import typing as tp
 from luisa_lang._builtin_decor import _builtin, _builtin_type, _intrinsic_impl
-from luisa_lang._classinfo import register_class
+from luisa_lang.classinfo import register_class
 import luisa_lang.hir as _hir
 _ctx = _hir.GlobalContext.get()
 FLOAT_TYPES: tp.Final[tp.List[str]] = ["f32", "f64", "float2", "double2", "float3", "double3", "float4", "double4"]

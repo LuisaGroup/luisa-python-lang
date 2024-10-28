@@ -8,6 +8,7 @@ from typing import (
     Literal,
     Optional,
     Set,
+    Tuple,
     TypeVar,
     Generic,
     Dict,
@@ -39,12 +40,14 @@ class UnionType:
     def __repr__(self):
         return f"Union[{', '.join(map(repr, self.types))}]"
 
+
 class AnyType:
     def __repr__(self):
         return "Any"
-    
+
     def __eq__(self, other):
         return isinstance(other, AnyType)
+
 
 class SelfType:
     def __repr__(self):
@@ -69,13 +72,13 @@ def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
 
 class MethodType:
     type_vars: List[TypeVar]
-    args: List[VarType]
+    args: List[Tuple[str, VarType]]
     return_type: VarType
     env: Dict[TypeVar, VarType]
     is_static: bool
 
     def __init__(
-        self, type_vars: List[TypeVar], args: List[VarType], return_type: VarType, env: Optional[Dict[TypeVar, VarType]] = None, is_static: bool = False
+        self, type_vars: List[TypeVar], args: List[Tuple[str, VarType]], return_type: VarType, env: Optional[Dict[TypeVar, VarType]] = None, is_static: bool = False
     ):
         self.type_vars = type_vars
         self.args = args
@@ -88,7 +91,7 @@ class MethodType:
         return f"[{', '.join(map(repr, self.type_vars))}]({', '.join(map(repr, self.args))}) -> {self.return_type}"
 
     def substitute(self, env: Dict[TypeVar, VarType]) -> "MethodType":
-        return MethodType([], [subst_type(arg, env) for arg in self.args], subst_type(self.return_type, env), env)
+        return MethodType([], [(arg[0], subst_type(arg[1], env)) for arg in self.args], subst_type(self.return_type, env), env)
 
 
 class ClassType:
@@ -229,15 +232,15 @@ def parse_func_signature(func: object, globalns: Dict[str, Any], foreign_type_va
     assert inspect.isfunction(func)
     signature = inspect.signature(func)
     method_type_hints = typing.get_type_hints(func, globalns)
-    param_types: List[VarType] = []
+    param_types: List[Tuple[str, VarType]] = []
     type_vars = get_type_vars(func)
     for param in signature.parameters.values():
         if param.name == "self":
             assert self_type is not None
-            param_types.append(self_type)
+            param_types.append((param.name, self_type))
         else:
-            param_types.append(parse_type_hint(
-                method_type_hints[param.name]))
+            param_types.append((param.name, parse_type_hint(
+                method_type_hints[param.name])))
     if "return" in method_type_hints:
         return_type = parse_type_hint(method_type_hints.get("return"))
     else:

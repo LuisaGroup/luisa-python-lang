@@ -52,10 +52,10 @@ def main() -> None:
         print("# fmt: off")
         print("import typing as tp")
         print(
-            "from luisa_lang._builtin_decor import _builtin, _builtin_type, _intrinsic_impl",
+            "from luisa_lang.builtin_decor import _builtin, _builtin_type, _intrinsic_impl",
         )
         print(
-            "from luisa_lang._classinfo import register_class",
+            "from luisa_lang.classinfo import register_class",
         )
         print("import luisa_lang.hir as _hir")
         print("_ctx = _hir.GlobalContext.get()")

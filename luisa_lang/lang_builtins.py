@@ -20,7 +20,7 @@ def block_id() -> uint3:
     return _intrinsic_impl()
 
 
-class ConstexprBlock:
+class ComptimeBlock:
     def __init__(self):
         pass
 
@@ -34,27 +34,31 @@ class ConstexprBlock:
         pass
 
 
-class _ConstexprBlockMarker:
+class _ComptimeBlockMarker:
     pass
 
 
 @overload
-def constexpr(a: _ConstexprBlockMarker) -> ConstexprBlock: ...
+def comptime(a: _ComptimeBlockMarker) -> ComptimeBlock: ...
 
 
 @overload
-def constexpr(a: _T) -> _T: ...
+def comptime(src: str) -> Any: ...
 
 
-def constexpr(a: _T | _ConstexprBlockMarker = _ConstexprBlockMarker()) -> Union[_T, ConstexprBlock]:
+@overload
+def comptime(a: _T) -> _T: ...
+
+
+def comptime(a):
     """
     Allowing mixing normal python object as compile-time value with DSL code.
     Usage:
-        - `lc.constexpr(e)` marks the expression `e` as a compile-time value.
-        - `with lc.constexpr() as block: ...` marks the block as a compile-time block.
+        - `lc.comptime(e)` marks the expression `e` as a compile-time value.
+        - `with lc.comptime() as block: ...` marks the block as a compile-time block.
     """
-    if isinstance(a, _ConstexprBlockMarker):
-        return ConstexprBlock()
+    if isinstance(a, _ComptimeBlockMarker):
+        return ComptimeBlock()
     return a
 
 

@@ -21,7 +21,8 @@ from luisa_lang.utils import get_full_name, unique_hash
 from luisa_lang.math_types import *
 from luisa_lang._builtin_decor import _builtin_type, _builtin, _intrinsic_impl
 import luisa_lang.hir as hir
-import luisa_lang.parse as parse
+import luisa_lang.classinfo as classinfo
+from luisa_lang.parse import FuncParser
 import ast
 import inspect
 
@@ -39,31 +40,34 @@ class _ObjKind(Enum):
 
 
 def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dict[str, Any], self_type: Optional[hir.Type] = None):
-    parsing_ctx = parse.ParsingContext(func_name, func_globals)
-    func_sig_parser = parse.FuncParser(func_name, f, parsing_ctx, self_type)
-    func_sig = func_sig_parser.parsed_func
-    params = [v.name for v in func_sig_parser.params]
-    is_generic = func_sig_parser.p_ctx.type_vars != {}
+    # parsing_ctx = _parse.ParsingContext(func_name, func_globals)
+    # func_sig_parser = _parse.FuncParser(func_name, f, parsing_ctx, self_type)
+    # func_sig = func_sig_parser.parsed_func
+    # params = [v.name for v in func_sig_parser.params]
+    # is_generic = func_sig_parser.p_ctx.type_vars != {}
+
+    func_sig = classinfo.parse_func_signature(f, func_globals, [])
 
     def parsing_func(args: hir.FunctionTemplateResolvingArgs) -> hir.FunctionLike:
-        parsing_ctx = parse.ParsingContext(func_name, func_globals)
-        if is_generic:
-            mapping = hir.match_func_template_args(func_sig, args)
-            if len(mapping) != len(func_sig.generic_params):
-                print(mapping, func_sig.generic_params)
-                raise hir.TypeInferenceError(
-                    None, "not all type parameters are resolved")
-            for p in func_sig.generic_params.values():
-                if p not in mapping:
-                    raise hir.TypeInferenceError(
-                        None, f"type parameter {p} is not resolved")
-                parsing_ctx.bound_type_vars[p.name] = mapping[p]
-                print(f'binding {p.name} = {mapping[p]}')
-        func_parser = parse.FuncParser(func_name, f, parsing_ctx, self_type)
-        func_ir = func_parser.parse_body()
-        hir.run_inference_on_function(func_ir)
-        return func_ir
-
+        # if is_generic:
+        #     mapping = hir.match_func_template_args(func_sig, args)
+        #     if len(mapping) != len(func_sig.generic_params):
+        #         print(mapping, func_sig.generic_params)
+        #         raise hir.TypeInferenceError(
+        #             None, "not all type parameters are resolved")
+        #     for p in func_sig.generic_params.values():
+        #         if p not in mapping:
+        #             raise hir.TypeInferenceError(
+        #                 None, f"type parameter {p} is not resolved")
+        #         parsing_ctx.bound_type_vars[p.name] = mapping[p]
+        #         print(f'binding {p.name} = {mapping[p]}')
+        type_var_ns: Dict[TypeVar, hir.Type] = {}
+        any_param_types: List[hir.Type] = []
+        func_parser = FuncParser(
+            func_name, f, func_sig, func_globals, type_var_ns, any_param_types)
+        return func_parser.parse_body()
+    params = [v[0] for v in func_sig.args]
+    is_generic = len(func_sig.type_vars) > 0
     return hir.FunctionTemplate(func_name, params, parsing_func, is_generic)
 
 
@@ -75,13 +79,6 @@ def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     ctx = hir.GlobalContext.get()
     func_name = get_full_name(f)
     func_globals: Any = getattr(f, "__globals__", {})
-
-    def make_parser(args: hir.FunctionTemplateResolvingArgs) -> parse.FuncParser:
-        parsing_ctx = parse.ParsingContext(func_name, func_globals)
-        for name, value in args:
-            parsing_ctx.bound_type_vars[name] = value
-        func_parser = parse.FuncParser(func_name, f, parsing_ctx)
-        return func_parser
 
     if kind == _ObjKind.FUNC:
         template = _make_func_template(f, func_name, func_globals)

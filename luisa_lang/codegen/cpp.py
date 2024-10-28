@@ -4,9 +4,7 @@ from luisa_lang.utils import unique_hash, unwrap
 from luisa_lang.codegen import CodeGen, ScratchBuffer
 from typing import Any, Callable, Dict, Set, Tuple, Union
 
-from luisa_lang.hir.defs import GlobalContext
 from luisa_lang.hir import get_dsl_func
-from luisa_lang.hir.infer import run_inference_on_function
 
 
 class TypeCodeGenCache:
@@ -150,11 +148,11 @@ class CppCodeGen(CodeGen):
             assert dsl_func is not None
             assert not dsl_func.is_generic, f"Generic functions should be resolved before codegen: {func}"
             func_tmp = dsl_func.resolve([])
-            assert isinstance(func_tmp, hir.Function), f"Expected function, got {func_tmp}"
+            assert isinstance(
+                func_tmp, hir.Function), f"Expected function, got {func_tmp}"
             func = func_tmp
         if id(func) in self.func_cache:
             return self.func_cache[id(func)][1]
-        run_inference_on_function(func)
         func_code_gen = FuncCodeGen(self, func)
         name = func_code_gen.name
         self.func_cache[id(func)] = (func, name)
@@ -207,17 +205,31 @@ class FuncCodeGen:
             case _:
                 raise NotImplementedError(f"unsupported reference: {ref}")
 
+    def gen_func(self, f: hir.FunctionLike) -> str:
+        if isinstance(f, hir.Function):
+            return self.base.gen_function(f)
+        elif isinstance(f, hir.BuiltinFunction):
+            return self.base.mangling.mangle(f)
+        else:
+            raise NotImplementedError(f"unsupported constant")
+
+    def gen_value_or_ref(self, value: hir.Value | hir.Ref) -> str:
+        match value:
+            case hir.Value() as value:
+                return self.gen_expr(value)
+            case hir.Ref() as ref:
+                return self.gen_ref(ref)
+            case _:
+                raise NotImplementedError(
+                    f"unsupported value or reference: {value}")
+
     def gen_expr(self, expr: hir.Value) -> str:
         match expr:
             case hir.Load() as load:
                 return self.gen_ref(load.ref)
             case hir.Call() as call:
-                assert call.resolved, f"unresolved call: {call}"
-                kind = call.kind
-                assert kind == hir.CallOpKind.FUNC and isinstance(
-                    call.op, hir.Value)
-                op = self.gen_expr(call.op)
-                return f"{op}({','.join(self.gen_expr(arg) for arg in call.args)})"
+                op = self.gen_func(call.op)
+                return f"{op}({','.join(self.gen_value_or_ref(arg) for arg in call.args)})"
             case hir.Constant() as constant:
                 value = constant.value
                 if isinstance(value, int):
@@ -228,10 +240,8 @@ class FuncCodeGen:
                     return "true" if value else "false"
                 elif isinstance(value, str):
                     return f'"{value}"'
-                elif isinstance(value, hir.Function):
-                    return self.base.gen_function(value)
-                elif isinstance(value, hir.BuiltinFunction):
-                    return self.base.mangling.mangle(value)
+                elif isinstance(value, hir.Function) or isinstance(value, hir.BuiltinFunction):
+                    return self.gen_func(value)
                 else:
                     raise NotImplementedError(
                         f"unsupported constant: {constant}")

@@ -35,8 +35,10 @@ FunctionTemplateResolvingArgs = List[Tuple[str, Union['Type', 'Value']]]
 The reason for using parameter name instead of GenericParameter is that python supports passing type[T] as a parameter,
 """
 
+
+
 FunctionTemplateResolvingFunc = Callable[[
-    FunctionTemplateResolvingArgs], FunctionLike]
+    FunctionTemplateResolvingArgs], Union[FunctionLike, 'TemplateMatchingError']]
 
 
 class FunctionTemplate:
@@ -62,7 +64,7 @@ class FunctionTemplate:
         self.is_generic = is_generic
         self.name = name
 
-    def resolve(self, args: FunctionTemplateResolvingArgs | None) -> FunctionLike:
+    def resolve(self, args: FunctionTemplateResolvingArgs | None) -> Union[FunctionLike, 'TemplateMatchingError']:
         args = args or []
         if not self.is_generic:
             key = tuple(args)
@@ -71,17 +73,13 @@ class FunctionTemplate:
         if key in self.__resolved:
             return self.__resolved[key]
         func = self.parsing_func(args)
+        if isinstance(func, TemplateMatchingError):
+            return func
         self.__resolved[key] = func
         return func
 
     def reset(self) -> None:
         self.__resolved = {}
-
-
-def resolve_function(f: FunctionTemplate | FunctionLike, args: FunctionTemplateResolvingArgs | None) -> FunctionLike:
-    if isinstance(f, FunctionTemplate):
-        return f.resolve(args)
-    return f
 
 
 class Type(ABC):
@@ -116,11 +114,14 @@ class Type(ABC):
             return FunctionType(m)
         return None
 
-    def resolved_method(self, name: str, args: FunctionTemplateResolvingArgs | None) -> Optional[FunctionLike]:
+    def method(self, name: str) -> Optional[FunctionLike | FunctionTemplate]:
         m = self.methods.get(name)
         if m:
-            return resolve_function(m, args)
+            return m
         return None
+    
+    def is_concrete(self) -> bool:
+        return True
 
 
 class UnitType(Type):
@@ -217,6 +218,10 @@ class GenericFloatType(ScalarType):
     @override
     def __str__(self) -> str:
         return "float"
+    
+    @override
+    def is_concrete(self) -> bool:
+        return False
 
 
 class GenericIntType(ScalarType):
@@ -243,6 +248,10 @@ class GenericIntType(ScalarType):
     @override
     def __str__(self) -> str:
         return "int"
+    
+    @override
+    def is_concrete(self) -> bool:
+        return False
 
 
 class FloatType(ScalarType):
@@ -553,6 +562,10 @@ class OpaqueType(Type):
 
     def __str__(self) -> str:
         return self.name
+    
+    @override
+    def is_concrete(self) -> bool:
+        return False
 
 
 class SymbolicType(Type):
@@ -654,80 +667,21 @@ class FunctionType(Type):
         raise RuntimeError("FunctionType has no align")
 
 
-class Use:
-    value: 'Node'
-    user: 'Node'
-
-    def __init__(self, value: 'Node', user: 'Node') -> None:
-        self.value = value
-        self.user = user
-
-
-class UseList:
-    uses: List[Use]
-    user_to_value: Dict['Node', 'Node']
-    value_to_user: Dict['Node', 'Node']
-
-    def __init__(self) -> None:
-        self.uses = []
-        self.user_to_value = {}
-        self.value_to_user = {}
-
-    def append(self, use: Use) -> None:
-        self.uses.append(use)
-        self.user_to_value[use.user] = use.value
-        self.value_to_user[use.value] = use.user
-
-
-def rebuild_usedef_chain(roots: List['Node']) -> None:
-    # first find all reachable nodes
-    def find_reachable() -> List['Node']:
-        reachable = []
-        stack = list(roots)
-        while stack:
-            node = stack.pop()
-            if node in reachable:
-                continue
-            reachable.append(node)
-            stack.extend(node.children())
-        return reachable
-    # clear all uses
-    for node in find_reachable():
-        node.uses = []
-    # rebuild all uses
-    for node in find_reachable():
-        for child in node.children():
-            node.uses.append(Use(child, node))
-
-
 class Node:
     """
     Base class for all nodes in the HIR. A node could be a value, a reference, or a statement.
     Nodes equality is based on their identity.
     """
-    uses: List[Use]
     span: Optional[Span]
 
     def __init__(self) -> None:
-        self.uses = []
         self.span = None
-
-    def replace_child(self, old: 'Node', new: 'Node') -> None:
-        pass
-
-    def children(self) -> List['Node']:
-        """Return a list of children nodes."""
-        return []
 
     def __eq__(self, value: object) -> bool:
         return value is self
 
     def __hash__(self) -> int:
         return id(self)
-
-    def replace_uses_with(self, new: 'Node') -> None:
-        for use in self.uses:
-            use.user.replace_child(self, new)
 
 
 class TypedNode(Node):
@@ -769,16 +723,6 @@ class ValueRef(Ref):
         super().__init__(value.type, value.span)
         self.value = value
 
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        assert isinstance(new, Value)
-        if old is self.value:
-            self.value = new
-
-    @override
-    def children(self) -> List[Node]:
-        return [self.value]
-
 
 class Var(Ref):
     name: str
@@ -797,43 +741,20 @@ class Member(Ref):
     base: Ref | Value
     field: str
 
-    def __init__(self, base: Ref | Value, field: str, span: Optional[Span]) -> None:
-        super().__init__(None, span)
+    def __init__(self, base: Ref | Value, field: str, type: Type, span: Optional[Span]) -> None:
+        super().__init__(type, span)
         self.base = base
         self.field = field
-
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        assert isinstance(new, Ref)
-        if old is self.base:
-            self.base = new
-
-    @override
-    def children(self) -> List[Node]:
-        return [self.base]
 
 
 class Index(Ref):
     base: Ref | Value
     index: Value
 
-    def __init__(self, base: Ref | Value, index: Value, span: Optional[Span]) -> None:
+    def __init__(self, base: Ref | Value, index: Value, type: Type, span: Optional[Span]) -> None:
         super().__init__(None, span)
         self.base = base
         self.index = index
-
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        if old is self.index:
-            assert isinstance(new, Value)
-            self.index = new
-        elif old is self.base:
-            assert isinstance(new, Ref)
-            self.base = new
-
-    @override
-    def children(self) -> List[Node]:
-        return [self.base, self.index]
 
 
 class Load(Value):
@@ -842,22 +763,6 @@ class Load(Value):
     def __init__(self, ref: Ref) -> None:
         super().__init__(ref.type, ref.span)
         self.ref = ref
-
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        assert isinstance(new, Ref)
-        if old is self.ref:
-            self.ref = new
-
-    @override
-    def children(self) -> List[Node]:
-        return [self.ref]
-
-
-class CallOpKind(Enum):
-    FUNC = auto()
-    BINARY_OP = auto()
-    UNARY_OP = auto()
 
 
 class Constant(Value):
@@ -874,59 +779,65 @@ class Constant(Value):
         return hash(self.value)
 
 
+class Init(Value):
+    def __init__(self, type: Type, ctor: FunctionLike, args: List[Value | Ref], span: Optional[Span] = None) -> None:
+        pass
+
+
 class Call(Value):
-    op: Value | str
+    op: FunctionLike
     """After type inference, op should be a Value."""
 
-    args: List[Value]
-    kind: CallOpKind
-    resolved: bool
+    args: List[Value | Ref]
 
     def __init__(
         self,
-        op: Value | str,
-        args: List[Value],
-        kind: CallOpKind,
-        resolved: bool,
+        op: FunctionLike,
+        args: List[Value | Ref],
+        type:Type,
         span: Optional[Span] = None,
     ) -> None:
-        super().__init__(op.type if isinstance(op, Value) else None, span)
+        super().__init__(type, span)
         self.op = op
         self.args = args
-        self.kind = kind
-        self.resolved = resolved
 
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        assert isinstance(new, Value)
-        if old is self.op:
-            self.op = new
-        else:
-            for i, arg in enumerate(self.args):
-                if old is arg:
-                    self.args[i] = new
-
-    @override
-    def children(self) -> List[Node]:
-        lst = []
-        if isinstance(self.op, Value):
-            lst.append(self.op)
-        lst.extend(self.args)
-        return cast(List[Node], lst)
-
-
-class TypeInferenceError(Exception):
-    node: Node | None
+class TemplateMatchingError(Exception):
+    span: Span | None
     message: str
 
-    def __init__(self, node: Node | None, message: str) -> None:
-        self.node = node
+    def __init__(self, node: Node | Span | None, message: str) -> None:
+        if node is not None:
+            if isinstance(node, Node):
+                self.span = node.span
+            else:
+                self.span = node
+        else:
+            self.span = None
         self.message = message
 
     def __str__(self) -> str:
-        if self.node is None:
+        if self.span is None:
+            return f"Template matching error:\n\t{self.message}"
+        return f"Template matching error at {self.span}:\n\t{self.message}"
+
+class TypeInferenceError(Exception):
+    span: Span | None
+    message: str
+
+    def __init__(self, node: Node | Span | None, message: str) -> None:
+        if node is not None:
+            if isinstance(node, Node):
+                self.span = node.span
+            else:
+                self.span = node
+        else:
+            self.span = None
+        self.message = message
+
+    def __str__(self) -> str:
+        if self.span is None:
             return f"Type inference error:\n\t{self.message}"
-        return f"Type inference error at {self.node.span}:\n\t{self.message}"
+        return f"Type inference error at {self.span}:\n\t{self.message}"
 
 
 class TypeRule(ABC):
@@ -957,43 +868,29 @@ class Stmt(Node):
 
 class VarDecl(Stmt):
     var: Var
-    expected_type: Type
 
-    def __init__(self, var: Var, expected_type: Type, span: Optional[Span] = None) -> None:
+    def __init__(self, var: Var, span: Optional[Span] = None) -> None:
         super().__init__(span)
         self.var = var
-        self.expected_type = expected_type
 
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        assert isinstance(new, Var)
-        if old is self.var:
-            self.var = new
+class Expr(Stmt):
+    expr: Value | Ref
+
+    def __init__(self, expr: Value | Ref, span: Optional[Span] = None) -> None:
+        super().__init__(span)
+        self.expr = expr
+
+
 
 
 class Assign(Stmt):
     ref: Ref
     value: Value
-    expected_type: Optional[Type]
 
-    def __init__(self, ref: Ref, expected_type: Optional[Type], value: Value, span: Optional[Span] = None) -> None:
+    def __init__(self, ref: Ref, value: Value, span: Optional[Span] = None) -> None:
         super().__init__(span)
         self.ref = ref
         self.value = value
-        self.expected_type = expected_type
-
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        if old is self.ref:
-            assert isinstance(new, Ref)
-            self.ref = new
-        elif old is self.value:
-            assert isinstance(new, Value)
-            self.value = new
-
-    @override
-    def children(self) -> List[Node]:
-        return [self.ref, self.value]
 
 
 class If(Stmt):
@@ -1009,34 +906,6 @@ class If(Stmt):
         self.then_body = then_body
         self.else_body = else_body
 
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        if old is self.cond:
-            assert isinstance(new, Value)
-            self.cond = new
-        for i, stmt in enumerate(self.then_body):
-            if old is stmt:
-                assert isinstance(new, Stmt)
-                self.then_body[i] = new
-            else:
-                stmt.replace_child(old, new)
-
-        for i, stmt in enumerate(self.else_body):
-            if old is stmt:
-                assert isinstance(new, Stmt)
-                self.else_body[i] = new
-            else:
-                stmt.replace_child(old, new)
-
-    @override
-    def children(self) -> List[Node]:
-        c = self.cond.children()
-        for s in self.then_body:
-            c.extend(s.children())
-        for s in self.else_body:
-            c.extend(s.children())
-        return c
-
 
 class Return(Stmt):
     value: Optional[Value]
@@ -1044,16 +913,6 @@ class Return(Stmt):
     def __init__(self, value: Optional[Value], span: Optional[Span] = None) -> None:
         super().__init__(span)
         self.value = value
-
-    @override
-    def replace_child(self, old: Node, new: Node) -> None:
-        if old is self.value:
-            assert isinstance(new, Value)
-            self.value = new
-
-    @override
-    def children(self) -> List[Node]:
-        return [self.value] if self.value is not None else []
 
 
 class BuiltinFunction:
@@ -1067,68 +926,31 @@ class BuiltinFunction:
 
 class Function:
     name: str
-    generic_params: Dict[str, GenericParameter]
     params: List[Var]
     return_type: Type | None
     body: List[Stmt]
-    builtin: bool
     export: bool
     locals: List[Var]
-    fully_typed: bool
     complete: bool
 
     def __init__(
         self,
         name: str,
-        generic_params: Dict[str, GenericParameter],
         params: List[Var],
         return_type: Type | None,
-        body: List[Stmt],
-        locals: List[Var],
-        builtin: bool = False,
-        export: bool = False,
-        complete: bool = False,
     ) -> None:
         self.name = name
-        self.generic_params = generic_params
         self.params = params
         self.return_type = return_type
-        self.body = body
-        self.builtin = builtin
-        self.export = export
-        self.locals = locals
-        self.fully_typed = False
-        self.complete = complete
-
-    @property
-    def is_generic(self) -> bool:
-        return len(self.generic_params) > 0
-
-    @property
-    def is_parametric(self) -> bool:
-        for p in self.params:
-            if p.type is None:
-                return True
-            if isinstance(p.type, ParametricType):
-                return True
-        if isinstance(self.return_type, ParametricType):
-            return True
-        return False
-
-    def rebuild_usedef_chain(self) -> None:
-        roots: Set[Node] = set()
-        for param in self.params:
-            roots.add(param)
-        for stmt in self.body:
-            roots.add(stmt)
-        for local in self.locals:
-            roots.add(local)
-        rebuild_usedef_chain(list(roots))
+        self.body = []
+        self.export = False
+        self.locals = []
+        self.complete = False
 
 
 def match_template_args(
         template: List[Tuple[str, Union[Type, Value]]],
-        args: List[Type | Value]) -> Dict[GenericParameter, Type | Value]:
+        args: List[Type | Value]) -> Dict[GenericParameter, Type | Value] | TypeInferenceError:
     mapping: Dict[GenericParameter, Type | Value] = {}
 
     def unify(a: Type | Value, b: Type | Value):
@@ -1138,7 +960,7 @@ def match_template_args(
         if a is b:
             return
         if (isinstance(a, Type) and isinstance(b, Value)) or (isinstance(b, Type) and isinstance(a, Value)):
-            return TypeInferenceError(None, "type and value cannot be unified")
+            raise TypeInferenceError(None, "type and value cannot be unified")
         if isinstance(a, Type) and isinstance(b, Type):
             # unify type
             match a:
@@ -1207,15 +1029,19 @@ def match_template_args(
         if isinstance(a, Value) and isinstance(b, Value):
             raise NotImplementedError()
         return False
-    assert len(template) == len(args)
-    for i in range(len(template)):
-        unify(template[i][1], args[i])
-    return mapping
+    try:
+        if len(template) != len(args):
+            return TypeInferenceError(None, f"expected {len(template)} arguments, got {len(args)}")
+        for i in range(len(template)):
+            unify(template[i][1], args[i])
+        return mapping
+    except TypeInferenceError as e:
+        return e
 
 
-def match_func_template_args(sig: Function, args: FunctionTemplateResolvingArgs) -> Dict[GenericParameter, Type | Value]:
+def match_func_template_args(sig: Function, args: FunctionTemplateResolvingArgs) -> Dict[GenericParameter, Type | Value] | TypeInferenceError:
     if len(sig.params) != len(args):
-        raise TypeInferenceError(
+        return TypeInferenceError(
             None, f"expected {len(sig.params)} arguments, got {len(args)}")
 
     template_args: List[Tuple[str, Union[Type, Value]]] = []

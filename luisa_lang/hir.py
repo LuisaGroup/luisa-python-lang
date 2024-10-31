@@ -14,6 +14,7 @@ from typing import (
     Union,
     cast,
 )
+import typing
 from typing_extensions import override
 from luisa_lang.utils import Span
 from abc import ABC, abstractmethod
@@ -34,7 +35,6 @@ FunctionTemplateResolvingArgs = List[Tuple[str, Union['Type', 'Value']]]
 [Function parameter name, Type or Value].
 The reason for using parameter name instead of GenericParameter is that python supports passing type[T] as a parameter,
 """
-
 
 
 FunctionTemplateResolvingFunc = Callable[[
@@ -119,7 +119,7 @@ class Type(ABC):
         if m:
             return m
         return None
-    
+
     def is_concrete(self) -> bool:
         return True
 
@@ -218,7 +218,7 @@ class GenericFloatType(ScalarType):
     @override
     def __str__(self) -> str:
         return "float"
-    
+
     @override
     def is_concrete(self) -> bool:
         return False
@@ -248,7 +248,7 @@ class GenericIntType(ScalarType):
     @override
     def __str__(self) -> str:
         return "int"
-    
+
     @override
     def is_concrete(self) -> bool:
         return False
@@ -562,7 +562,7 @@ class OpaqueType(Type):
 
     def __str__(self) -> str:
         return self.name
-    
+
     @override
     def is_concrete(self) -> bool:
         return False
@@ -674,7 +674,7 @@ class Node:
     """
     span: Optional[Span]
 
-    def __init__(self) -> None:
+    def __init__(self, span: Optional[Span] = None) -> None:
         self.span = None
 
     def __eq__(self, value: object) -> bool:
@@ -682,6 +682,26 @@ class Node:
 
     def __hash__(self) -> int:
         return id(self)
+
+
+NodeT = typing.TypeVar("NodeT", bound=Node)
+
+
+class BasicBlock(Node):
+    nodes: List[Node]
+    terminated: bool
+
+    def __init__(self,span: Optional[Span] = None) -> None:
+        self.nodes = []
+        self.terminated = False
+        self.span = span
+
+    def append(self, node: NodeT) -> NodeT:
+        if isinstance(node, Terminator):
+            assert not self.terminated
+            self.terminated = True
+        self.nodes.append(node)
+        return node
 
 
 class TypedNode(Node):
@@ -779,9 +799,26 @@ class Constant(Value):
         return hash(self.value)
 
 
-class Init(Value):
-    def __init__(self, type: Type, ctor: FunctionLike, args: List[Value | Ref], span: Optional[Span] = None) -> None:
-        pass
+class Ctor(Value):
+    def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
+        super().__init__(ty, span)
+
+
+class Alloca(Ref):
+    """
+    A temporary variable
+    """
+
+    def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
+        super().__init__(ty, span)
+
+
+# class Init(Value):
+#     init_call: 'Call'
+
+#     def __init__(self, init_call: 'Call', ty: Type,  span: Optional[Span] = None) -> None:
+#         super().__init__(ty, span)
+#         self.init_call = init_call
 
 
 class Call(Value):
@@ -794,12 +831,13 @@ class Call(Value):
         self,
         op: FunctionLike,
         args: List[Value | Ref],
-        type:Type,
+        type: Type,
         span: Optional[Span] = None,
     ) -> None:
         super().__init__(type, span)
         self.op = op
         self.args = args
+
 
 class TemplateMatchingError(Exception):
     span: Span | None
@@ -819,6 +857,7 @@ class TemplateMatchingError(Exception):
         if self.span is None:
             return f"Template matching error:\n\t{self.message}"
         return f"Template matching error at {self.span}:\n\t{self.message}"
+
 
 class TypeInferenceError(Exception):
     span: Span | None
@@ -860,30 +899,7 @@ class TypeRuleFn(TypeRule):
         return self.fn(args)
 
 
-class Stmt(Node):
-    def __init__(self, span: Optional[Span] = None) -> None:
-        super().__init__()
-        self.span = span
-
-
-class VarDecl(Stmt):
-    var: Var
-
-    def __init__(self, var: Var, span: Optional[Span] = None) -> None:
-        super().__init__(span)
-        self.var = var
-
-class Expr(Stmt):
-    expr: Value | Ref
-
-    def __init__(self, expr: Value | Ref, span: Optional[Span] = None) -> None:
-        super().__init__(span)
-        self.expr = expr
-
-
-
-
-class Assign(Stmt):
+class Assign(Node):
     ref: Ref
     value: Value
 
@@ -893,21 +909,72 @@ class Assign(Stmt):
         self.value = value
 
 
-class If(Stmt):
-    cond: Value
-    then_body: List[Stmt]
-    else_body: List[Stmt]
+class Terminator(Node):
+    pass
+
+
+class Loop(Terminator):
+    prepare: BasicBlock
+    cond: Optional[Value]
+    body: BasicBlock
+    update: Optional[BasicBlock]
+    merge: BasicBlock
 
     def __init__(
-        self, cond: Value, then_body: List[Stmt], else_body: List[Stmt], span: Optional[Span] = None
+        self,
+        prepare: BasicBlock,
+        cond: Optional[Value],
+        body: BasicBlock,
+        update: Optional[BasicBlock],
+        merge: BasicBlock,
+        span: Optional[Span] = None,
+    ) -> None:
+        super().__init__(span)
+        self.prepare = prepare
+        self.cond = cond
+        self.body = body
+        self.update = update
+        self.merge = merge
+
+
+class Break(Terminator):
+    target: Loop
+
+    def __init__(self, target: Loop, span: Optional[Span] = None) -> None:
+        super().__init__(span)
+        self.target = target
+
+
+class Continue(Terminator):
+    target: Loop
+
+    def __init__(self, target: Loop, span: Optional[Span] = None) -> None:
+        super().__init__(span)
+        self.target = target
+
+
+class If(Terminator):
+    cond: Value
+    then_body: BasicBlock
+    else_body: Optional[BasicBlock]
+    merge: BasicBlock
+
+    def __init__(
+        self,
+        cond: Value,
+        then_body: BasicBlock,
+        else_body: Optional[BasicBlock],
+        merge: BasicBlock,
+        span: Optional[Span] = None,
     ) -> None:
         super().__init__(span)
         self.cond = cond
         self.then_body = then_body
         self.else_body = else_body
+        self.merge = merge
 
 
-class Return(Stmt):
+class Return(Terminator):
     value: Optional[Value]
 
     def __init__(self, value: Optional[Value], span: Optional[Span] = None) -> None:
@@ -928,7 +995,7 @@ class Function:
     name: str
     params: List[Var]
     return_type: Type | None
-    body: List[Stmt]
+    body: Optional[BasicBlock]
     export: bool
     locals: List[Var]
     complete: bool
@@ -942,7 +1009,7 @@ class Function:
         self.name = name
         self.params = params
         self.return_type = return_type
-        self.body = []
+        self.body = None
         self.export = False
         self.locals = []
         self.complete = False

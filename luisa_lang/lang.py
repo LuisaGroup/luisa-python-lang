@@ -99,7 +99,7 @@ def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
     globalns[cls.__name__] = cls
 
     def get_ir_type(var_ty: VarType) -> hir.Type:
-        if isinstance(var_ty, UnionType):
+        if isinstance(var_ty, (UnionType, classinfo.AnyType, classinfo.SelfType)):
             raise RuntimeError("Struct fields cannot be UnionType")
         if isinstance(var_ty, TypeVar):
             raise NotImplementedError()

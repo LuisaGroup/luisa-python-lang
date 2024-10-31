@@ -171,6 +171,8 @@ class FuncCodeGen:
     signature: str
     func: hir.Function
     params: Set[str]
+    node_map: Dict[hir.Node, str]
+    vid_cnt: int
 
     def gen_var(self, var: hir.Var) -> str:
         assert var.type
@@ -189,6 +191,12 @@ class FuncCodeGen:
         self.signature = f'extern "C" auto {self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
         self.body = ScratchBuffer()
         self.params = set(p.name for p in func.params)
+        self.node_map = {}
+        self.vid_cnt = 0
+
+    def new_vid(self) -> int:
+        self.vid_cnt += 1
+        return self.vid_cnt
 
     def gen_ref(self, ref: hir.Ref) -> str:
         match ref:
@@ -245,11 +253,44 @@ class FuncCodeGen:
                 else:
                     raise NotImplementedError(
                         f"unsupported constant: {constant}")
+            case hir.Init() as init:
+                return f"([&]() {{ {self.gen_expr(init.value)}; }})()"
             case _:
                 raise NotImplementedError(f"unsupported expression: {expr}")
 
-    def gen_stmt(self, stmt: hir.Stmt):
-        match stmt:
+    # def gen_stmt(self, stmt: hir.Stmt):
+    #     match stmt:
+    #         case hir.Return() as ret:
+    #             if ret.value:
+    #                 self.body.writeln(f"return {self.gen_expr(ret.value)};")
+    #             else:
+    #                 self.body.writeln("return;")
+    #         case hir.Assign() as assign:
+    #             ref = self.gen_ref(assign.ref)
+    #             value = self.gen_expr(assign.value)
+    #             self.body.writeln(f"{ref} = {value};")
+    #         case hir.If() as if_stmt:
+    #             cond = self.gen_expr(if_stmt.cond)
+    #             self.body.writeln(f"if ({cond}) {{")
+    #             self.body.indent += 1
+    #             for stmt in if_stmt.then_body:
+    #                 self.gen_stmt(stmt)
+    #             self.body.indent -= 1
+    #             self.body.writeln("}")
+    #             if if_stmt.else_body:
+    #                 self.body.writeln("else {")
+    #                 self.body.indent += 1
+    #                 for stmt in if_stmt.else_body:
+    #                     self.gen_stmt(stmt)
+    #                 self.body.indent -= 1
+    #                 self.body.writeln("}")
+    #         case hir.VarDecl() as var_decl:
+    #             pass
+    #         case _:
+    #             raise NotImplementedError(f"unsupported statement: {stmt}")
+
+    def gen_node(self, node: hir.Node):
+        match node:
             case hir.Return() as ret:
                 if ret.value:
                     self.body.writeln(f"return {self.gen_expr(ret.value)};")
@@ -261,23 +302,45 @@ class FuncCodeGen:
                 self.body.writeln(f"{ref} = {value};")
             case hir.If() as if_stmt:
                 cond = self.gen_expr(if_stmt.cond)
-                self.body.writeln(f"if ({cond}) {{")
-                self.body.indent += 1
-                for stmt in if_stmt.then_body:
-                    self.gen_stmt(stmt)
-                self.body.indent -= 1
-                self.body.writeln("}")
+                self.body.writeln(f"if ({cond})")
+                self.gen_bb(if_stmt.then_body)
                 if if_stmt.else_body:
-                    self.body.writeln("else {")
-                    self.body.indent += 1
-                    for stmt in if_stmt.else_body:
-                        self.gen_stmt(stmt)
-                    self.body.indent -= 1
-                    self.body.writeln("}")
-            case hir.VarDecl() as var_decl:
+                    self.body.writeln("else")
+                    self.gen_bb(if_stmt.else_body)
+                self.gen_bb(if_stmt.merge)
+            case hir.Loop() as loop:
+                vid = self.new_vid()
+                self.body.write(f"auto loop{vid}_prepare = [&]()->bool {{")
+                self.gen_bb(loop.prepare)
+                if loop.cond:
+                    self.body.writeln(f"return {self.gen_expr(loop.cond)};")
+                else:
+                    self.body.writeln("return true;")
+                self.body.writeln("};")
+                self.body.writeln(f"auto loop{vid}_body = [&]() {{")
+                self.gen_bb(loop.body)
+                self.body.writeln("};")
+                self.body.writeln(f"auto loop{vid}_update = [&]() {{")
+                if loop.update:
+                    self.gen_bb(loop.update)
+                self.body.writeln("};")
+                self.body.writeln(
+                    f"for(;loop{vid}_prepare();loop{vid}_update());")
+                self.gen_bb(loop.merge)
+            case hir.Alloca() as alloca:
                 pass
-            case _:
-                raise NotImplementedError(f"unsupported statement: {stmt}")
+            case hir.Call() as call:
+                self.gen_expr(call)
+            case hir.Member() | hir.Index():
+                pass
+
+    def gen_bb(self, bb: hir.BasicBlock):
+        self.body.writeln(f"{{ // BasicBlock Begin {bb.span}")
+        self.body.indent += 1
+        for node in bb.nodes:
+            self.gen_node(node)
+        self.body.indent -= 1
+        self.body.writeln(f"}} // BasicBlock End {bb.span}")
 
     def gen_locals(self):
         for local in self.func.locals:
@@ -294,7 +357,7 @@ class FuncCodeGen:
         self.body.writeln(f"{self.signature} {{")
         self.body.indent += 1
         self.gen_locals()
-        for stmt in self.func.body:
-            self.gen_stmt(stmt)
+        if self.func.body:
+            self.gen_bb(self.func.body)
         self.body.indent -= 1
         self.body.writeln("}")

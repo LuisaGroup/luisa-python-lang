@@ -39,8 +39,6 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
             def type_rule(args: List[hir.Type]) -> hir.Type:
 
                 parameters_list = list(parameters.values())
-                if name == '__init__':
-                    parameters_list = parameters_list[1:]
                 if len(args) > len(parameters_list):
                     raise hir.TypeInferenceError(None,
                                                  f"Too many arguments for {cls_name}.{name} expected at most {len(parameters_list)} but got {len(args)}"

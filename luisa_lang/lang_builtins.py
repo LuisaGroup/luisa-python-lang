@@ -20,6 +20,19 @@ def block_id() -> uint3:
     return _intrinsic_impl()
 
 
+@_builtin
+def convert(target: type[_T], value: Any) -> _T:
+    """
+    Attempt to convert the value to the target type.
+    """
+    return _intrinsic_impl()
+
+
+@_builtin
+def bitcast(target: type[_T], value: Any) -> _T:
+    return _intrinsic_impl()
+
+
 class ComptimeBlock:
     def __init__(self):
         pass

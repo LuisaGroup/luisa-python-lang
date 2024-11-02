@@ -23,7 +23,7 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
 
         def make_type_rule(
             name: str, method: MethodType
-        ) -> Callable[[List[hir.Type]], hir.Type]:
+        ) -> hir.BuiltinTypeRule:
 
             # # print(f'{cls_name}.{name}', signature)
             member = getattr(cls, name)
@@ -31,14 +31,23 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
             type_hints = typing.get_type_hints(member, globalns=globalns)
             parameters = signature.parameters
             return_type = method.return_type
+            semantics: List[hir.ParameterSemantic] = []
             if not isinstance(return_type, type):
                 raise hir.TypeInferenceError(None,
                                              f"Valid return type annotation required for {cls_name}.{name}"
                                              )
+            parameters_list = list(parameters.values())
+            for i, arg in enumerate(args):
+                param = parameters_list[i]
+                if param.name == "self":
+                    # self is always passed by reference
+                    semantics.append(hir.ParameterSemantic.BYREF)
+                else:
+                    # other parameters are passed by value
+                    semantics.append(hir.ParameterSemantic.BYVAL)
 
             def type_rule(args: List[hir.Type]) -> hir.Type:
 
-                parameters_list = list(parameters.values())
                 if len(args) > len(parameters_list):
                     raise hir.TypeInferenceError(None,
                                                  f"Too many arguments for {cls_name}.{name} expected at most {len(parameters_list)} but got {len(args)}"
@@ -55,6 +64,7 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
                             raise hir.TypeInferenceError(None,
                                                          f"Expected {cls_name}.{name} to be called with an instance of {cls_name} but got {arg}"
                                                          )
+
                         continue
                     if param_ty is None:
                         raise hir.TypeInferenceError(None,
@@ -90,14 +100,14 @@ def _builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
                 else:
                     return hir.UnitType()
 
-            return type_rule
+            return hir.BuiltinTypeRule(type_rule, semantics)
 
         def make_builtin():
             for name, member in cls_info.methods.items():
                 type_rule = make_type_rule(name, member)
                 builtin = hir.BuiltinFunction(
                     f"{cls_name}.{name}",
-                    hir.TypeRule.from_fn(type_rule),
+                    type_rule,
                 )
                 ty.methods[name] = builtin
 

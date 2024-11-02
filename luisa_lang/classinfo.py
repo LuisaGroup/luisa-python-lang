@@ -228,7 +228,7 @@ def get_type_vars(func: typing.Callable) -> List[TypeVar]:
     return list(set(type_vars))  # Return unique type vars
 
 
-def parse_func_signature(func: object, globalns: Dict[str, Any], foreign_type_vars: List[TypeVar], self_type: Optional[VarType] = None, is_static: bool = False) -> MethodType:
+def parse_func_signature(func: object, globalns: Dict[str, Any], foreign_type_vars: List[TypeVar], is_static: bool = False) -> MethodType:
     assert inspect.isfunction(func)
     signature = inspect.signature(func)
     method_type_hints = typing.get_type_hints(func, globalns)
@@ -236,11 +236,12 @@ def parse_func_signature(func: object, globalns: Dict[str, Any], foreign_type_va
     type_vars = get_type_vars(func)
     for param in signature.parameters.values():
         if param.name == "self":
-            assert self_type is not None
-            param_types.append((param.name, self_type))
-        else:
+            param_types.append((param.name, SelfType()))
+        elif param.name in method_type_hints:
             param_types.append((param.name, parse_type_hint(
                 method_type_hints[param.name])))
+        else:
+            param_types.append((param.name, AnyType()))
     if "return" in method_type_hints:
         return_type = parse_type_hint(method_type_hints.get("return"))
     else:
@@ -312,12 +313,11 @@ def register_class(cls: type) -> None:
     if type_vars:
         for tv in type_vars:
             cls_ty.type_vars.append(tv)
-    self_ty: VarType = SelfType()
     for name, member in inspect.getmembers(cls):
         if name in local_methods:
             # print(f'Found local method: {name} in {cls}')
             cls_ty.methods[name] = parse_func_signature(
-                member, globalns, cls_ty.type_vars, self_ty, is_static=is_static(cls, name))
+                member, globalns, cls_ty.type_vars, is_static=is_static(cls, name))
     for name in local_fields:
         cls_ty.fields[name] = parse_type_hint(type_hints[name])
     _CLS_TYPE_INFO[cls] = cls_ty

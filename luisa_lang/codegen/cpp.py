@@ -42,6 +42,8 @@ class TypeCodeGenCache:
                     self.impl.writeln(f'    {self.gen(field[1])} {field[0]};')
                 self.impl.writeln('};')
                 return name
+            case hir.UnitType():
+                return 'void'
             case _:
                 raise NotImplementedError(f"unsupported type: {ty}")
 
@@ -101,6 +103,8 @@ class Mangling:
     def mangle_impl(self, obj: Union[hir.Type, hir.FunctionLike]) -> str:
 
         match obj:
+            case hir.UnitType():
+                return 'u'
             case hir.IntType(bits=bits, signed=signed):
                 if signed:
                     return f"i{bits}"
@@ -177,10 +181,10 @@ class FuncCodeGen:
     def gen_var(self, var: hir.Var) -> str:
         assert var.type
         ty = self.base.type_cache.gen(var.type)
-        if var.byval:
+        if var.semantic == hir.ParameterSemantic.BYVAL:
             return f"{ty} {var.name}"
         else:
-            return f"{ty}& {var.name}"
+            return f"{ty} & {var.name}"
 
     def __init__(self, base: CppCodeGen, func: hir.Function) -> None:
         self.base = base
@@ -199,17 +203,18 @@ class FuncCodeGen:
         return self.vid_cnt
 
     def gen_ref(self, ref: hir.Ref) -> str:
+        if ref in self.node_map:
+            return self.node_map[ref]
         match ref:
             case hir.Var() as var:
                 return var.name
-            case hir.Member() as member:
-                if isinstance(member.base, hir.Ref):
-                    base = self.gen_ref(member.base)
-                else:
-                    base = self.gen_expr(member.base)
+            case hir.MemberRef() as member:
+                base = self.gen_ref(member.base)
                 return f"{base}.{member.field}"
-            case hir.ValueRef() as value_ref:
-                return self.gen_expr(value_ref.value)
+            case hir.IndexRef() as index:
+                base = self.gen_ref(index.base)
+                idx = self.gen_expr(index.index)
+                return f"{base}[{idx}]"
             case _:
                 raise NotImplementedError(f"unsupported reference: {ref}")
 
@@ -232,62 +237,51 @@ class FuncCodeGen:
                     f"unsupported value or reference: {value}")
 
     def gen_expr(self, expr: hir.Value) -> str:
-        match expr:
-            case hir.Load() as load:
-                return self.gen_ref(load.ref)
-            case hir.Call() as call:
-                op = self.gen_func(call.op)
-                return f"{op}({','.join(self.gen_value_or_ref(arg) for arg in call.args)})"
-            case hir.Constant() as constant:
-                value = constant.value
-                if isinstance(value, int):
-                    return str(value)
-                elif isinstance(value, float):
-                    return str(value)
-                elif isinstance(value, bool):
-                    return "true" if value else "false"
-                elif isinstance(value, str):
-                    return f'"{value}"'
-                elif isinstance(value, hir.Function) or isinstance(value, hir.BuiltinFunction):
-                    return self.gen_func(value)
-                else:
-                    raise NotImplementedError(
-                        f"unsupported constant: {constant}")
-            case hir.Init() as init:
-                return f"([&]() {{ {self.gen_expr(init.value)}; }})()"
-            case _:
-                raise NotImplementedError(f"unsupported expression: {expr}")
+        if expr in self.node_map:
+            return self.node_map[expr]
+        vid = self.new_vid()
 
-    # def gen_stmt(self, stmt: hir.Stmt):
-    #     match stmt:
-    #         case hir.Return() as ret:
-    #             if ret.value:
-    #                 self.body.writeln(f"return {self.gen_expr(ret.value)};")
-    #             else:
-    #                 self.body.writeln("return;")
-    #         case hir.Assign() as assign:
-    #             ref = self.gen_ref(assign.ref)
-    #             value = self.gen_expr(assign.value)
-    #             self.body.writeln(f"{ref} = {value};")
-    #         case hir.If() as if_stmt:
-    #             cond = self.gen_expr(if_stmt.cond)
-    #             self.body.writeln(f"if ({cond}) {{")
-    #             self.body.indent += 1
-    #             for stmt in if_stmt.then_body:
-    #                 self.gen_stmt(stmt)
-    #             self.body.indent -= 1
-    #             self.body.writeln("}")
-    #             if if_stmt.else_body:
-    #                 self.body.writeln("else {")
-    #                 self.body.indent += 1
-    #                 for stmt in if_stmt.else_body:
-    #                     self.gen_stmt(stmt)
-    #                 self.body.indent -= 1
-    #                 self.body.writeln("}")
-    #         case hir.VarDecl() as var_decl:
-    #             pass
-    #         case _:
-    #             raise NotImplementedError(f"unsupported statement: {stmt}")
+        def impl() -> None:
+            match expr:
+                case hir.Load() as load:
+                    self.body.writeln(
+                        f"const auto &v{vid} = {self.gen_ref(load.ref)};")
+                case hir.Index() as index:
+                    base = self.gen_expr(index.base)
+                    idx = self.gen_expr(index.index)
+                    self.body.writeln(f"const auto v{vid} = {base}[{idx}];")
+                case hir.Member() as member:
+                    base = self.gen_expr(member.base)
+                    self.body.writeln(
+                        f"const auto v{vid} = {base}.{member.field};")
+                case hir.Call() as call:
+                    op = self.gen_func(call.op)
+                    self.body.writeln(
+                        f"auto v{vid} ={op}({','.join(self.gen_value_or_ref(arg) for arg in call.args)});")
+                case hir.Constant() as constant:
+                    value = constant.value
+                    if isinstance(value, int):
+                        self.body.writeln(f"const auto v{vid} = {value};")
+                    elif isinstance(value, float):
+                        self.body.writeln(f"const auto v{vid} = {value};")
+                    elif isinstance(value, bool):
+                        s = "true" if value else "false"
+                        self.body.writeln(f"const auto v{vid} = {s};")
+                    elif isinstance(value, str):
+                        self.body.writeln(f"const auto v{vid} = \"{value}\";")
+                    elif isinstance(value, hir.Function) or isinstance(value, hir.BuiltinFunction):
+                        name = self.gen_func(value)
+                        self.body.writeln(f"auto&& v{vid} = {name};")
+                    else:
+                        raise NotImplementedError(
+                            f"unsupported constant: {constant}")
+                case _:
+                    raise NotImplementedError(
+                        f"unsupported expression: {expr}")
+
+        impl()
+        self.node_map[expr] = f'v{vid}'
+        return f'v{vid}'
 
     def gen_node(self, node: hir.Node):
         match node:
@@ -303,43 +297,55 @@ class FuncCodeGen:
             case hir.If() as if_stmt:
                 cond = self.gen_expr(if_stmt.cond)
                 self.body.writeln(f"if ({cond})")
+                self.body.indent += 1
                 self.gen_bb(if_stmt.then_body)
+                self.body.indent -= 1
                 if if_stmt.else_body:
                     self.body.writeln("else")
+                    self.body.indent += 1
                     self.gen_bb(if_stmt.else_body)
+                    self.body.indent -= 1
                 self.gen_bb(if_stmt.merge)
             case hir.Loop() as loop:
                 vid = self.new_vid()
                 self.body.write(f"auto loop{vid}_prepare = [&]()->bool {{")
-                self.gen_bb(loop.prepare)
+                self.body.indent += 1
+                self.gen_bb(loop.prepare)                 
                 if loop.cond:
                     self.body.writeln(f"return {self.gen_expr(loop.cond)};")
                 else:
                     self.body.writeln("return true;")
+                self.body.indent -=1
                 self.body.writeln("};")
                 self.body.writeln(f"auto loop{vid}_body = [&]() {{")
+                self.body.indent += 1
                 self.gen_bb(loop.body)
+                self.body.indent -= 1
                 self.body.writeln("};")
                 self.body.writeln(f"auto loop{vid}_update = [&]() {{")
+                self.body.indent += 1
                 if loop.update:
                     self.gen_bb(loop.update)
+                self.body.indent -= 1
                 self.body.writeln("};")
                 self.body.writeln(
                     f"for(;loop{vid}_prepare();loop{vid}_update());")
                 self.gen_bb(loop.merge)
             case hir.Alloca() as alloca:
-                pass
-            case hir.Call() as call:
-                self.gen_expr(call)
+                vid = self.new_vid()
+                assert alloca.type
+                ty = self.base.type_cache.gen(alloca.type)
+                self.body.writeln(f"{ty} v{vid}{{}};")
+                self.node_map[alloca] = f"v{vid}"
+            case hir.Call() | hir.Constant() | hir.Load() | hir.Index() | hir.Member():
+                self.gen_expr(node)
             case hir.Member() | hir.Index():
                 pass
 
     def gen_bb(self, bb: hir.BasicBlock):
         self.body.writeln(f"{{ // BasicBlock Begin {bb.span}")
-        self.body.indent += 1
         for node in bb.nodes:
             self.gen_node(node)
-        self.body.indent -= 1
         self.body.writeln(f"}} // BasicBlock End {bb.span}")
 
     def gen_locals(self):

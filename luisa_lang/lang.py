@@ -22,6 +22,7 @@ from luisa_lang.math_types import *
 from luisa_lang._builtin_decor import _builtin_type, _builtin, _intrinsic_impl
 import luisa_lang.hir as hir
 import luisa_lang.classinfo as classinfo
+import luisa_lang.parse as parse
 from luisa_lang.parse import FuncParser
 import ast
 import inspect
@@ -47,24 +48,32 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
     # is_generic = func_sig_parser.p_ctx.type_vars != {}
 
     func_sig = classinfo.parse_func_signature(f, func_globals, [])
+    func_sig_converted, sig_parser = parse.convert_func_signature(
+        func_sig, func_name, func_globals, {}, [], self_type)
 
     def parsing_func(args: hir.FunctionTemplateResolvingArgs) -> hir.FunctionLike:
-        # if is_generic:
-        #     mapping = hir.match_func_template_args(func_sig, args)
-        #     if len(mapping) != len(func_sig.generic_params):
-        #         print(mapping, func_sig.generic_params)
-        #         raise hir.TypeInferenceError(
-        #             None, "not all type parameters are resolved")
-        #     for p in func_sig.generic_params.values():
-        #         if p not in mapping:
-        #             raise hir.TypeInferenceError(
-        #                 None, f"type parameter {p} is not resolved")
-        #         parsing_ctx.bound_type_vars[p.name] = mapping[p]
-        #         print(f'binding {p.name} = {mapping[p]}')
-        type_var_ns: Dict[TypeVar, hir.Type] = {}
+        type_var_ns: Dict[TypeVar, hir.Type | hir.ComptimeValue] = {}
         any_param_types: List[hir.Type] = []
+        if is_generic:
+            mapping = hir.match_func_template_args(func_sig_converted, args)
+            if isinstance(mapping, hir.TypeInferenceError):
+                raise mapping
+            if len(mapping) != len(func_sig_converted.generic_params):
+                # print(mapping, func_sig_converted.generic_params)
+                raise hir.TypeInferenceError(
+                    None, "not all type parameters are resolved")
+            for p in func_sig_converted.generic_params:
+                if p not in mapping:
+                    raise hir.TypeInferenceError(
+                        None, f"type parameter {p} is not resolved")
+                type_var_ns[sig_parser.generic_param_to_type_var[p]
+                            ] = mapping[p]
+                # print(f'binding {p.name} = {mapping[p]}, tv: {sig_parser.generic_param_to_type_var[p]} @{id(sig_parser.generic_param_to_type_var[p])}')
+        # print('parsing  instantiated signature')
+        func_sig_instantiated, _ = parse.convert_func_signature(
+            func_sig, func_name, func_globals, type_var_ns, any_param_types, self_type)
         func_parser = FuncParser(
-            func_name, f, func_sig, func_globals, type_var_ns, any_param_types)
+            func_name, f, func_sig_instantiated, func_globals, type_var_ns, self_type)
         return func_parser.parse_body()
     params = [v[0] for v in func_sig.args]
     is_generic = len(func_sig.type_vars) > 0

@@ -16,6 +16,7 @@ from typing import (
 )
 import typing
 from typing_extensions import override
+from luisa_lang import classinfo
 from luisa_lang.utils import Span
 from abc import ABC, abstractmethod
 
@@ -30,7 +31,7 @@ FunctionLike = Union["Function", "BuiltinFunction"]
 #     matched: bool
 
 
-FunctionTemplateResolvingArgs = List[Tuple[str, Union['Type', 'Value']]]
+FunctionTemplateResolvingArgs = List[Tuple[str, Union['Type', 'ComptimeValue']]]
 """
 [Function parameter name, Type or Value].
 The reason for using parameter name instead of GenericParameter is that python supports passing type[T] as a parameter,
@@ -51,7 +52,7 @@ class FunctionTemplate:
     """
     parsing_func: FunctionTemplateResolvingFunc
     __resolved: Dict[Tuple[Tuple[str,
-                                 Union['Type', 'Value']], ...], FunctionLike]
+                                 Union['Type', 'ComptimeValue']], ...], FunctionLike]
     is_generic: bool
     name: str
     params: List[str]
@@ -80,6 +81,10 @@ class FunctionTemplate:
 
     def reset(self) -> None:
         self.__resolved = {}
+
+
+class DynamicIndex:
+    pass
 
 
 class Type(ABC):
@@ -138,7 +143,7 @@ class UnitType(Type):
         return hash(UnitType)
 
     def __str__(self) -> str:
-        return "NoneType"
+        return "UnitType"
 
 
 class ScalarType(Type):
@@ -691,7 +696,7 @@ class BasicBlock(Node):
     nodes: List[Node]
     terminated: bool
 
-    def __init__(self,span: Optional[Span] = None) -> None:
+    def __init__(self, span: Optional[Span] = None) -> None:
         self.nodes = []
         self.terminated = False
         self.span = span
@@ -736,43 +741,60 @@ class SymbolicConstant(Value):
         self.generic = generic
 
 
-class ValueRef(Ref):
-    value: Value
-
-    def __init__(self, value: Value) -> None:
-        super().__init__(value.type, value.span)
-        self.value = value
+class ParameterSemantic(Enum):
+    BYVAL = auto()
+    BYREF = auto()
 
 
 class Var(Ref):
     name: str
-    byval: bool
+    semantic: ParameterSemantic
 
     def __init__(
-        self, name: str, type: Optional[Type], span: Optional[Span], byval=True
+        self, name: str, type: Optional[Type], span: Optional[Span], semantic=ParameterSemantic.BYVAL
     ) -> None:
         super().__init__(type, span)
         self.name = name
         self.type = type
-        self.byval = byval
+        self.semantic = semantic
 
 
-class Member(Ref):
-    base: Ref | Value
+class Member(Value):
+    base: Value
     field: str
 
-    def __init__(self, base: Ref | Value, field: str, type: Type, span: Optional[Span]) -> None:
+    def __init__(self, base: Value, field: str, type: Type, span: Optional[Span]) -> None:
         super().__init__(type, span)
         self.base = base
         self.field = field
 
 
-class Index(Ref):
-    base: Ref | Value
+class Index(Value):
+    base: Value
     index: Value
 
-    def __init__(self, base: Ref | Value, index: Value, type: Type, span: Optional[Span]) -> None:
+    def __init__(self, base: Value, index: Value, type: Type, span: Optional[Span]) -> None:
         super().__init__(None, span)
+        self.base = base
+        self.index = index
+
+
+class MemberRef(Ref):
+    base: Ref
+    field: str
+
+    def __init__(self, base: Ref, field: str, type: Type, span: Optional[Span]) -> None:
+        super().__init__(type, span)
+        self.base = base
+        self.field = field
+
+
+class IndexRef(Ref):
+    base: Ref
+    index: Value
+
+    def __init__(self, base: Ref, index: Value, type: Type, span: Optional[Span]) -> None:
+        super().__init__(type, span)
         self.base = base
         self.index = index
 
@@ -879,24 +901,15 @@ class TypeInferenceError(Exception):
         return f"Type inference error at {self.span}:\n\t{self.message}"
 
 
-class TypeRule(ABC):
-    @abstractmethod
-    def infer(self, args: List[Type]) -> Type:
-        pass
+class BuiltinTypeRule:
+    check_fn: Callable[[List[Type]], Type]
+    semantics: List[ParameterSemantic]
 
-    @staticmethod
-    def from_fn(fn: Callable[[List[Type]], Type]) -> "TypeRule":
-        return TypeRuleFn(fn)
-
-
-class TypeRuleFn(TypeRule):
-    fn: Callable[[List[Type]], Type]
-
-    def __init__(self, fn: Callable[[List[Type]], Type]) -> None:
-        self.fn = fn
+    def __init__(self, check_fn: Callable[[List[Type]], Type], semantics: List[ParameterSemantic]) -> None:
+        self.check_fn = check_fn
 
     def infer(self, args: List[Type]) -> Type:
-        return self.fn(args)
+        return self.check_fn(args)
 
 
 class Assign(Node):
@@ -982,13 +995,39 @@ class Return(Terminator):
         self.value = value
 
 
+class ComptimeValue:
+    value: Any
+    update_func: Optional[Callable[[Any], None]]
+
+    def __init__(self, value: Any, update_func: Callable[[Any], None] | None) -> None:
+        self.value = value
+        self.update_func = update_func
+
+    def update(self, value: Any) -> None:
+        if self.update_func is not None:
+            self.update_func(value)
+        else:
+            raise RuntimeError("unable to update comptime value")
+
+
 class BuiltinFunction:
     name: str
-    type_rule: TypeRule
+    type_rule: BuiltinTypeRule
 
-    def __init__(self, name: str, type_rule: TypeRule) -> None:
+    def __init__(self, name: str, type_rule: BuiltinTypeRule) -> None:
         self.name = name
         self.type_rule = type_rule
+
+
+class FunctionSignature:
+    params: List[Var]
+    return_type: Type | None
+    generic_params: List[GenericParameter]
+
+    def __init__(self,  generic_params: List[GenericParameter], params: List[Var], return_type: Type | None) -> None:
+        self.params = params
+        self.return_type = return_type
+        self.generic_params = generic_params
 
 
 class Function:
@@ -1016,17 +1055,17 @@ class Function:
 
 
 def match_template_args(
-        template: List[Tuple[str, Union[Type, Value]]],
-        args: List[Type | Value]) -> Dict[GenericParameter, Type | Value] | TypeInferenceError:
-    mapping: Dict[GenericParameter, Type | Value] = {}
+        template: List[Tuple[str, Union[Type, ComptimeValue]]],
+        args: List[Type | ComptimeValue]) -> Dict[GenericParameter, Type | ComptimeValue] | TypeInferenceError:
+    mapping: Dict[GenericParameter, Type | ComptimeValue] = {}
 
-    def unify(a: Type | Value, b: Type | Value):
+    def unify(a: Type | ComptimeValue, b: Type | ComptimeValue):
         """
         Perform unification on two types or values, only a could contain generic parameters.
         """
         if a is b:
             return
-        if (isinstance(a, Type) and isinstance(b, Value)) or (isinstance(b, Type) and isinstance(a, Value)):
+        if (isinstance(a, Type) and isinstance(b, ComptimeValue)) or (isinstance(b, Type) and isinstance(a, ComptimeValue)):
             raise TypeInferenceError(None, "type and value cannot be unified")
         if isinstance(a, Type) and isinstance(b, Type):
             # unify type
@@ -1106,12 +1145,12 @@ def match_template_args(
         return e
 
 
-def match_func_template_args(sig: Function, args: FunctionTemplateResolvingArgs) -> Dict[GenericParameter, Type | Value] | TypeInferenceError:
+def match_func_template_args(sig: FunctionSignature, args: FunctionTemplateResolvingArgs) -> Dict[GenericParameter, Type | ComptimeValue] | TypeInferenceError:
     if len(sig.params) != len(args):
         return TypeInferenceError(
             None, f"expected {len(sig.params)} arguments, got {len(args)}")
 
-    template_args: List[Tuple[str, Union[Type, Value]]] = []
+    template_args: List[Tuple[str, Union[Type, ComptimeValue]]] = []
     for param in sig.params:
         assert param.type is not None
         template_args.append((param.name, param.type))

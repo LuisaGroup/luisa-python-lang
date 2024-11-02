@@ -26,12 +26,12 @@ import luisa_lang as lc
 
 
 ### Functions
-Functions are defined using the `@lc.func` decorator. The function body can contain any valid LuisaCompute code. You can also include normal Python code that will be executed at DSL comile time using `lc.constexpr()`. (See [Metaprogramming](#metaprogramming) for more details)
+Functions are defined using the `@lc.func` decorator. The function body can contain any valid LuisaCompute code. You can also include normal Python code that will be executed at DSL comile time using `lc.comptime()`. (See [Metaprogramming](#metaprogramming) for more details)
 
 ```python
 @lc.func
 def add(a: lc.float, b: lc.float) -> lc.float:
-    with lc.constexpr():
+    with lc.comptime():
         print('compiliing add function')
     return a + b
 
@@ -69,8 +69,8 @@ luisa_lang provides a metaprogramming feature similar to C++ that allows users t
 # Compile time reflection
 @lc.func
 def get_x_or_zero(x: Any):
-    t = lc.constexpr(type(x))
-    if lc.constexpr(hasattr(t, 'x')):
+    t = lc.comptime(type(x))
+    if lc.comptime(hasattr(t, 'x')):
         return x.x
     else:
         return 0.0
@@ -86,7 +86,7 @@ def apply_func(f: F, x: T):
 # Generate code at compile time
 @lc.func
 def call_n_times(f: F):
-    with lc.constexpr():
+    with lc.comptime():
         n = input('how many times to call?')
         for i in range(n):
             # lc.embed_code(expr) will generate add expr to the DSL code
@@ -95,12 +95,13 @@ def call_n_times(f: F):
             lc.embed_code('apply_func(f, i)')
 
 # Hint a parameter is constexpr
-@lc.func(n=lc.constexpr) # without this, n will be treated as a runtime variable and result in an error
+@lc.func(n=lc.comptime) # without this, n will be treated as a runtime variable and result in an error
 def pow(x: lc.float, n: int) -> lc.float:
     p = 1.0
-    with lc.constexpr():
+    with lc.comptime():
         for _ in range(n):
             lc.embed_code('p *= x')
+    return p
 ```
 ### Limitation & Caveats
 - Lambda and nested function do not support updating nonlocal variables.

@@ -1,9 +1,11 @@
+from typing import Any, Generic, List, Optional, Sequence, TypeVar, overload
 from typing_extensions import TypeAliasType
 from luisa_lang.lang import _builtin, _intrinsic_impl
-from luisa_lang.lang import *
+from luisa_lang.math_types import *
+import luisa_lang.hir as hir
 
 _T = TypeVar("_T")
-
+_N = TypeVar("_N")
 
 @_builtin
 def dispatch_id() -> uint3:
@@ -89,8 +91,98 @@ def unroll(range_: Sequence[int]) -> Sequence[int]:
 
 
 @_builtin
-def address_of(a: _T) -> Pointer[_T]:
+def address_of(a: _T) -> 'Pointer[_T]':
     return _intrinsic_impl()
 
 # class StaticEval:
 #
+
+
+def type_of_opt(value: Any) -> Optional[hir.Type]:
+    if isinstance(value, hir.Type):
+        return value
+    if isinstance(value, type):
+        return hir.GlobalContext.get().types[value]
+    return hir.GlobalContext.get().types.get(type(value))
+
+
+def typeof(value: Any) -> hir.Type:
+    ty = type_of_opt(value)
+    if ty is None:
+        raise TypeError(f"Cannot determine type of {value}")
+    return ty
+
+
+_t = hir.SymbolicType(hir.GenericParameter("_T", "luisa_lang.lang"))
+_n = hir.SymbolicConstant(hir.GenericParameter(
+    "_N", "luisa_lang.lang")), typeof(u32)
+
+
+# @_builtin_type(
+#     hir.ParametricType(
+#         "Array", [hir.TypeParameter(_t, bound=[])], hir.ArrayType(_t, _n)
+#     )
+# )
+class Array(Generic[_T, _N]):
+    def __init__(self) -> None:
+        return _intrinsic_impl()
+
+    def __getitem__(self, index: int | u32 | u64) -> _T:
+        return _intrinsic_impl()
+
+    def __setitem__(self, index: int | u32 | u64, value: _T) -> None:
+        return _intrinsic_impl()
+
+    def __len__(self) -> u32 | u64:
+        return _intrinsic_impl()
+
+
+# @_builtin_type(
+#     hir.ParametricType(
+#         "Buffer", [hir.TypeParameter(_t, bound=[])], hir.OpaqueType("Buffer")
+#     )
+# )
+class Buffer(Generic[_T]):
+    def __getitem__(self, index: int | u32 | u64) -> _T:
+        return _intrinsic_impl()
+
+    def __setitem__(self, index: int | u32 | u64, value: _T) -> None:
+        return _intrinsic_impl()
+
+    def __len__(self) -> u32 | u64:
+        return _intrinsic_impl()
+
+
+# @_builtin_type(
+#     hir.ParametricType(
+#         "Pointer", [hir.TypeParameter(_t, bound=[])], hir.PointerType(_t)
+#     )
+# )
+class Pointer(Generic[_T]):
+    def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> _T:
+        return _intrinsic_impl()
+
+    def __setitem__(self, index: int | i32 | i64 | u32 | u64, value: _T) -> None:
+        return _intrinsic_impl()
+
+    @property
+    def value(self) -> _T:
+        return _intrinsic_impl()
+
+    @value.setter
+    def value(self, value: _T) -> None:
+        return _intrinsic_impl()
+
+
+__all__: List[str] = [
+    'Pointer',
+    'Buffer',
+    'Array',
+    'comptime',
+    'device_log',
+    'address_of',
+    'unroll',
+    'static_assert',
+    'type_of_opt',
+    'typeof',
+]

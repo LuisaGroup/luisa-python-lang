@@ -730,6 +730,9 @@ class Ref(TypedNode):
 class Value(TypedNode):
     pass
 
+class Unit(Value):
+    def __init__(self) -> None:
+        super().__init__(UnitType())
 
 class SymbolicConstant(Value):
     generic: GenericParameter

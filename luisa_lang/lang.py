@@ -20,6 +20,7 @@ from typing import (
 from luisa_lang.utils import get_full_name, unique_hash
 from luisa_lang.math_types import *
 from luisa_lang._builtin_decor import _builtin_type, _builtin, _intrinsic_impl
+from luisa_lang.lang_builtins import *
 import luisa_lang.hir as hir
 import luisa_lang.classinfo as classinfo
 import luisa_lang.parse as parse
@@ -224,80 +225,3 @@ def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
     return decorator
 
 
-def type_of_opt(value: Any) -> Optional[hir.Type]:
-    if isinstance(value, hir.Type):
-        return value
-    if isinstance(value, type):
-        return hir.GlobalContext.get().types[value]
-    return hir.GlobalContext.get().types.get(type(value))
-
-
-def typeof(value: Any) -> hir.Type:
-    ty = type_of_opt(value)
-    if ty is None:
-        raise TypeError(f"Cannot determine type of {value}")
-    return ty
-
-
-_t = hir.SymbolicType(hir.GenericParameter("_T", "luisa_lang.lang"))
-_n = hir.SymbolicConstant(hir.GenericParameter(
-    "_N", "luisa_lang.lang")), typeof(u32)
-
-
-# @_builtin_type(
-#     hir.ParametricType(
-#         "Array", [hir.TypeParameter(_t, bound=[])], hir.ArrayType(_t, _n)
-#     )
-# )
-class Array(Generic[_T, _N]):
-    def __init__(self) -> None:
-        return _intrinsic_impl()
-
-    def __getitem__(self, index: int | u32 | u64) -> _T:
-        return _intrinsic_impl()
-
-    def __setitem__(self, index: int | u32 | u64, value: _T) -> None:
-        return _intrinsic_impl()
-
-    def __len__(self) -> u32 | u64:
-        return _intrinsic_impl()
-
-
-# @_builtin_type(
-#     hir.ParametricType(
-#         "Buffer", [hir.TypeParameter(_t, bound=[])], hir.OpaqueType("Buffer")
-#     )
-# )
-class Buffer(Generic[_T]):
-    def __getitem__(self, index: int | u32 | u64) -> _T:
-        return _intrinsic_impl()
-
-    def __setitem__(self, index: int | u32 | u64, value: _T) -> None:
-        return _intrinsic_impl()
-
-    def __len__(self) -> u32 | u64:
-        return _intrinsic_impl()
-
-
-# @_builtin_type(
-#     hir.ParametricType(
-#         "Pointer", [hir.TypeParameter(_t, bound=[])], hir.PointerType(_t)
-#     )
-# )
-class Pointer(Generic[_T]):
-    def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> _T:
-        return _intrinsic_impl()
-
-    def __setitem__(self, index: int | i32 | i64 | u32 | u64, value: _T) -> None:
-        return _intrinsic_impl()
-
-    @property
-    def value(self) -> _T:
-        return _intrinsic_impl()
-
-    @value.setter
-    def value(self, value: _T) -> None:
-        return _intrinsic_impl()
-
-
-# hir.GlobalContext.get().flush()

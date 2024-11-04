@@ -109,34 +109,17 @@ class Span:
                  getattr(ast, "end_col_offset", 0)),
         )
 
+def print_yellow(message: str) -> None:
+    print(f"\033[33m{message}\033[0m")
 
-def _report_error_span(span: Span, message: str) -> NoReturn:
-    raise RuntimeError(f"error at {span}: {message}")
+def print_red(message: str) -> None:
+    print(f"\033[31m{message}\033[0m")
 
-
-def _report_error_tree(tree: ast.AST, message: str) -> NoReturn:
-    span = Span.from_ast(tree)
+def show_warning(message: str, span: Optional[Span] = None) -> None:
     if span is not None:
-        _report_error_span(span, message)
+        print_yellow(f"Warning: {span}: {message}")
     else:
-        raise RuntimeError(f"error: {message}")
-
-
-@overload
-def report_error(obj: Span | None, message: str) -> NoReturn: ...
-@overload
-def report_error(obj: ast.AST, message: str) -> NoReturn: ...
-
-
-def report_error(obj, message: str) -> NoReturn:
-    if obj is None:
-        raise RuntimeError(f"error: {message}")
-    if isinstance(obj, Span):
-        _report_error_span(obj, message)
-    elif isinstance(obj, ast.AST):
-        _report_error_tree(obj, message)
-    else:
-        raise NotImplementedError(f"unsupported object {obj}")
+        print_yellow(f"Warning: {message}")
 
 
 def get_union_args(union: Any) -> List[type]:

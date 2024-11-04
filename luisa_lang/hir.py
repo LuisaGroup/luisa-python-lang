@@ -31,7 +31,8 @@ FunctionLike = Union["Function", "BuiltinFunction"]
 #     matched: bool
 
 
-FunctionTemplateResolvingArgs = List[Tuple[str, Union['Type', 'ComptimeValue']]]
+FunctionTemplateResolvingArgs = List[Tuple[str,
+                                           Union['Type', 'ComptimeValue']]]
 """
 [Function parameter name, Type or Value].
 The reason for using parameter name instead of GenericParameter is that python supports passing type[T] as a parameter,
@@ -727,12 +728,23 @@ class Ref(TypedNode):
     pass
 
 
+class LocalRef(Ref):
+    value: 'Value'
+
+    def __init__(self, value: 'Value') -> None:
+        super().__init__(value.type)
+        self.value = value
+        self.span = value.span
+
+
 class Value(TypedNode):
     pass
+
 
 class Unit(Value):
     def __init__(self) -> None:
         super().__init__(UnitType())
+
 
 class SymbolicConstant(Value):
     generic: GenericParameter
@@ -884,20 +896,32 @@ class TemplateMatchingError(Exception):
         return f"Template matching error at {self.span}:\n\t{self.message}"
 
 
-class TypeInferenceError(Exception):
+class SpannedError(Exception):
     span: Span | None
     message: str
 
-    def __init__(self, node: Node | Span | None, message: str) -> None:
+    def __init__(self, node: Node | Span | ast.AST | None, message: str) -> None:
         if node is not None:
-            if isinstance(node, Node):
-                self.span = node.span
-            else:
-                self.span = node
+            match node:
+                case Node():
+                    self.span = node.span
+                case Span():
+                    self.span = node
+                case ast.AST():
+                    self.span = Span.from_ast(node)
         else:
             self.span = None
         self.message = message
 
+
+class ParsingError(SpannedError):
+    def __str__(self) -> str:
+        if self.span is None:
+            return f"Parsing error:\n\t{self.message}"
+        return f"Parsing error at {self.span}:\n\t{self.message}"
+
+
+class TypeInferenceError(SpannedError):
     def __str__(self) -> str:
         if self.span is None:
             return f"Type inference error:\n\t{self.message}"
@@ -996,6 +1020,18 @@ class Return(Terminator):
     def __init__(self, value: Optional[Value], span: Optional[Span] = None) -> None:
         super().__init__(span)
         self.value = value
+
+
+class Range(Value):
+    start: Value
+    step: Optional[Value]
+    stop: Optional[Value]
+
+    def __init__(self, start: Value, stop: Optional[Value] = None, step: Optional[Value] = None, span: Optional[Span] = None) -> None:
+        super().__init__(None, span)
+        self.start = start
+        self.stop = stop
+        self.step = step
 
 
 class ComptimeValue:

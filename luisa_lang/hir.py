@@ -1034,10 +1034,10 @@ class Return(Terminator):
 
 class Range(Value):
     start: Value
-    step: Optional[Value]
-    stop: Optional[Value]
+    step: Value
+    stop: Value
 
-    def __init__(self, start: Value, stop: Optional[Value] = None, step: Optional[Value] = None, span: Optional[Span] = None) -> None:
+    def __init__(self, start: Value, stop: Value, step: Value, span: Optional[Span] = None) -> None:
         super().__init__(None, span)
         self.start = start
         self.stop = stop
@@ -1057,6 +1057,9 @@ class ComptimeValue:
             self.update_func(value)
         else:
             raise RuntimeError("unable to update comptime value")
+        
+    def __str__(self) -> str:
+        return f"ComptimeValue({self.value})"
 
 
 class BuiltinFunction:

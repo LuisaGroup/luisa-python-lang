@@ -1,6 +1,6 @@
 # fmt: off
 import typing as tp
-from luisa_lang._builtin_decor import _builtin, _builtin_type, _intrinsic_impl
+from luisa_lang._builtin_decor import builtin, builtin_type, _intrinsic_impl, func
 from luisa_lang.classinfo import register_class
 import luisa_lang.hir as _hir
 _ctx = _hir.GlobalContext.get()
@@ -33,54 +33,54 @@ class FloatBuiltin(tp.Generic[_F]):
     def atan2(self: _F, _other: _F) -> _F: return _intrinsic_impl()
     def copysign(self: _F, _other: _F) -> _F: return _intrinsic_impl()
 
-@_builtin
-def abs(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def acos(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def acosh(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def asin(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def asinh(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def atan(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def atanh(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def ceil(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def cos(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def cosh(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def exp(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def floor(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def log(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def log10(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def log2(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def sin(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def sinh(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def sqrt(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def tan(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def tanh(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def trunc(x: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def atan2(x: _F1, y: _F1) -> _F1: return _intrinsic_impl()
-@_builtin
-def copysign(x: _F1, y: _F1) -> _F1: return _intrinsic_impl()
+@func
+def abs(x: _F1) -> _F1: return x.abs()
+@func
+def acos(x: _F1) -> _F1: return x.acos()
+@func
+def acosh(x: _F1) -> _F1: return x.acosh()
+@func
+def asin(x: _F1) -> _F1: return x.asin()
+@func
+def asinh(x: _F1) -> _F1: return x.asinh()
+@func
+def atan(x: _F1) -> _F1: return x.atan()
+@func
+def atanh(x: _F1) -> _F1: return x.atanh()
+@func
+def ceil(x: _F1) -> _F1: return x.ceil()
+@func
+def cos(x: _F1) -> _F1: return x.cos()
+@func
+def cosh(x: _F1) -> _F1: return x.cosh()
+@func
+def exp(x: _F1) -> _F1: return x.exp()
+@func
+def floor(x: _F1) -> _F1: return x.floor()
+@func
+def log(x: _F1) -> _F1: return x.log()
+@func
+def log10(x: _F1) -> _F1: return x.log10()
+@func
+def log2(x: _F1) -> _F1: return x.log2()
+@func
+def sin(x: _F1) -> _F1: return x.sin()
+@func
+def sinh(x: _F1) -> _F1: return x.sinh()
+@func
+def sqrt(x: _F1) -> _F1: return x.sqrt()
+@func
+def tan(x: _F1) -> _F1: return x.tan()
+@func
+def tanh(x: _F1) -> _F1: return x.tanh()
+@func
+def trunc(x: _F1) -> _F1: return x.trunc()
+@func
+def atan2(x: _F1, y: _F1) -> _F1: return x.atan2(y)
+@func
+def copysign(x: _F1, y: _F1) -> _F1: return x.copysign(y)
 register_class(FloatBuiltin)
-@_builtin_type(_hir.FloatType(32))
+@builtin_type(_hir.FloatType(32))
 class f32(FloatBuiltin['f32']):
     def __init__(self, _value: tp.Union['f32', float]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['f32', float]) -> 'f32': return _intrinsic_impl()
@@ -112,7 +112,7 @@ class f32(FloatBuiltin['f32']):
     def __neg__(self) -> 'f32': return _intrinsic_impl()
     def __pos__(self) -> 'f32': return _intrinsic_impl()
 
-@_builtin_type(_hir.FloatType(64))
+@builtin_type(_hir.FloatType(64))
 class f64(FloatBuiltin['f64']):
     def __init__(self, _value: tp.Union['f64', float]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['f64', float]) -> 'f64': return _intrinsic_impl()
@@ -144,7 +144,7 @@ class f64(FloatBuiltin['f64']):
     def __neg__(self) -> 'f64': return _intrinsic_impl()
     def __pos__(self) -> 'f64': return _intrinsic_impl()
 
-@_builtin_type(_hir.IntType(8, True))
+@builtin_type(_hir.IntType(8, True))
 class i8:
     def __init__(self, _value: tp.Union['i8', int]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['i8', int]) -> 'i8': return _intrinsic_impl()
@@ -187,7 +187,7 @@ class i8:
     def __pos__(self) -> 'i8': return _intrinsic_impl()
     def __invert__(self) -> 'i8': return _intrinsic_impl()
 
-@_builtin_type(_hir.IntType(8, False))
+@builtin_type(_hir.IntType(8, False))
 class u8:
     def __init__(self, _value: tp.Union['u8', int]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['u8', int]) -> 'u8': return _intrinsic_impl()
@@ -230,7 +230,7 @@ class u8:
     def __pos__(self) -> 'u8': return _intrinsic_impl()
     def __invert__(self) -> 'u8': return _intrinsic_impl()
 
-@_builtin_type(_hir.IntType(16, True))
+@builtin_type(_hir.IntType(16, True))
 class i16:
     def __init__(self, _value: tp.Union['i16', int]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['i16', int]) -> 'i16': return _intrinsic_impl()
@@ -273,7 +273,7 @@ class i16:
     def __pos__(self) -> 'i16': return _intrinsic_impl()
     def __invert__(self) -> 'i16': return _intrinsic_impl()
 
-@_builtin_type(_hir.IntType(16, False))
+@builtin_type(_hir.IntType(16, False))
 class u16:
     def __init__(self, _value: tp.Union['u16', int]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['u16', int]) -> 'u16': return _intrinsic_impl()
@@ -316,7 +316,7 @@ class u16:
     def __pos__(self) -> 'u16': return _intrinsic_impl()
     def __invert__(self) -> 'u16': return _intrinsic_impl()
 
-@_builtin_type(_hir.IntType(32, True))
+@builtin_type(_hir.IntType(32, True))
 class i32:
     def __init__(self, _value: tp.Union['i32', int]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['i32', int]) -> 'i32': return _intrinsic_impl()
@@ -359,7 +359,7 @@ class i32:
     def __pos__(self) -> 'i32': return _intrinsic_impl()
     def __invert__(self) -> 'i32': return _intrinsic_impl()
 
-@_builtin_type(_hir.IntType(32, False))
+@builtin_type(_hir.IntType(32, False))
 class u32:
     def __init__(self, _value: tp.Union['u32', int]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['u32', int]) -> 'u32': return _intrinsic_impl()
@@ -402,7 +402,7 @@ class u32:
     def __pos__(self) -> 'u32': return _intrinsic_impl()
     def __invert__(self) -> 'u32': return _intrinsic_impl()
 
-@_builtin_type(_hir.IntType(64, True))
+@builtin_type(_hir.IntType(64, True))
 class i64:
     def __init__(self, _value: tp.Union['i64', int]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['i64', int]) -> 'i64': return _intrinsic_impl()
@@ -445,7 +445,7 @@ class i64:
     def __pos__(self) -> 'i64': return _intrinsic_impl()
     def __invert__(self) -> 'i64': return _intrinsic_impl()
 
-@_builtin_type(_hir.IntType(64, False))
+@builtin_type(_hir.IntType(64, False))
 class u64:
     def __init__(self, _value: tp.Union['u64', int]) -> None: return _intrinsic_impl()
     def __add__(self, _other:  tp.Union['u64', int]) -> 'u64': return _intrinsic_impl()
@@ -488,40 +488,25 @@ class u64:
     def __pos__(self) -> 'u64': return _intrinsic_impl()
     def __invert__(self) -> 'u64': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[bool]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[bool]), 2))
 class bool2:
     x: bool
     y: bool
     def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False) -> None: return _intrinsic_impl()
-    def __add__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __radd__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __iadd__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __sub__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __rsub__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __isub__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __mul__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __rmul__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __imul__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __mod__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __rmod__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __imod__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __lt__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __le__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __gt__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __ge__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __floordiv__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
-    def __rfloordiv__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32]), 2))
-class float2:
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32]), 2))
+class float2(FloatBuiltin['float2']):
     x: f32
     y: f32
     def __init__(self, x: tp.Union['f32', float] = 0.0, y: tp.Union['f32', float] = 0.0) -> None: return _intrinsic_impl()
@@ -552,8 +537,8 @@ class float2:
     def __floordiv__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64]), 2))
-class double2:
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64]), 2))
+class double2(FloatBuiltin['double2']):
     x: f64
     y: f64
     def __init__(self, x: tp.Union['f64', float] = 0.0, y: tp.Union['f64', float] = 0.0) -> None: return _intrinsic_impl()
@@ -584,7 +569,7 @@ class double2:
     def __floordiv__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8]), 2))
 class byte2:
     x: i8
     y: i8
@@ -607,16 +592,26 @@ class byte2:
     def __ge__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8]), 2))
 class ubyte2:
     x: u8
     y: u8
@@ -639,16 +634,26 @@ class ubyte2:
     def __ge__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16]), 2))
 class short2:
     x: i16
     y: i16
@@ -671,16 +676,26 @@ class short2:
     def __ge__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16]), 2))
 class ushort2:
     x: u16
     y: u16
@@ -703,16 +718,26 @@ class ushort2:
     def __ge__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32]), 2))
 class int2:
     x: i32
     y: i32
@@ -735,16 +760,26 @@ class int2:
     def __ge__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32]), 2))
 class uint2:
     x: u32
     y: u32
@@ -767,16 +802,26 @@ class uint2:
     def __ge__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64]), 2))
 class long2:
     x: i64
     y: i64
@@ -799,16 +844,26 @@ class long2:
     def __ge__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64]), 2))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64]), 2))
 class ulong2:
     x: u64
     y: u64
@@ -831,50 +886,45 @@ class ulong2:
     def __ge__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[bool]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[bool]), 3))
 class bool3:
     x: bool
     y: bool
     z: bool
     def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False, z: tp.Union['bool', bool] = False) -> None: return _intrinsic_impl()
-    def __add__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __radd__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __iadd__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __sub__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __rsub__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __isub__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __mul__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __rmul__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __imul__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __mod__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __rmod__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __imod__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __lt__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __le__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __gt__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __ge__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __floordiv__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
-    def __rfloordiv__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32]), 3))
-class float3:
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32]), 3))
+class float3(FloatBuiltin['float3']):
     x: f32
     y: f32
     z: f32
@@ -906,8 +956,8 @@ class float3:
     def __floordiv__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64]), 3))
-class double3:
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64]), 3))
+class double3(FloatBuiltin['double3']):
     x: f64
     y: f64
     z: f64
@@ -939,7 +989,7 @@ class double3:
     def __floordiv__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8]), 3))
 class byte3:
     x: i8
     y: i8
@@ -963,16 +1013,26 @@ class byte3:
     def __ge__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8]), 3))
 class ubyte3:
     x: u8
     y: u8
@@ -996,16 +1056,26 @@ class ubyte3:
     def __ge__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16]), 3))
 class short3:
     x: i16
     y: i16
@@ -1029,16 +1099,26 @@ class short3:
     def __ge__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16]), 3))
 class ushort3:
     x: u16
     y: u16
@@ -1062,16 +1142,26 @@ class ushort3:
     def __ge__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32]), 3))
 class int3:
     x: i32
     y: i32
@@ -1095,16 +1185,26 @@ class int3:
     def __ge__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32]), 3))
 class uint3:
     x: u32
     y: u32
@@ -1128,16 +1228,26 @@ class uint3:
     def __ge__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64]), 3))
 class long3:
     x: i64
     y: i64
@@ -1161,16 +1271,26 @@ class long3:
     def __ge__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64]), 3))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64]), 3))
 class ulong3:
     x: u64
     y: u64
@@ -1194,51 +1314,46 @@ class ulong3:
     def __ge__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[bool]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[bool]), 4))
 class bool4:
     x: bool
     y: bool
     z: bool
     w: bool
     def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False, z: tp.Union['bool', bool] = False, w: tp.Union['bool', bool] = False) -> None: return _intrinsic_impl()
-    def __add__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __radd__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __iadd__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __sub__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __rsub__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __isub__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __mul__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __rmul__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __imul__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __mod__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __rmod__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __imod__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __lt__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __le__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __gt__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __ge__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __floordiv__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
-    def __rfloordiv__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32]), 4))
-class float4:
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32]), 4))
+class float4(FloatBuiltin['float4']):
     x: f32
     y: f32
     z: f32
@@ -1271,8 +1386,8 @@ class float4:
     def __floordiv__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64]), 4))
-class double4:
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64]), 4))
+class double4(FloatBuiltin['double4']):
     x: f64
     y: f64
     z: f64
@@ -1305,7 +1420,7 @@ class double4:
     def __floordiv__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8]), 4))
 class byte4:
     x: i8
     y: i8
@@ -1330,16 +1445,26 @@ class byte4:
     def __ge__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8]), 4))
 class ubyte4:
     x: u8
     y: u8
@@ -1364,16 +1489,26 @@ class ubyte4:
     def __ge__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16]), 4))
 class short4:
     x: i16
     y: i16
@@ -1398,16 +1533,26 @@ class short4:
     def __ge__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16]), 4))
 class ushort4:
     x: u16
     y: u16
@@ -1432,16 +1577,26 @@ class ushort4:
     def __ge__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32]), 4))
 class int4:
     x: i32
     y: i32
@@ -1466,16 +1621,26 @@ class int4:
     def __ge__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32]), 4))
 class uint4:
     x: u32
     y: u32
@@ -1500,16 +1665,26 @@ class uint4:
     def __ge__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64]), 4))
 class long4:
     x: i64
     y: i64
@@ -1534,16 +1709,26 @@ class long4:
     def __ge__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return _intrinsic_impl()
 
-@_builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64]), 4))
+@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64]), 4))
 class ulong4:
     x: u64
     y: u64
@@ -1568,13 +1753,23 @@ class ulong4:
     def __ge__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __eq__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
     def __ne__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return _intrinsic_impl() # type: ignore[override]
-    def __truediv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
-    def __rtruediv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
-    def __itruediv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
-    def __pow__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
-    def __rpow__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
-    def __ipow__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __floordiv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
     def __rfloordiv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __ifloordiv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __lshift__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __rlshift__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __ilshift__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __rshift__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __rrshift__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __irshift__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __and__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __rand__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __iand__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __or__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __ror__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __ior__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __xor__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __rxor__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
+    def __ixor__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return _intrinsic_impl()
 
 __all__ = ['FLOAT_TYPES', 'FloatType', 'FloatBuiltin', 'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atanh', 'ceil', 'cos', 'cosh', 'exp', 'floor', 'log', 'log10', 'log2', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'trunc', 'atan2', 'copysign', 'f32', 'f64', 'i8', 'u8', 'i16', 'u16', 'i32', 'u32', 'i64', 'u64', 'bool2', 'float2', 'double2', 'byte2', 'ubyte2', 'short2', 'ushort2', 'int2', 'uint2', 'long2', 'ulong2', 'bool3', 'float3', 'double3', 'byte3', 'ubyte3', 'short3', 'ushort3', 'int3', 'uint3', 'long3', 'ulong3', 'bool4', 'float4', 'double4', 'byte4', 'ubyte4', 'short4', 'ushort4', 'int4', 'uint4', 'long4', 'ulong4']

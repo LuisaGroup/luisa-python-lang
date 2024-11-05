@@ -4,7 +4,6 @@ from types import FunctionType, ModuleType
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 import typing
 import luisa_lang
-from luisa_lang.lang_builtins import comptime
 import luisa_lang.math_types
 from luisa_lang.utils import get_typevar_constrains_and_bounds, unwrap
 import luisa_lang.hir as hir
@@ -24,6 +23,8 @@ from enum import Enum
 import inspect
 from luisa_lang.hir import get_dsl_type, ComptimeValue
 import luisa_lang.classinfo as classinfo
+
+comptime: Any = None
 
 
 def _implicit_typevar_name(v: str) -> str:
@@ -704,6 +705,12 @@ class FuncParser:
                     do_unpack(len(st.fields), lambda values, i, target: self.cur_bb().append(
                         hir.Member(values, st.fields[i][0], type=st.fields[i][1], span=hir.Span.from_ast(target)))
                     )
+                case _:
+                    if len(ref_targets) == 1:
+                        do_unpack(1, lambda values, i, target: exit(-1))
+                    else:
+                        raise hir.ParsingError(
+                            targets[0], f"unsupported type for unpacking: {values.type}")
 
     def parse_expr(self, expr: ast.expr) -> hir.Value | ComptimeValue:
         match expr:

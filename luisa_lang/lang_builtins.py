@@ -1,28 +1,47 @@
-from typing import Any, Generic, List, Optional, Sequence, TypeVar, overload
-from typing_extensions import TypeAliasType
-from luisa_lang.lang import _builtin, _intrinsic_impl
+
+
 from luisa_lang.math_types import *
 import luisa_lang.hir as hir
+import typing
+from typing import (
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TypeAlias,
+    TypeVar,
+    Union,
+    Generic,
+    Literal,
+    overload,
+    Any,
+)
+from luisa_lang._builtin_decor import builtin, builtin_type, _intrinsic_impl
+from luisa_lang import parse
 
 _T = TypeVar("_T")
-_N = TypeVar("_N")
+_N = TypeVar("_N", int, u32, u64)
 
-@_builtin
+
+@builtin("dispatch_id")
 def dispatch_id() -> uint3:
     return _intrinsic_impl()
 
 
-@_builtin
+@builtin("thread_id")
 def thread_id() -> uint3:
     return _intrinsic_impl()
 
 
-@_builtin
+@builtin("block_id")
 def block_id() -> uint3:
     return _intrinsic_impl()
 
 
-@_builtin
+@builtin("cast")
 def cast(target: type[_T], value: Any) -> _T:
     """
     Attempt to convert the value to the target type.
@@ -30,7 +49,7 @@ def cast(target: type[_T], value: Any) -> _T:
     return _intrinsic_impl()
 
 
-@_builtin
+@builtin("bitcast")
 def bitcast(target: type[_T], value: Any) -> _T:
     return _intrinsic_impl()
 
@@ -51,6 +70,13 @@ class ComptimeBlock:
 
 class _ComptimeBlockMarker:
     pass
+
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def instantiate(f: F, *args: List[type]) -> F:
+    return _intrinsic_impl()
 
 
 @overload
@@ -77,9 +103,7 @@ def comptime(a):
     return a
 
 
-@_builtin
-def device_log(_: Any):
-    pass
+parse.comptime = comptime
 
 
 def static_assert(cond: Any, msg: str = ""):
@@ -90,7 +114,7 @@ def unroll(range_: Sequence[int]) -> Sequence[int]:
     return range_
 
 
-@_builtin
+@builtin("address_of")
 def address_of(a: _T) -> 'Pointer[_T]':
     return _intrinsic_impl()
 
@@ -179,7 +203,6 @@ __all__: List[str] = [
     'Buffer',
     'Array',
     'comptime',
-    'device_log',
     'address_of',
     'unroll',
     'static_assert',

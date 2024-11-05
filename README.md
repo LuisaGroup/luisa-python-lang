@@ -5,9 +5,12 @@ A new Python DSL frontend for LuisaCompute. Will be integrated into LuisaCompute
 ## Content
 - [Introduction](#introduction)
 - [Basics](#basic-syntax)
+    - [Difference from Python](#difference-from-python)
     - [Types](#types)
+    - [Value & Reference Semantics](#value--reference-semantics)
     - [Functions](#functions)
     - [User-defined Structs](#user-defined-structs)
+    - [Control Flow](#control-flow)
 - [Advanced Usage](#advanced-syntax)
     - [Generics](#generics)
     - [Metaprogramming](#metaprogramming)
@@ -20,10 +23,15 @@ A new Python DSL frontend for LuisaCompute. Will be integrated into LuisaCompute
 import luisa_lang as lc
 ```
 ## Basic Syntax
+### Difference from Python
+There are some notable differences between luisa_lang and Python:
+- Variables have value semantics by default. Use `inout` to indicate that an argument that is passed by reference.
+- Generic functions and structs are implemented via monomorphization (a.k.a instantiation) at compile time rather than via type erasure.
+- Overloading subscript operator and attribute access is different from Python. Only `__getitem__` and `__getattr__` are needed, which returns a local reference.
+
 ### Types
 ```python
 ```
-
 
 ### Functions
 Functions are defined using the `@lc.func` decorator. The function body can contain any valid LuisaCompute code. You can also include normal Python code that will be executed at DSL comile time using `lc.comptime()`. (See [Metaprogramming](#metaprogramming) for more details)
@@ -37,12 +45,56 @@ def add(a: lc.float, b: lc.float) -> lc.float:
 
 ```
 
-LuisaCompute uses value semantics, which means that all types are passed by value. You can use `inout` to indicate that a variable can be modified in place.
+
+### Value & Reference Semantics
+Variables have value semantics by default. This means that when you assign a variable to another, a copy is made.
+```python
+a = lc.float3(1.0, 2.0, 3.0)
+b = a
+a.x = 2.0
+lc.print(f'{a.x} {b.x}') # prints 2.0 1.0
+```
+
+You can use `inout` to indicate that a variable is passed as a *local reference*. Assigning to an `inout` variable will update the original variable.
 ```python
 @luisa.func(a=inout, b=inout)
 def swap(a: int, b: int):
     a, b = b, a
+
+a = lc.float3(1.0, 2.0, 3.0)
+b = lc.float3(4.0, 5.0, 6.0)
+swap(a.x, b.x)
+lc.print(f'{a.x} {b.x}') # prints 4.0 1.0
 ```
+
+When overloading subscript operator or attribute access, you actually return a local reference to the object. 
+
+#### Local References
+Local references are like pointers in C++. However, they cannot escape the expression boundary. This means that you cannot store a local reference in a variable and use it later. While you can return a local reference from a function, it must be returned from a uniform path. That is you cannot return different local references based on a condition.
+
+
+```python
+@lc.struct
+class InfiniteArray:
+    def __getitem__(self, index: int) -> int:
+        return self.data[index] # returns a local reference
+
+    # this method will be ignored by the compiler. but you can still put it here for linting
+    def __setitem__(self, index: int, value: int):
+        pass
+
+    # Not allowed, non-uniform return
+    def __getitem__(self, index: int) -> int:
+        if index == 0:
+            return self.data[0]
+        else:
+            return self.data[1]
+
+```
+
+
+
+
 
 ### User-defined Structs
 ```python

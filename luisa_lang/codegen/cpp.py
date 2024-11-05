@@ -133,6 +133,8 @@ class Mangling:
             case hir.Function(name=name, params=params, return_type=ret):
                 assert ret
                 name = mangle_name(name)
+                params = list(filter(lambda p: not isinstance(
+                    p.type, (hir.FunctionType)), params))
                 return f'{name}_' + unique_hash(f"F{name}_{self.mangle(ret)}{''.join(self.mangle(unwrap(p.type)) for p in params)}")
             case hir.BuiltinFunction(name=name):
                 name = map_builtin_to_cpp_func(name)
@@ -203,7 +205,8 @@ class FuncCodeGen:
         self.base = base
         self.name = base.mangling.mangle(func)
         self.func = func
-        params = ",".join(self.gen_var(p) for p in func.params)
+        params = ",".join(self.gen_var(
+            p) for p in func.params if not isinstance(p.type, hir.FunctionType))
         assert func.return_type
         self.signature = f'extern "C" auto {self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
         self.body = ScratchBuffer()
@@ -250,6 +253,8 @@ class FuncCodeGen:
                     f"unsupported value or reference: {value}")
 
     def gen_expr(self, expr: hir.Value) -> str:
+        if expr.type and isinstance(expr.type, hir.FunctionType):
+            return ''
         if expr in self.node_map:
             return self.node_map[expr]
         vid = self.new_vid()
@@ -269,8 +274,10 @@ class FuncCodeGen:
                         f"const auto v{vid} = {base}.{member.field};")
                 case hir.Call() as call:
                     op = self.gen_func(call.op)
+                    args_s = ','.join(self.gen_value_or_ref(
+                        arg) for arg in call.args if not isinstance(arg.type, hir.FunctionType))
                     self.body.writeln(
-                        f"auto v{vid} ={op}({','.join(self.gen_value_or_ref(arg) for arg in call.args)});")
+                        f"auto v{vid} ={op}({args_s});")
                 case hir.Constant() as constant:
                     value = constant.value
                     if isinstance(value, int):
@@ -302,6 +309,7 @@ class FuncCodeGen:
         return f'v{vid}'
 
     def gen_node(self, node: hir.Node):
+
         match node:
             case hir.Return() as ret:
                 if ret.value:
@@ -324,31 +332,42 @@ class FuncCodeGen:
                     self.gen_bb(if_stmt.else_body)
                     self.body.indent -= 1
                 self.gen_bb(if_stmt.merge)
+            case hir.Break():
+                self.body.writeln("__loop_break = true; break;")
+            case hir.Continue():
+                self.body.writeln("break;")
             case hir.Loop() as loop:
-                vid = self.new_vid()
-                self.body.write(f"auto loop{vid}_prepare = [&]()->bool {{")
+                """
+                while(true) {
+                    bool loop_break = false;
+                    prepare();
+                    if (!cond()) break;
+                    do {
+                        // break => { loop_break = true; break; }
+                        // continue => { break; }
+                    } while(false);
+                    if (loop_break) break;
+                    update();
+                }
+                
+                """
+                self.body.writeln("while(true) {")
                 self.body.indent += 1
+                self.body.writeln("bool __loop_break = false;")
                 self.gen_bb(loop.prepare)
                 if loop.cond:
-                    self.body.writeln(f"return {self.gen_expr(loop.cond)};")
-                else:
-                    self.body.writeln("return true;")
-                self.body.indent -= 1
-                self.body.writeln("};")
-                self.body.writeln(f"auto loop{vid}_body = [&]() {{")
+                    cond = self.gen_expr(loop.cond)
+                    self.body.writeln(f"if (!{cond}) break;")
+                self.body.writeln("do {")
                 self.body.indent += 1
                 self.gen_bb(loop.body)
                 self.body.indent -= 1
-                self.body.writeln("};")
-                self.body.writeln(f"auto loop{vid}_update = [&]() {{")
-                self.body.indent += 1
+                self.body.writeln("} while(false);")
+                self.body.writeln("if (__loop_break) break;")
                 if loop.update:
                     self.gen_bb(loop.update)
                 self.body.indent -= 1
-                self.body.writeln("};")
-                self.body.writeln(
-                    f"for(;loop{vid}_prepare();loop{vid}_update());")
-                self.gen_bb(loop.merge)
+                self.body.writeln("}")
             case hir.Alloca() as alloca:
                 vid = self.new_vid()
                 assert alloca.type

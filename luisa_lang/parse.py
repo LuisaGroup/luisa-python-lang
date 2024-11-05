@@ -151,6 +151,7 @@ class FuncParser:
     type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue]
     bb_stack: List[hir.BasicBlock]
     type_parser: TypeParser
+    break_and_continues: List[hir.Break | hir.Continue] | None
 
     def __init__(self, name: str,
                  func: object,
@@ -173,7 +174,7 @@ class FuncParser:
         self.parsed_func = hir.Function(name, [], None)
         self.type_var_ns = type_var_ns
         self.bb_stack = []
-
+        self.break_and_continues = None
         self.parsed_func.params = signature.params
         for p in self.parsed_func.params:
             self.vars[p.name] = p
@@ -262,11 +263,12 @@ class FuncParser:
             if name.id in self.globalns:
                 resolved = self.globalns[name.id]
                 return self.convert_any_to_value(resolved, span)
-            elif name.id in __builtins__: # type: ignore
+            elif name.id in __builtins__:  # type: ignore
                 resolved = __builtins__[name.id]  # type: ignore
                 return self.convert_any_to_value(resolved, span)
             elif new_var_hint == 'comptime':
                 self.globalns[name.id] = None
+
                 def update_fn(value: Any) -> None:
                     self.globalns[name.id] = value
                 return ComptimeValue(None, update_fn)
@@ -379,7 +381,9 @@ class FuncParser:
                         span,
                         f"Expected {len(template_params)} arguments, got {len(args)}")
                 for i, (param, arg) in enumerate(zip(template_params, args)):
-                    assert arg.type is not None
+                    if arg.type is None:
+                        raise hir.TypeInferenceError(
+                            span, f"failed to infer type of argument {i}")
                     template_resolve_args.append((param, arg.type))
                 resolved_f = f.resolve(template_resolve_args)
                 if isinstance(resolved_f, hir.TemplateMatchingError):
@@ -467,6 +471,7 @@ class FuncParser:
                                 args[i] = self.try_convert_comptime_value(
                                     arg, hir.Span.from_ast(expr.args[i]))
                         converted_args = cast(List[hir.Value], args)
+
                         def make_int(i: int) -> hir.Value:
                             return hir.Constant(i, type=hir.GenericIntType())
                         if len(args) == 1:
@@ -516,10 +521,12 @@ class FuncParser:
                 raise hir.ParsingError(expr, call.message)
             assert isinstance(call, hir.Call)
             return self.cur_bb().append(hir.Load(tmp))
-
-        if not isinstance(func, hir.Constant) or not isinstance(func.value, (hir.Function, hir.BuiltinFunction, hir.FunctionTemplate)):
+        if func.type is not None and isinstance(func.type, hir.FunctionType):
+            func_like = func.type.func_like
+        elif not isinstance(func, hir.Constant) or not isinstance(func.value, (hir.Function, hir.BuiltinFunction, hir.FunctionTemplate)):
             raise hir.ParsingError(expr, f"function expected")
-        func_like = func.value
+        else:
+            func_like = func.value
         ret = self.parse_call_impl(
             hir.Span.from_ast(expr), func_like,  collect_args())
         if isinstance(ret, hir.TemplateMatchingError):
@@ -791,13 +798,19 @@ class FuncParser:
                         stmt, "while loop condition must not be a comptime value")
                 body = hir.BasicBlock(span)
                 self.bb_stack.append(body)
+                old_break_and_continues = self.break_and_continues
+                self.break_and_continues = []
                 for s in stmt.body:
                     self.parse_stmt(s)
+                break_and_continues = self.break_and_continues
+                self.break_and_continues = old_break_and_continues
                 body = self.bb_stack.pop()
                 update = hir.BasicBlock(span)
                 merge = hir.BasicBlock(span)
-                pred_bb.append(
-                    hir.Loop(prepare, cond, body, update, merge, span))
+                loop_node = hir.Loop(prepare, cond, body, update, merge, span)
+                pred_bb.append(loop_node)
+                for bc in break_and_continues:
+                    bc.target = loop_node
                 self.bb_stack.append(merge)
             case ast.For():
                 iter_val = self.parse_expr(stmt.iter)
@@ -828,12 +841,16 @@ class FuncParser:
                 self.bb_stack.pop()
                 body = hir.BasicBlock(span)
                 self.bb_stack.append(body)
+                old_break_and_continues = self.break_and_continues
+                self.break_and_continues = []
                 for s in stmt.body:
                     self.parse_stmt(s)
                 body = self.bb_stack.pop()
+                break_and_continues = self.break_and_continues
+                self.break_and_continues = old_break_and_continues
                 update = hir.BasicBlock(span)
                 self.bb_stack.append(update)
-                inc =loop_range.step
+                inc = loop_range.step
                 int_add = loop_var.type.method("__add__")
                 assert int_add is not None
                 add = self.parse_call_impl(
@@ -842,9 +859,22 @@ class FuncParser:
                 self.cur_bb().append(hir.Assign(loop_var, add))
                 self.bb_stack.pop()
                 merge = hir.BasicBlock(span)
-                pred_bb.append(
-                    hir.Loop(prepare, cmp_result, body, update, merge, span))
+                loop_node = hir.Loop(prepare, cmp_result,
+                                     body, update, merge, span)
+                pred_bb.append(loop_node)
+                for bc in break_and_continues:
+                    bc.target = loop_node
                 self.bb_stack.append(merge)
+            case ast.Break():
+                if self.break_and_continues is None:
+                    raise hir.ParsingError(
+                        stmt, "break statement must be inside a loop")
+                self.cur_bb().append(hir.Break(None, span))
+            case ast.Continue():
+                if self.break_and_continues is None:
+                    raise hir.ParsingError(
+                        stmt, "continue statement must be inside a loop")
+                self.cur_bb().append(hir.Continue(None, span))
             case ast.Return():
                 def check_return_type(ty: hir.Type) -> None:
                     assert self.parsed_func

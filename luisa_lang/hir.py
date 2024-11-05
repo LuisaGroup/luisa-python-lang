@@ -127,7 +127,7 @@ class Type(ABC):
 
     def is_concrete(self) -> bool:
         return True
-    
+
     def __len__(self) -> int:
         return 1
 
@@ -341,7 +341,8 @@ class VectorType(Type):
 
     def __len__(self) -> int:
         return self.count
-    
+
+
 class ArrayType(Type):
     element: Type
     count: Union[int, "SymbolicConstant"]
@@ -868,6 +869,7 @@ class AggregateInit(Value):
         super().__init__(type, span)
         self.args = args
 
+
 class Call(Value):
     op: FunctionLike
     """After type inference, op should be a Value."""
@@ -988,17 +990,17 @@ class Loop(Terminator):
 
 
 class Break(Terminator):
-    target: Loop
+    target: Loop | None
 
-    def __init__(self, target: Loop, span: Optional[Span] = None) -> None:
+    def __init__(self, target: Loop | None, span: Optional[Span] = None) -> None:
         super().__init__(span)
         self.target = target
 
 
 class Continue(Terminator):
-    target: Loop
+    target: Loop | None
 
-    def __init__(self, target: Loop, span: Optional[Span] = None) -> None:
+    def __init__(self, target: Loop | None, span: Optional[Span] = None) -> None:
         super().__init__(span)
         self.target = target
 
@@ -1057,7 +1059,7 @@ class ComptimeValue:
             self.update_func(value)
         else:
             raise RuntimeError("unable to update comptime value")
-        
+
     def __str__(self) -> str:
         return f"ComptimeValue({self.value})"
 

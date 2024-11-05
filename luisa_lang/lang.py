@@ -1,6 +1,7 @@
 from luisa_lang.classinfo import VarType, GenericInstance, UnionType,  _get_cls_globalns, register_class, class_typeinfo
 from enum import Enum, auto
 from typing_extensions import TypeAliasType
+import typing
 from typing import (
     Callable,
     Dict,
@@ -14,7 +15,6 @@ from typing import (
     Union,
     Generic,
     Literal,
-    cast,
     overload,
     Any,
 )
@@ -109,7 +109,7 @@ def _dsl_func_impl(f: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
         template = _make_func_template(f, func_name, func_globals)
         ctx.functions[f] = template
         setattr(f, "__luisa_func__", template)
-        return cast(_T, f)
+        return typing.cast(_T, f)
     else:
         raise NotImplementedError()
         # return cast(_T, f)
@@ -150,7 +150,7 @@ def _dsl_struct_impl(cls: type[_T], attrs: Dict[str, Any]) -> type[_T]:
 def _dsl_decorator_impl(obj: _T, kind: _ObjKind, attrs: Dict[str, Any]) -> _T:
     if kind == _ObjKind.STRUCT:
         assert isinstance(obj, type), f"{obj} is not a type"
-        return cast(_T, _dsl_struct_impl(obj, attrs))
+        return typing.cast(_T, _dsl_struct_impl(obj, attrs))
     elif kind == _ObjKind.FUNC or kind == _ObjKind.KERNEL:
         return _dsl_func_impl(obj, kind, attrs)
     raise NotImplementedError()

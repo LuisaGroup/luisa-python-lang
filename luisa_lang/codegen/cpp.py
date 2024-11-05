@@ -44,6 +44,16 @@ class TypeCodeGenCache:
                 return name
             case hir.UnitType():
                 return 'void'
+            case hir.TupleType():
+                def do():
+                    elements = [self.gen(e) for e in ty.elements]
+                    name = f'Tuple_{unique_hash("".join(elements))}'
+                    self.impl.writeln(f'struct {name} {{')
+                    for i, element in enumerate(elements):
+                        self.impl.writeln(f'    {element} _{i};')
+                    self.impl.writeln('};')
+                    return name
+                return do()
             case _:
                 raise NotImplementedError(f"unsupported type: {ty}")
 
@@ -129,6 +139,9 @@ class Mangling:
                 return f"__builtin_{name}"
             case hir.StructType(name=name):
                 return name
+            case hir.TupleType():
+                elements = [self.mangle(e) for e in obj.elements]
+                return f"T{unique_hash(''.join(elements))}"
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 
@@ -275,6 +288,10 @@ class FuncCodeGen:
                     else:
                         raise NotImplementedError(
                             f"unsupported constant: {constant}")
+                case hir.AggregateInit():
+                    assert expr.type
+                    ty = self.base.type_cache.gen(expr.type)
+                    self.body.writeln(f"{ty} v{vid}{{}};")
                 case _:
                     raise NotImplementedError(
                         f"unsupported expression: {expr}")
@@ -310,12 +327,12 @@ class FuncCodeGen:
                 vid = self.new_vid()
                 self.body.write(f"auto loop{vid}_prepare = [&]()->bool {{")
                 self.body.indent += 1
-                self.gen_bb(loop.prepare)                 
+                self.gen_bb(loop.prepare)
                 if loop.cond:
                     self.body.writeln(f"return {self.gen_expr(loop.cond)};")
                 else:
                     self.body.writeln("return true;")
-                self.body.indent -=1
+                self.body.indent -= 1
                 self.body.writeln("};")
                 self.body.writeln(f"auto loop{vid}_body = [&]() {{")
                 self.body.indent += 1
@@ -354,7 +371,7 @@ class FuncCodeGen:
                 continue
             assert (
                 local.type
-            ), f"Local variable {local.name} contains unresolved type, please resolve it via TypeInferencer"
+            ), f"Local variable `{local.name}` contains unresolved type"
             self.body.writeln(
                 f"{self.base.type_cache.gen(local.type)} {local.name}{{}};"
             )

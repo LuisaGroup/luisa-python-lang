@@ -23,7 +23,7 @@ def block_id() -> uint3:
 
 
 @_builtin
-def convert(target: type[_T], value: Any) -> _T:
+def cast(target: type[_T], value: Any) -> _T:
     """
     Attempt to convert the value to the target type.
     """
@@ -185,4 +185,7 @@ __all__: List[str] = [
     'static_assert',
     'type_of_opt',
     'typeof',
+    "dispatch_id",
+    "thread_id",
+    "block_id",
 ]

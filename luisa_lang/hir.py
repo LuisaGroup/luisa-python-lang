@@ -12,7 +12,6 @@ from typing import (
     Tuple,
     Dict,
     Union,
-    cast,
 )
 import typing
 from typing_extensions import override
@@ -128,6 +127,9 @@ class Type(ABC):
 
     def is_concrete(self) -> bool:
         return True
+    
+    def __len__(self) -> int:
+        return 1
 
 
 class UnitType(Type):
@@ -337,7 +339,9 @@ class VectorType(Type):
             return self.element
         return Type.member(self, field)
 
-
+    def __len__(self) -> int:
+        return self.count
+    
 class ArrayType(Type):
     element: Type
     count: Union[int, "SymbolicConstant"]
@@ -789,7 +793,7 @@ class Index(Value):
     index: Value
 
     def __init__(self, base: Value, index: Value, type: Type, span: Optional[Span]) -> None:
-        super().__init__(None, span)
+        super().__init__(type, span)
         self.base = base
         self.index = index
 
@@ -857,6 +861,12 @@ class Alloca(Ref):
 #         super().__init__(ty, span)
 #         self.init_call = init_call
 
+class AggregateInit(Value):
+    args: List[Value]
+
+    def __init__(self, args: List[Value], type: Type, span: Optional[Span] = None) -> None:
+        super().__init__(type, span)
+        self.args = args
 
 class Call(Value):
     op: FunctionLike

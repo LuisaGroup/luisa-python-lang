@@ -291,7 +291,8 @@ class FuncCodeGen:
                 case hir.AggregateInit():
                     assert expr.type
                     ty = self.base.type_cache.gen(expr.type)
-                    self.body.writeln(f"{ty} v{vid}{{}};")
+                    self.body.writeln(
+                        f"{ty} v{vid}{{ {','.join(self.gen_expr(e) for e in expr.args)} }};")
                 case _:
                     raise NotImplementedError(
                         f"unsupported expression: {expr}")

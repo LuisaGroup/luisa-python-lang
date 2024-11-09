@@ -2,7 +2,7 @@ from functools import cache
 from luisa_lang import hir
 from luisa_lang.utils import unique_hash, unwrap
 from luisa_lang.codegen import CodeGen, ScratchBuffer
-from typing import Any, Callable, Dict, Set, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Union
 
 from luisa_lang.hir import get_dsl_func
 
@@ -54,6 +54,13 @@ class TypeCodeGenCache:
                     self.impl.writeln('};')
                     return name
                 return do()
+            case hir.BoundType():
+                assert ty.instantiated
+                return self.gen(ty.instantiated)
+            case hir.FunctionType():
+                return ''
+            case hir.TypeConstructorType():
+                return ''
             case _:
                 raise NotImplementedError(f"unsupported type: {ty}")
 
@@ -144,6 +151,9 @@ class Mangling:
             case hir.TupleType():
                 elements = [self.mangle(e) for e in obj.elements]
                 return f"T{unique_hash(''.join(elements))}"
+            case hir.BoundType():
+                assert obj.instantiated
+                return self.mangle(obj.instantiated)
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 
@@ -300,6 +310,8 @@ class FuncCodeGen:
                     ty = self.base.type_cache.gen(expr.type)
                     self.body.writeln(
                         f"{ty} v{vid}{{ {','.join(self.gen_expr(e) for e in expr.args)} }};")
+                case hir.TypeValue():
+                    pass
                 case _:
                     raise NotImplementedError(
                         f"unsupported expression: {expr}")
@@ -308,7 +320,7 @@ class FuncCodeGen:
         self.node_map[expr] = f'v{vid}'
         return f'v{vid}'
 
-    def gen_node(self, node: hir.Node):
+    def gen_node(self, node: hir.Node) -> Optional[hir.BasicBlock]:
 
         match node:
             case hir.Return() as ret:
@@ -331,7 +343,7 @@ class FuncCodeGen:
                     self.body.indent += 1
                     self.gen_bb(if_stmt.else_body)
                     self.body.indent -= 1
-                self.gen_bb(if_stmt.merge)
+                return if_stmt.merge
             case hir.Break():
                 self.body.writeln("__loop_break = true; break;")
             case hir.Continue():
@@ -349,7 +361,7 @@ class FuncCodeGen:
                     if (loop_break) break;
                     update();
                 }
-                
+
                 """
                 self.body.writeln("while(true) {")
                 self.body.indent += 1
@@ -368,6 +380,7 @@ class FuncCodeGen:
                     self.gen_bb(loop.update)
                 self.body.indent -= 1
                 self.body.writeln("}")
+                return loop.merge
             case hir.Alloca() as alloca:
                 vid = self.new_vid()
                 assert alloca.type
@@ -378,12 +391,23 @@ class FuncCodeGen:
                 self.gen_expr(node)
             case hir.Member() | hir.Index():
                 pass
+        return None
 
     def gen_bb(self, bb: hir.BasicBlock):
-        self.body.writeln(f"{{ // BasicBlock Begin {bb.span}")
-        for node in bb.nodes:
-            self.gen_node(node)
-        self.body.writeln(f"}} // BasicBlock End {bb.span}")
+
+        while True:
+            loop_again = False
+            old_bb = bb
+            self.body.writeln(f"// BasicBlock Begin {bb.span}")
+            for i, node in enumerate(bb.nodes):
+                if (next := self.gen_node(node)) and next is not None:
+                    assert i == len(bb.nodes) - 1
+                    loop_again = True
+                    bb = next
+                    break
+            self.body.writeln(f"// BasicBlock End {old_bb.span}")
+            if not loop_again:
+                break
 
     def gen_locals(self):
         for local in self.func.locals:

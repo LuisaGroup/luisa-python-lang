@@ -41,6 +41,9 @@ def is_valid_comptime_value_in_dsl_code(value: Any) -> bool:
     return False
 
 
+ParsingMode = Literal['parse', 'instantiate']
+
+
 class TypeParser:
     ctx_name: str
     globalns: Dict[str, Any]
@@ -49,19 +52,40 @@ class TypeParser:
     generic_params: List[hir.GenericParameter]
     generic_param_to_type_var: Dict[hir.GenericParameter, typing.TypeVar]
     implicit_type_params: Dict[str, hir.Type]
+    mode: ParsingMode
 
-    def __init__(self,  ctx_name: str, globalns: Dict[str, Any],  type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue], self_type: Optional[Type] = None) -> None:
+    def __init__(self,  ctx_name: str, globalns: Dict[str, Any],  type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue], self_type: Optional[Type], mode: ParsingMode) -> None:
         self.globalns = globalns
         self.self_type = self_type
         self.type_var_ns = type_var_ns
         self.ctx_name = ctx_name
         self.generic_params = []
         self.generic_param_to_type_var = {}
+        self.mode = mode
 
     def parse_type(self, ty: classinfo.VarType) -> Optional[hir.Type]:
         match ty:
             case classinfo.GenericInstance():
-                raise NotImplementedError()
+                origin = ty.origin
+                ir_ty = self.parse_type(origin)
+                if not ir_ty:
+                    raise RuntimeError(
+                        f"Type {origin} is not a valid DSL type")
+                if not isinstance(ir_ty, hir.ParametricType):
+                    raise RuntimeError(
+                        f"Type {origin} is not a parametric type but is supplied with type arguments")
+                if len(ir_ty.params) != len(ty.args):
+                    raise RuntimeError(
+                        f"Type {origin} expects {len(ir_ty.params)} type arguments, got {len(ty.args)}")
+                type_args = [self.parse_type(arg) for arg in ty.args]
+                if any(arg is None for arg in type_args):
+                    raise RuntimeError(
+                        "failed to parse type arguments")
+                if self.mode == 'instantiate':
+                    instantiated = ir_ty.instantiate(type_args)
+                else:
+                    instantiated = None
+                return hir.BoundType(ir_ty, cast(List[hir.Type | hir.SymbolicConstant], type_args), instantiated)
             case classinfo.TypeVar():
                 # print(f'{ty} @ {id(ty)} {ty.__name__} in {self.type_var_ns}? : {ty in self.type_var_ns}')
                 if ty in self.type_var_ns:
@@ -96,13 +120,13 @@ def convert_func_signature(signature: classinfo.MethodType,
                            type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue],
                            implicit_type_params: Dict[str, hir.Type],
                            self_type: Optional[Type],
-                           mode: Literal['parse', 'instantiate'] = 'parse'
+                           mode: ParsingMode = 'parse'
                            ) -> Tuple[hir.FunctionSignature, TypeParser]:
     """
     implicit_type_params: Tuple[List[Tuple[str,
         classinfo.VarType]], classinfo.VarType]
     """
-    type_parser = TypeParser(ctx_name, globalns, type_var_ns, self_type)
+    type_parser = TypeParser(ctx_name, globalns, type_var_ns, self_type, mode)
     type_parser.implicit_type_params = implicit_type_params
     params: List[Var] = []
     for arg in signature.args:
@@ -160,7 +184,8 @@ class FuncParser:
                  globalns: Dict[str, Any],
                  type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue],
                  self_type: Optional[Type]) -> None:
-        self.type_parser = TypeParser(name, globalns, type_var_ns, self_type)
+        self.type_parser = TypeParser(
+            name, globalns, type_var_ns, self_type, 'instantiate')
         self.name = name
         self.func = func
         self.signature = signature
@@ -191,8 +216,8 @@ class FuncParser:
                 raise RuntimeError(f"Type {t} is not resolved")
         return t
 
-    def convert_constexpr(self, value: ComptimeValue, span: Optional[hir.Span] = None) -> Optional[hir.Value]:
-        value = value.value
+    def convert_constexpr(self, comptime_val: ComptimeValue, span: Optional[hir.Span] = None) -> Optional[hir.Value]:
+        value = comptime_val.value
         if isinstance(value, int):
             return hir.Constant(value, type=hir.GenericIntType())
         elif isinstance(value, float):
@@ -216,7 +241,8 @@ class FuncParser:
             if dsl_type is None:
                 raise hir.ParsingError(
                     span, f"expected DSL type but got {value}")
-            return hir.Ctor(dsl_type)
+
+            return hir.TypeValue(dsl_type)
         return None
 
     def parse_const(self, const: ast.Constant) -> hir.Value:
@@ -236,6 +262,12 @@ class FuncParser:
             const, f"unsupported constant type {type(value)}, wrap it in lc.comptime(...) if you intead to use it as a compile-time expression")
 
     def convert_any_to_value(self, a: Any, span: hir.Span | None) -> hir.Value | ComptimeValue:
+        if isinstance(a, typing.TypeVar):
+            if a in self.type_var_ns:
+                v = self.type_var_ns[a]
+                if isinstance(v, hir.Type):
+                    return hir.TypeValue(v)
+                return self.convert_any_to_value(v, span)
         if not isinstance(a, ComptimeValue):
             a = ComptimeValue(a, None)
         if a.value in SPECIAL_FUNCTIONS:
@@ -341,6 +373,27 @@ class FuncParser:
             if isinstance(value, ComptimeValue):
                 raise hir.ParsingError(
                     expr, "attempt to access comptime value in DSL code; wrap it in lc.comptime(...) if you intead to use it as a compile-time expression")
+            if isinstance(value, hir.TypeValue):
+                type_args: List[hir.Type] = []
+
+                def parse_type_arg(expr: ast.expr) -> hir.Type:
+                    type_annotation = self.eval_expr(expr)
+                    type_hint = classinfo.parse_type_hint(type_annotation)
+                    ty = self.parse_type(type_hint)
+                    assert ty
+                    return ty
+
+                match expr.slice:
+                    case ast.Tuple():
+                        for e in expr.slice.elts:
+                            type_args.append(parse_type_arg(e))
+                    case _:
+                        type_args.append(parse_type_arg(expr.slice))
+                # print(f"Type args: {type_args}")
+                assert isinstance(value.type, hir.TypeConstructorType) and isinstance(value.type.inner, hir.ParametricType)
+                return hir.TypeValue(
+                    hir.BoundType(value.type.inner, type_args, value.type.inner.instantiate(type_args)))
+
             assert value.type
             index = self.parse_expr(expr.slice)
             index = self.convert_to_value(index, span)
@@ -493,7 +546,7 @@ class FuncParser:
 
     def parse_call(self, expr: ast.Call) -> hir.Value | ComptimeValue:
         func = self.parse_expr(expr.func)
-
+        span = hir.Span.from_ast(expr)
         if isinstance(func, hir.Ref):
             raise hir.ParsingError(expr, f"function expected")
         elif isinstance(func, ComptimeValue):
@@ -510,14 +563,23 @@ class FuncParser:
                         arg, hir.Span.from_ast(expr.args[i]))
             return cast(List[hir.Value | hir.Ref], args)
 
-        if isinstance(func, hir.Ctor):
-            cls = func.type
+        if isinstance(func.type, hir.TypeConstructorType): 
+            # TypeConstructorType is unique for each type
+            # so if any value has this type, it must be referring to the same underlying type
+            # even if it comes from a very complex expression, it's still fine
+            cls = func.type.inner
             assert cls
+            if isinstance(cls, hir.ParametricType):
+                raise hir.ParsingError(
+                    span, f"please provide type arguments for {cls.body}")
+
             init = cls.method("__init__")
-            tmp = self.cur_bb().append(hir.Alloca(cls, span=hir.Span.from_ast(expr)))
-            assert init is not None
+            tmp = self.cur_bb().append(hir.Alloca(cls, span))
+            if init is None:
+                raise hir.ParsingError(
+                    span, f"__init__ method not found for type {cls}")
             call = self.parse_call_impl(
-                hir.Span.from_ast(expr), init,  [tmp]+collect_args())
+                span, init,  [tmp]+collect_args())
             if isinstance(call, hir.TemplateMatchingError):
                 raise hir.ParsingError(expr, call.message)
             assert isinstance(call, hir.Call)
@@ -529,7 +591,7 @@ class FuncParser:
         else:
             func_like = func.value
         ret = self.parse_call_impl(
-            hir.Span.from_ast(expr), func_like,  collect_args())
+            span, func_like,  collect_args())
         if isinstance(ret, hir.TemplateMatchingError):
             raise hir.ParsingError(expr, ret.message)
         return ret
@@ -956,29 +1018,6 @@ class FuncParser:
                     check_return_type(hir.UnitType())
                     self.cur_bb().append(hir.Return(None))
             case ast.Assign():
-                # if len(stmt.targets) != 1:
-                #     raise hir.ParsingError(stmt, f"expected single target")
-                # target = stmt.targets[0]
-                # var = self.parse_ref(target, new_var_hint='dsl')
-                # value = self.parse_expr(stmt.value)
-                # if isinstance(var, ComptimeValue):
-                #     if not isinstance(value, ComptimeValue):
-                #         raise hir.ParsingError(
-                #             stmt, f"comptime value cannot be assigned with DSL value")
-                #     var.update(value.value)
-                #     return None
-                # value = self.convert_to_value(value, span)
-                # assert value.type
-                # if var.type:
-                #     if not hir.is_type_compatible_to(value.type, var.type):
-                #         raise hir.ParsingError(
-                #             stmt, f"expected {var.type}, got {value.type}")
-                # else:
-                #     if not value.type.is_concrete():
-                #         raise hir.ParsingError(
-                #             stmt, "only concrete type can be assigned, please annotate the variable with type hint")
-                #     var.type = value.type
-                # self.cur_bb().append(hir.Assign(var, value, span))
                 assert len(stmt.targets) == 1
                 target = stmt.targets[0]
                 if isinstance(target, ast.Tuple):

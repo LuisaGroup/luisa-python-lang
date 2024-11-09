@@ -135,7 +135,7 @@ def builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
 
 
 def builtin(s: str) -> Callable[[_F], _F]:
-    def wrapper(func: _F) ->  _F:
+    def wrapper(func: _F) -> _F:
         setattr(func, "__luisa_builtin__", s)
         return func
     return wrapper
@@ -148,7 +148,6 @@ def _intrinsic_impl(*args, **kwargs) -> Any:
     )
 
 
-
 class _ObjKind(Enum):
     BUILTIN_TYPE = auto()
     STRUCT = auto()
@@ -156,7 +155,7 @@ class _ObjKind(Enum):
     KERNEL = auto()
 
 
-def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dict[str, Any], self_type: Optional[hir.Type] = None):
+def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dict[str, Any], foreign_type_var_ns: Dict[TypeVar, hir.Type | hir.ComptimeValue], self_type: Optional[hir.Type] = None):
     # parsing_ctx = _parse.ParsingContext(func_name, func_globals)
     # func_sig_parser = _parse.FuncParser(func_name, f, parsing_ctx, self_type)
     # func_sig = func_sig_parser.parsed_func
@@ -165,7 +164,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
 
     func_sig = classinfo.parse_func_signature(f, func_globals, [])
     func_sig_converted, sig_parser = parse.convert_func_signature(
-        func_sig, func_name, func_globals, {}, {}, self_type)
+        func_sig, func_name, func_globals, foreign_type_var_ns, {}, self_type)
     implicit_type_params = sig_parser.implicit_type_params
     implicit_generic_params: Set[hir.GenericParameter] = set()
     for p in implicit_type_params.values():
@@ -173,7 +172,8 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
         implicit_generic_params.add(p.param)
 
     def parsing_func(args: hir.FunctionTemplateResolvingArgs) -> hir.FunctionLike:
-        type_var_ns: Dict[TypeVar, hir.Type | hir.ComptimeValue] = {}
+        type_var_ns: Dict[TypeVar, hir.Type |
+                          hir.ComptimeValue] = foreign_type_var_ns.copy()
         mapped_implicit_type_params: Dict[str,
                                           hir.Type] = dict()
         if is_generic:
@@ -206,9 +206,13 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
         return func_parser.parse_body()
     params = [v[0] for v in func_sig.args]
     is_generic = len(func_sig_converted.generic_params) > 0
-    # print(f"func {func_name} is_generic: {is_generic}")
+    # print(
+        # f"func {func_name} is_generic: {is_generic} {func_sig_converted.generic_params}")
     return hir.FunctionTemplate(func_name, params, parsing_func, is_generic)
+
+
 _TT = TypeVar('_TT')
+
 
 def _dsl_func_impl(f: _TT, kind: _ObjKind, attrs: Dict[str, Any]) -> _TT:
     import sourceinspect
@@ -220,7 +224,7 @@ def _dsl_func_impl(f: _TT, kind: _ObjKind, attrs: Dict[str, Any]) -> _TT:
     func_globals: Any = getattr(f, "__globals__", {})
 
     if kind == _ObjKind.FUNC:
-        template = _make_func_template(f, func_name, func_globals)
+        template = _make_func_template(f, func_name, func_globals, {})
         ctx.functions[f] = template
         setattr(f, "__luisa_func__", template)
         return typing.cast(_TT, f)
@@ -236,30 +240,71 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any]) -> type[_TT]:
     cls_info = class_typeinfo(cls)
     globalns = _get_cls_globalns(cls)
     globalns[cls.__name__] = cls
+    type_var_to_generic_param: Dict[TypeVar, hir.GenericParameter] = {}
+    for type_var in cls_info.type_vars:
+        type_var_to_generic_param[type_var] = hir.GenericParameter(
+            type_var.__name__, cls.__qualname__)
 
-    def get_ir_type(var_ty: VarType) -> hir.Type:
-        if isinstance(var_ty, (UnionType, classinfo.AnyType, classinfo.SelfType)):
-            raise RuntimeError("Struct fields cannot be UnionType")
-        if isinstance(var_ty, TypeVar):
+    def parse_fields(tp: parse.TypeParser, self_ty: hir.Type):
+        fields: List[Tuple[str, hir.Type]] = []
+        for name, field in cls_info.fields.items():
+            field_ty = tp.parse_type(field)
+            if field_ty is None:
+                raise hir.TypeInferenceError(
+                    None, f"Cannot infer type for field {name} of {cls.__name__}")
+            fields.append((name, field_ty))
+        if isinstance(self_ty, hir.StructType):
+            self_ty.fields = fields
+        elif isinstance(self_ty, hir.BoundType):
+            assert isinstance(self_ty.instantiated, hir.StructType)
+            self_ty.instantiated.fields = fields
+        else:
             raise NotImplementedError()
-        if isinstance(var_ty, GenericInstance):
-            raise NotImplementedError()
-        return ctx.types[var_ty]
 
-    fields: List[Tuple[str, hir.Type]] = []
-    for name, field in cls_info.fields.items():
-        fields.append((name, get_ir_type(field)))
-    ir_ty = hir.StructType(
-        f'{cls.__name__}_{unique_hash(cls.__qualname__)}', cls.__qualname__, fields)
+    def parse_methods(type_var_ns: Dict[TypeVar, hir.Type | Any], self_ty: hir.Type):
+        for name in cls_info.methods:
+            method_object = getattr(cls, name)
+            template = _make_func_template(
+                method_object, get_full_name(method_object), globalns, type_var_ns, self_type=self_ty)
+            if isinstance(self_ty, hir.BoundType):
+                assert isinstance(self_ty.instantiated, hir.StructType)
+                self_ty.instantiated.methods[name] = template
+            else:
+                self_ty.methods[name] = template
+
+    ir_ty: hir.Type = hir.StructType(
+        f'{cls.__name__}_{unique_hash(cls.__qualname__)}', cls.__qualname__, [])
+    type_parser = parse.TypeParser(
+        cls.__qualname__, globalns, {}, ir_ty, 'parse')
+
+    parse_fields(type_parser, ir_ty)
+    is_generic = len(cls_info.type_vars) > 0
+    if is_generic:
+        def monomorphization_func(args: List[hir.Type | Any]) -> hir.Type:
+            assert isinstance(ir_ty, hir.ParametricType)
+            type_var_ns = {}
+            if len(args) != len(cls_info.type_vars):
+                raise hir.TypeInferenceError(
+                    None, f"Expected {len(cls_info.type_vars)} type arguments but got {len(args)}")
+            for i, arg in enumerate(args):
+                type_var_ns[cls_info.type_vars[i]] = arg
+            hash_s = unique_hash(f'{cls.__qualname__}_{args}')
+            inner_ty = hir.StructType(
+                f'{cls.__name__}_{hash_s}M', f'{cls.__qualname__}[{",".join([str(a) for a in args])}]', [])
+            mono_self_ty = hir.BoundType(ir_ty, args, inner_ty)
+            mono_type_parser = parse.TypeParser(
+                cls.__qualname__, globalns, type_var_ns, mono_self_ty, 'instantiate')
+            parse_fields(mono_type_parser, mono_self_ty)
+            parse_methods(type_var_ns, mono_self_ty)
+            return inner_ty
+        ir_ty = hir.ParametricType(
+            list(type_var_to_generic_param.values()), ir_ty, monomorphization_func)
+    else:
+        pass
     ctx.types[cls] = ir_ty
-
-    for name, method in cls_info.methods.items():
-        method_object = getattr(cls, name)
-        template = _make_func_template(
-            method_object, get_full_name(method_object), globalns, self_type=ir_ty)
-        ir_ty.methods[name] = template
+    if not is_generic:
+        parse_methods({},ir_ty)
     return cls
-
 
 
 def _dsl_decorator_impl(obj: _TT, kind: _ObjKind, attrs: Dict[str, Any]) -> _TT:
@@ -288,7 +333,9 @@ def struct(cls: type[_TT]) -> type[_TT]:
     """
     return _dsl_decorator_impl(cls, _ObjKind.STRUCT, {})
 
+
 _KernelType = TypeVar("_KernelType", bound=Callable[..., None])
+
 
 @overload
 def kernel(f: _KernelType) -> _KernelType: ...

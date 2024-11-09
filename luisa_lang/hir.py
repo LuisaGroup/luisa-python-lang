@@ -31,7 +31,7 @@ FunctionLike = Union["Function", "BuiltinFunction"]
 
 
 FunctionTemplateResolvingArgs = List[Tuple[str,
-                                           Union['Type', 'ComptimeValue']]]
+                                           Union['Type', Any]]]
 """
 [Function parameter name, Type or Value].
 The reason for using parameter name instead of GenericParameter is that python supports passing type[T] as a parameter,
@@ -52,7 +52,7 @@ class FunctionTemplate:
     """
     parsing_func: FunctionTemplateResolvingFunc
     __resolved: Dict[Tuple[Tuple[str,
-                                 Union['Type', 'ComptimeValue']], ...], FunctionLike]
+                                 Union['Type', Any]], ...], FunctionLike]
     is_generic: bool
     name: str
     params: List[str]
@@ -451,10 +451,16 @@ class StructType(Type):
         self._fields = fields
         self.display_name = display_name
         self._field_dict = {name: ty for name, ty in fields}
+        
 
     @property
     def fields(self) -> List[Tuple[str, Type]]:
         return self._fields
+    
+    @fields.setter
+    def fields(self, value: List[Tuple[str, Type]]) -> None:
+        self._fields = value
+        self._field_dict = {name: ty for name, ty in value}
 
     def size(self) -> int:
         return sum(field.size() for _, field in self.fields)
@@ -604,6 +610,7 @@ class SymbolicType(Type):
     def __repr__(self) -> str:
         return f"SymbolicType({self.param})"
 
+MonomorphizationFunc = Callable[[List[Type | Any]], Type]
 
 class ParametricType(Type):
     """
@@ -611,11 +618,27 @@ class ParametricType(Type):
     """
     params: List[GenericParameter]
     body: Type
+    monomorphification_cache: Dict[Tuple[Union['Type', Any], ...], 'Type']
+    monomorphification_func: Optional[MonomorphizationFunc]
 
-    def __init__(self, params: List[GenericParameter], body: Type) -> None:
+    def __init__(self, params: List[GenericParameter], 
+                 body: Type,
+                 monomorphification_func: MonomorphizationFunc | None = None) -> None:
         super().__init__()
         self.params = params
         self.body = body
+        self.monomorphification_func = monomorphification_func
+        self.monomorphification_cache = {}
+
+    def instantiate(self, args: List[Union[Type, Any]]) -> 'Type':
+        keys = tuple(args)
+        if keys in self.monomorphification_cache:
+            return self.monomorphification_cache[keys]
+        if self.monomorphification_func is not None:
+            ty = self.monomorphification_func(args)
+            self.monomorphification_cache[keys] = ty
+            return ty
+        raise RuntimeError("monomorphification_func is not set")
 
     def size(self) -> int:
         raise RuntimeError("ParametricType has no size")
@@ -627,10 +650,11 @@ class ParametricType(Type):
         return (
             isinstance(value, ParametricType)
             and value.params == self.params
+            and value.body == self.body
         )
 
     def __hash__(self) -> int:
-        return hash((ParametricType, tuple(self.params)))
+        return hash((ParametricType, tuple(self.params), self.body))
 
 
 class BoundType(Type):
@@ -638,11 +662,14 @@ class BoundType(Type):
     An instance of a parametric type, e.g. Foo[int]
     """
     generic: ParametricType
-    args: List[Union[Type, 'SymbolicConstant']]
+    args: List[Union[Type,  Any]]
+    instantiated: Optional[Type]
 
-    def __init__(self, generic: ParametricType, args: List[Union[Type, 'SymbolicConstant']]) -> None:
+    def __init__(self, generic: ParametricType, args: List[Union[Type,  Any]], instantiated: Optional[Type]=None) -> None:
+        super().__init__()
         self.generic = generic
         self.args = args
+        self.instantiated = instantiated
 
     def size(self) -> int:
         raise RuntimeError("don't call size on BoundedType")
@@ -657,6 +684,41 @@ class BoundType(Type):
             and value.args == self.args
         )
 
+    def __hash__(self):
+        return hash((BoundType, self.generic, tuple(self.args)))
+
+    @override
+    def member(self, field) -> Optional['Type']:
+        if self.instantiated is not None:
+            return self.instantiated.member(field)
+        else:
+            raise RuntimeError("member access on uninstantiated BoundType")
+
+    @override
+    def method(self, name) -> Optional[FunctionLike | FunctionTemplate]:
+        if self.instantiated is not None:
+            return self.instantiated.method(name)
+        else:
+            raise RuntimeError("method access on uninstantiated BoundType")
+
+class TypeConstructorType(Type):
+    inner: Type
+
+    def __init__(self, inner: Type) -> None:
+        super().__init__()
+        self.inner = inner
+
+    def size(self) -> int:
+        raise RuntimeError("TypeConstructorType has no size")
+    
+    def align(self) -> int:
+        raise RuntimeError("TypeConstructorType has no align")
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, TypeConstructorType) and value.inner == self.inner
+    
+    def __hash__(self) -> int:
+        return hash((TypeConstructorType, self.inner))
 
 class FunctionType(Type):
     func_like: FunctionLike | FunctionTemplate
@@ -841,9 +903,9 @@ class Constant(Value):
         return hash(self.value)
 
 
-class Ctor(Value):
+class TypeValue(Value):
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
-        super().__init__(ty, span)
+        super().__init__(TypeConstructorType(ty), span)
 
 
 class Alloca(Ref):
@@ -1129,7 +1191,7 @@ def match_template_args(
                         return unify(mapping[a.param], b)
                     if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
                         raise TypeInferenceError(None,
-                                                 "float/int literal cannot be used to infer generic type directly, wrap it with a concrete type")
+                                                 f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
                     mapping[a.param] = b
                     return
                 case VectorType():
@@ -1155,14 +1217,16 @@ def match_template_args(
                             None, f"expected {a}, got {b}")
                     unify(a.element, b.element)
                 case TupleType():
-                    if not isinstance(b, TupleType):
-                        raise TypeInferenceError(
-                            None, f"expected {a}, got {b}")
-                    if len(a.elements) != len(b.elements):
-                        raise TypeInferenceError(
-                            None, f"expected {a}, got {b}")
-                    for ea, eb in zip(a.elements, b.elements):
-                        unify(ea, eb)
+                    def do() -> None:
+                        if not isinstance(b, TupleType):
+                            raise TypeInferenceError(
+                                None, f"expected {a}, got {b}")
+                        if len(a.elements) != len(b.elements):
+                            raise TypeInferenceError(
+                                None, f"expected {a}, got {b}")
+                        for ea, eb in zip(a.elements, b.elements):
+                            unify(ea, eb)
+                    do()
                 case StructType():
                     raise RuntimeError(
                         "StructType should not appear in match_template_args")
@@ -1178,7 +1242,17 @@ def match_template_args(
                     #             None, f"field name mismatch,expected {a}, got {b}")
                     #     unify(ta, tb)
                 case BoundType():
-                    raise NotImplementedError()
+                    def do() -> None:
+                        if not isinstance(b, BoundType):
+                            raise TypeInferenceError(
+                                None, f"{b} is not a BoundType")
+                        if len(a.args) != len(b.args):
+                            raise TypeInferenceError(
+                                None, f"expected {len(a.args)} arguments, got {len(b.args)}")
+                        for ea, eb in zip(a.args, b.args):
+                            unify(ea, eb)
+                        unify(a.generic.body, b.generic.body)
+                    do()
                 case ParametricType():
                     raise RuntimeError(
                         "ParametricType should not appear in match_template_args")

@@ -134,6 +134,9 @@ def builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[_T], _T]:
     return decorator
 
 
+
+
+
 def builtin(s: str) -> Callable[[_F], _F]:
     def wrapper(func: _F) -> _F:
         setattr(func, "__luisa_builtin__", s)
@@ -207,7 +210,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
     params = [v[0] for v in func_sig.args]
     is_generic = len(func_sig_converted.generic_params) > 0
     # print(
-        # f"func {func_name} is_generic: {is_generic} {func_sig_converted.generic_params}")
+    # f"func {func_name} is_generic: {is_generic} {func_sig_converted.generic_params}")
     return hir.FunctionTemplate(func_name, params, parsing_func, is_generic)
 
 
@@ -303,7 +306,7 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any]) -> type[_TT]:
         pass
     ctx.types[cls] = ir_ty
     if not is_generic:
-        parse_methods({},ir_ty)
+        parse_methods({}, ir_ty)
     return cls
 
 

@@ -131,6 +131,21 @@ class Type(ABC):
     def __len__(self) -> int:
         return 1
 
+class AnyType(Type):
+    def size(self) -> int:
+        raise RuntimeError("AnyType has no size")
+
+    def align(self) -> int:
+        raise RuntimeError("AnyType has no align")
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, AnyType)
+
+    def __hash__(self) -> int:
+        return hash(AnyType)
+
+    def __str__(self) -> str:
+        return "AnyType"
 
 class UnitType(Type):
     def size(self) -> int:
@@ -807,7 +822,6 @@ class LocalRef(Ref):
 class Value(TypedNode):
     pass
 
-
 class Unit(Value):
     def __init__(self) -> None:
         super().__init__(UnitType())
@@ -907,7 +921,10 @@ class TypeValue(Value):
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
         super().__init__(TypeConstructorType(ty), span)
 
-
+    def inner_type(self) -> Type:
+        assert isinstance(self.type, TypeConstructorType)
+        return self.type.inner
+    
 class Alloca(Ref):
     """
     A temporary variable
@@ -915,6 +932,8 @@ class Alloca(Ref):
 
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
         super().__init__(ty, span)
+
+
 
 
 # class Init(Value):
@@ -931,6 +950,14 @@ class AggregateInit(Value):
         super().__init__(type, span)
         self.args = args
 
+class Intrinsic(Value):
+    name: str
+    args: List[Value]
+
+    def __init__(self, name: str, args: List[Value], type: Type, span: Optional[Span] = None) -> None:
+        super().__init__(type, span)
+        self.name = name
+        self.args = args
 
 class Call(Value):
     op: FunctionLike
@@ -1335,7 +1362,7 @@ def get_dsl_type(cls: type) -> Optional[Type]:
 
 
 def is_type_compatible_to(ty: Type, target: Type) -> bool:
-    if ty == target:
+    if ty == target or isinstance(ty, AnyType):
         return True
     if isinstance(target, FloatType):
         return isinstance(ty, GenericFloatType)

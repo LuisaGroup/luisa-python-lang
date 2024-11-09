@@ -24,8 +24,6 @@ import inspect
 from luisa_lang.hir import get_dsl_type, ComptimeValue
 import luisa_lang.classinfo as classinfo
 
-comptime: Any = None
-
 
 def _implicit_typevar_name(v: str) -> str:
     return f"T#{v}"
@@ -156,11 +154,14 @@ def convert_func_signature(signature: classinfo.MethodType,
     return hir.FunctionSignature(type_parser.generic_params, params, return_type), type_parser
 
 
-SPECIAL_FUNCTIONS: Set[Callable[..., Any]] = {
-    comptime,
-    reveal_type,
-    range
-}
+SPECIAL_FUNCTIONS_DICT: Dict[str, Callable[..., Any]] = {}
+SPECIAL_FUNCTIONS: Set[Callable[..., Any]] = set()
+
+
+def _add_special_function(name: str, f: Callable[..., Any]) -> None:
+    SPECIAL_FUNCTIONS_DICT[name] = f
+    SPECIAL_FUNCTIONS.add(f)
+
 
 NewVarHint = Literal[False, 'dsl', 'comptime']
 
@@ -390,7 +391,8 @@ class FuncParser:
                     case _:
                         type_args.append(parse_type_arg(expr.slice))
                 # print(f"Type args: {type_args}")
-                assert isinstance(value.type, hir.TypeConstructorType) and isinstance(value.type.inner, hir.ParametricType)
+                assert isinstance(value.type, hir.TypeConstructorType) and isinstance(
+                    value.type.inner, hir.ParametricType)
                 return hir.TypeValue(
                     hir.BoundType(value.type.inner, type_args, value.type.inner.instantiate(type_args)))
 
@@ -476,7 +478,23 @@ class FuncParser:
         raise NotImplementedError()  # unreachable
 
     def handle_special_functions(self, f: Callable[..., Any], expr: ast.Call) -> hir.Value | ComptimeValue:
-        if f is comptime:
+        if f is SPECIAL_FUNCTIONS_DICT['intrinsic']:
+            def do() -> hir.Intrinsic:
+                intrinsic_name = expr.args[0]
+                if not isinstance(intrinsic_name, ast.Constant) or not isinstance(intrinsic_name.value, str):
+                    raise hir.ParsingError(
+                        expr, "intrinsic function expects a string literal as its first argument")
+                args = [self.parse_expr(arg) for arg in expr.args[1:]]
+                ret_type = args[0]
+                if not isinstance(ret_type, hir.TypeValue):
+                    raise hir.ParsingError(
+                        expr, f"intrinsic function expects a type as its second argument but found {ret_type}")
+                if any([not isinstance(arg, hir.Value) for arg in args[1:]]):
+                    raise hir.ParsingError(
+                        expr, "intrinsic function expects values as its arguments")
+                return hir.Intrinsic(intrinsic_name.value, cast(List[hir.Value], args[1:]), ret_type.inner_type(), hir.Span.from_ast(expr))
+            return do()
+        elif f is SPECIAL_FUNCTIONS_DICT['comptime']:
             if len(expr.args) != 1:
                 raise hir.ParsingError(
                     expr, f"when used in expressions, lc.comptime function expects exactly one argument")
@@ -563,7 +581,7 @@ class FuncParser:
                         arg, hir.Span.from_ast(expr.args[i]))
             return cast(List[hir.Value | hir.Ref], args)
 
-        if isinstance(func.type, hir.TypeConstructorType): 
+        if isinstance(func.type, hir.TypeConstructorType):
             # TypeConstructorType is unique for each type
             # so if any value has this type, it must be referring to the same underlying type
             # even if it comes from a very complex expression, it's still fine

@@ -26,6 +26,13 @@ T = TypeVar("T")
 N = TypeVar("N", int, u32, u64)
 
 
+def intrinsic(name: str, ret_type: type[T], *args, **kwargs) -> T:
+    raise NotImplementedError(
+        "intrinsic functions should not be called in host-side Python code. "
+        "Did you mistakenly called a DSL function?"
+    )
+
+
 @builtin("dispatch_id")
 def dispatch_id() -> uint3:
     return _intrinsic_impl()
@@ -103,7 +110,10 @@ def comptime(a):
     return a
 
 
-parse.comptime = comptime
+parse._add_special_function("comptime", comptime)
+parse._add_special_function("intrinsic", intrinsic)
+parse._add_special_function("range", range)
+parse._add_special_function('reveal_type', typing.reveal_type)
 
 
 def static_assert(cond: Any, msg: str = ""):
@@ -160,6 +170,7 @@ class Array(Generic[T, N]):
     def __len__(self) -> u32 | u64:
         return _intrinsic_impl()
 
+
 def __buffer_ty():
     t = hir.GenericParameter("T", "luisa_lang.lang")
     return hir.ParametricType(
@@ -171,6 +182,8 @@ def __buffer_ty():
 #     #     "Buffer", [hir.TypeParameter(_t, bound=[])], hir.OpaqueType("Buffer")
 #     # )
 # )
+
+
 class Buffer(Generic[T]):
     def __getitem__(self, index: int | u32 | u64) -> T:
         return _intrinsic_impl()
@@ -216,4 +229,5 @@ __all__: List[str] = [
     "dispatch_id",
     "thread_id",
     "block_id",
+    "intrinsic",
 ]

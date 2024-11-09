@@ -312,6 +312,12 @@ class FuncCodeGen:
                         f"{ty} v{vid}{{ {','.join(self.gen_expr(e) for e in expr.args)} }};")
                 case hir.TypeValue():
                     pass
+                case hir.Intrinsic():
+                    intrin_name = expr.name.replace('.', '_')
+                    args_s = ','.join(self.gen_value_or_ref(
+                        arg) for arg in expr.args)
+                    self.body.writeln(
+                        f"auto v{vid} = __intrin__{intrin_name}({args_s});")
                 case _:
                     raise NotImplementedError(
                         f"unsupported expression: {expr}")

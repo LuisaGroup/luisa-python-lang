@@ -100,7 +100,8 @@ class TypeParser:
                 self.generic_param_to_type_var[p] = ty
                 return pt
             case classinfo.UnionType():
-                raise RuntimeError("UnionType is not supported")
+                # raise RuntimeError("UnionType is not supported")
+                return None
             case classinfo.SelfType():
                 assert self.self_type is not None
                 return self.self_type
@@ -108,7 +109,7 @@ class TypeParser:
                 return None
             case type():
                 dsl_type = get_dsl_type(ty)
-                assert dsl_type is not None
+                assert dsl_type is not None, f"Type {ty} is not a valid DSL type"
                 return dsl_type
 
 
@@ -486,6 +487,9 @@ class FuncParser:
                         expr, "intrinsic function expects a string literal as its first argument")
                 args = [self.parse_expr(arg) for arg in expr.args[1:]]
                 ret_type = args[0]
+                if isinstance(ret_type, ComptimeValue):
+                    ret_type = self.try_convert_comptime_value(
+                        ret_type, hir.Span.from_ast(expr.args[0]))
                 if not isinstance(ret_type, hir.TypeValue):
                     raise hir.ParsingError(
                         expr, f"intrinsic function expects a type as its second argument but found {ret_type}")
@@ -604,7 +608,7 @@ class FuncParser:
             return self.cur_bb().append(hir.Load(tmp))
         if func.type is not None and isinstance(func.type, hir.FunctionType):
             func_like = func.type.func_like
-        elif not isinstance(func, hir.Constant) or not isinstance(func.value, (hir.Function, hir.BuiltinFunction, hir.FunctionTemplate)):
+        elif not isinstance(func, hir.Constant) or not isinstance(func.value, (hir.Function, hir.FunctionTemplate)):
             raise hir.ParsingError(expr, f"function expected")
         else:
             func_like = func.value

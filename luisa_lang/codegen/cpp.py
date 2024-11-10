@@ -143,9 +143,6 @@ class Mangling:
                 params = list(filter(lambda p: not isinstance(
                     p.type, (hir.FunctionType)), params))
                 return f'{name}_' + unique_hash(f"F{name}_{self.mangle(ret)}{''.join(self.mangle(unwrap(p.type)) for p in params)}")
-            case hir.BuiltinFunction(name=name):
-                name = map_builtin_to_cpp_func(name)
-                return f"__builtin_{name}"
             case hir.StructType(name=name):
                 return name
             case hir.TupleType():
@@ -247,8 +244,6 @@ class FuncCodeGen:
     def gen_func(self, f: hir.FunctionLike) -> str:
         if isinstance(f, hir.Function):
             return self.base.gen_function(f)
-        elif isinstance(f, hir.BuiltinFunction):
-            return self.base.mangling.mangle(f)
         else:
             raise NotImplementedError(f"unsupported constant")
 
@@ -299,7 +294,7 @@ class FuncCodeGen:
                         self.body.writeln(f"const auto v{vid} = {s};")
                     elif isinstance(value, str):
                         self.body.writeln(f"const auto v{vid} = \"{value}\";")
-                    elif isinstance(value, hir.Function) or isinstance(value, hir.BuiltinFunction):
+                    elif isinstance(value, hir.Function):
                         name = self.gen_func(value)
                         self.body.writeln(f"auto&& v{vid} = {name};")
                     else:

@@ -1,5 +1,6 @@
 import inspect
 from types import NoneType
+import types
 import typing
 from typing import (
     Any,
@@ -188,10 +189,13 @@ def _get_cls_globalns(cls: type) -> Dict[str, Any]:
 
 
 def parse_type_hint(hint: Any) -> VarType:
+    # print(hint, type(hint))
     if hint is None:
         return NoneType
     if isinstance(hint, TypeVar):
         return hint
+    if isinstance(hint, types.UnionType):
+        return UnionType([parse_type_hint(arg) for arg in hint.__args__])
     origin = typing.get_origin(hint)
     if origin:
         if isinstance(origin, type):
@@ -202,6 +206,7 @@ def parse_type_hint(hint: Any) -> VarType:
             return UnionType([parse_type_hint(arg) for arg in typing.get_args(hint)])
         else:
             raise RuntimeError(f"Unsupported origin type: {origin}")
+   
     if isinstance(hint, type):
         return hint
     if hint == typing.Self:

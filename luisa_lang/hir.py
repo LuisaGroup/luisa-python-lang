@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 
 PATH_PREFIX = "luisa_lang"
 
-FunctionLike = Union["Function", "BuiltinFunction"]
+FunctionLike = Union["Function"]
 
 
 # @dataclass
@@ -88,7 +88,7 @@ class DynamicIndex:
 
 
 class Type(ABC):
-    methods: Dict[str, Union[FunctionTemplate, "BuiltinFunction"]]
+    methods: Dict[str, Union[FunctionLike]]
     is_builtin: bool
 
     def __init__(self):
@@ -1028,17 +1028,6 @@ class TypeInferenceError(SpannedError):
         return f"Type inference error at {self.span}:\n\t{self.message}"
 
 
-class BuiltinTypeRule:
-    check_fn: Callable[[List[Type]], Type]
-    semantics: List[ParameterSemantic]
-
-    def __init__(self, check_fn: Callable[[List[Type]], Type], semantics: List[ParameterSemantic]) -> None:
-        self.check_fn = check_fn
-
-    def infer(self, args: List[Type]) -> Type:
-        return self.check_fn(args)
-
-
 class Assign(Node):
     ref: Ref
     value: Value
@@ -1151,14 +1140,6 @@ class ComptimeValue:
     def __str__(self) -> str:
         return f"ComptimeValue({self.value})"
 
-
-class BuiltinFunction:
-    name: str
-    type_rule: BuiltinTypeRule
-
-    def __init__(self, name: str, type_rule: BuiltinTypeRule) -> None:
-        self.name = name
-        self.type_rule = type_rule
 
 
 class FunctionSignature:

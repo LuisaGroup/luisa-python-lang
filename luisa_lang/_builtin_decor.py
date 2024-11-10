@@ -24,21 +24,23 @@ from typing import (
     Any,
 )
 
+T = TypeVar('T')
 _T = TypeVar("_T", bound=type)
 _F = TypeVar("_F", bound=Callable[..., Any])
 
 
-
-def builtin(s: str) -> Callable[[_F], _F]:
-    def wrapper(func: _F) -> _F:
-        setattr(func, "__luisa_builtin__", s)
-        return func
-    return wrapper
-
-
-def _intrinsic_impl(*args, **kwargs) -> Any:
+def intrinsic(name: str, ret_type: type[T], *args, **kwargs) -> T:
     raise NotImplementedError(
         "intrinsic functions should not be called in host-side Python code. "
+        "Did you mistakenly called a DSL function?"
+    )
+
+
+def byref(value: T) -> T:
+    """pass a value by ref"""
+
+    raise NotImplementedError(
+        "byref should not be called in host-side Python code. "
         "Did you mistakenly called a DSL function?"
     )
 
@@ -128,7 +130,7 @@ def _dsl_func_impl(f: _TT, kind: _ObjKind, attrs: Dict[str, Any]) -> _TT:
         # return cast(_T, f)
 
 
-def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any]) -> type[_TT]:
+def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.Type | None = None) -> type[_TT]:
     ctx = hir.GlobalContext.get()
 
     register_class(cls)
@@ -166,13 +168,16 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any]) -> type[_TT]:
                 self_ty.instantiated.methods[name] = template
             else:
                 self_ty.methods[name] = template
+    ir_ty: hir.Type 
+    if ir_ty_override is not None:
+        ir_ty = ir_ty_override
+    else:
+        ir_ty = hir.StructType(
+            f'{cls.__name__}_{unique_hash(cls.__qualname__)}', cls.__qualname__, [])
+        type_parser = parse.TypeParser(
+            cls.__qualname__, globalns, {}, ir_ty, 'parse')
 
-    ir_ty: hir.Type = hir.StructType(
-        f'{cls.__name__}_{unique_hash(cls.__qualname__)}', cls.__qualname__, [])
-    type_parser = parse.TypeParser(
-        cls.__qualname__, globalns, {}, ir_ty, 'parse')
-
-    parse_fields(type_parser, ir_ty)
+        parse_fields(type_parser, ir_ty)
     is_generic = len(cls_info.type_vars) > 0
     if is_generic:
         def monomorphization_func(args: List[hir.Type | Any]) -> hir.Type:
@@ -228,6 +233,11 @@ def struct(cls: type[_TT]) -> type[_TT]:
     """
     return _dsl_decorator_impl(cls, _ObjKind.STRUCT, {})
 
+
+def builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[type[_TT]], _TT]:
+    def decorator(cls: type[_TT]) -> _TT:
+        return typing.cast(_TT, _dsl_struct_impl(cls, {}, ir_ty_override=ty))
+    return decorator
 
 _KernelType = TypeVar("_KernelType", bound=Callable[..., None])
 

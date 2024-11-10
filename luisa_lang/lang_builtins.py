@@ -19,46 +19,42 @@ from typing import (
     overload,
     Any,
 )
-from luisa_lang._builtin_decor import builtin, builtin_type, _intrinsic_impl
+from luisa_lang._builtin_decor import func, intrinsic
 from luisa_lang import parse
 
 T = TypeVar("T")
 N = TypeVar("N", int, u32, u64)
 
 
-def intrinsic(name: str, ret_type: type[T], *args, **kwargs) -> T:
-    raise NotImplementedError(
-        "intrinsic functions should not be called in host-side Python code. "
-        "Did you mistakenly called a DSL function?"
-    )
 
-
-@builtin("dispatch_id")
+@func
 def dispatch_id() -> uint3:
-    return _intrinsic_impl()
+    return intrinsic("dispatch_id", uint3)
 
 
-@builtin("thread_id")
+@func
 def thread_id() -> uint3:
-    return _intrinsic_impl()
+    return intrinsic("thread_id", uint3)
 
 
-@builtin("block_id")
+@func
 def block_id() -> uint3:
-    return _intrinsic_impl()
+    return intrinsic("block_id", uint3)
 
 
-@builtin("cast")
+
 def cast(target: type[T], value: Any) -> T:
     """
     Attempt to convert the value to the target type.
     """
-    return _intrinsic_impl()
+    return intrinsic("cast", target, value)
 
 
-@builtin("bitcast")
 def bitcast(target: type[T], value: Any) -> T:
-    return _intrinsic_impl()
+    """
+    Attempt to convert the value to the target type, preserving the bit representation.
+    """
+    return intrinsic("bitcast", target, value)
 
 
 class ComptimeBlock:
@@ -83,7 +79,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def instantiate(f: F, *args: List[type]) -> F:
-    return _intrinsic_impl()
+    raise NotImplementedError("instantiate should not be called in host-side Python code. ")
 
 
 @overload
@@ -114,6 +110,8 @@ parse._add_special_function("comptime", comptime)
 parse._add_special_function("intrinsic", intrinsic)
 parse._add_special_function("range", range)
 parse._add_special_function('reveal_type', typing.reveal_type)
+parse._add_special_function('cast', cast)
+parse._add_special_function('bitcast', bitcast)
 
 
 def static_assert(cond: Any, msg: str = ""):
@@ -124,9 +122,9 @@ def unroll(range_: Sequence[int]) -> Sequence[int]:
     return range_
 
 
-@builtin("address_of")
-def address_of(a: T) -> 'Pointer[T]':
-    return _intrinsic_impl()
+@func
+def address_of(a: T) -> u64:
+    return intrinsic("address_of", u64, a)
 
 # class StaticEval:
 #
@@ -157,25 +155,25 @@ _n = hir.SymbolicConstant(hir.GenericParameter(
 #         "Array", [hir.TypeParameter(_t, bound=[])], hir.ArrayType(_t, _n)
 #     )
 # )
-class Array(Generic[T, N]):
-    def __init__(self) -> None:
-        return _intrinsic_impl()
+# class Array(Generic[T, N]):
+#     def __init__(self) -> None:
+#         return _intrinsic_impl()
 
-    def __getitem__(self, index: int | u32 | u64) -> T:
-        return _intrinsic_impl()
+#     def __getitem__(self, index: int | u32 | u64) -> T:
+#         return _intrinsic_impl()
 
-    def __setitem__(self, index: int | u32 | u64, value: T) -> None:
-        return _intrinsic_impl()
+#     def __setitem__(self, index: int | u32 | u64, value: T) -> None:
+#         return _intrinsic_impl()
 
-    def __len__(self) -> u32 | u64:
-        return _intrinsic_impl()
+#     def __len__(self) -> u32 | u64:
+#         return _intrinsic_impl()
 
 
-def __buffer_ty():
-    t = hir.GenericParameter("T", "luisa_lang.lang")
-    return hir.ParametricType(
-        [t], hir.OpaqueType("Buffer"), None
-    )
+# def __buffer_ty():
+#     t = hir.GenericParameter("T", "luisa_lang.lang")
+#     return hir.ParametricType(
+#         [t], hir.OpaqueType("Buffer"), None
+#     )
 
 # @builtin_type(
 #     # hir.ParametricType(
@@ -184,15 +182,15 @@ def __buffer_ty():
 # )
 
 
-class Buffer(Generic[T]):
-    def __getitem__(self, index: int | u32 | u64) -> T:
-        return _intrinsic_impl()
+# class Buffer(Generic[T]):
+#     def __getitem__(self, index: int | u32 | u64) -> T:
+#         return _intrinsic_impl()
 
-    def __setitem__(self, index: int | u32 | u64, value: T) -> None:
-        return _intrinsic_impl()
+#     def __setitem__(self, index: int | u32 | u64, value: T) -> None:
+#         return _intrinsic_impl()
 
-    def __len__(self) -> u32 | u64:
-        return _intrinsic_impl()
+#     def __len__(self) -> u32 | u64:
+#         return _intrinsic_impl()
 
 
 # @builtin_type(
@@ -200,26 +198,26 @@ class Buffer(Generic[T]):
 #         "Pointer", [hir.TypeParameter(_t, bound=[])], hir.PointerType(_t)
 #     )
 # )
-class Pointer(Generic[T]):
-    def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> T:
-        return _intrinsic_impl()
+# class Pointer(Generic[T]):
+#     def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> T:
+#         return _intrinsic_impl()
 
-    def __setitem__(self, index: int | i32 | i64 | u32 | u64, value: T) -> None:
-        return _intrinsic_impl()
+#     def __setitem__(self, index: int | i32 | i64 | u32 | u64, value: T) -> None:
+#         return _intrinsic_impl()
 
-    @property
-    def value(self) -> T:
-        return _intrinsic_impl()
+#     @property
+#     def value(self) -> T:
+#         return _intrinsic_impl()
 
-    @value.setter
-    def value(self, value: T) -> None:
-        return _intrinsic_impl()
+#     @value.setter
+#     def value(self, value: T) -> None:
+#         return _intrinsic_impl()
 
 
 __all__: List[str] = [
-    'Pointer',
-    'Buffer',
-    'Array',
+    # 'Pointer',
+    # 'Buffer',
+    # 'Array',
     'comptime',
     'address_of',
     'unroll',

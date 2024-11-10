@@ -62,6 +62,14 @@ class TypeParser:
         self.mode = mode
 
     def parse_type(self, ty: classinfo.VarType) -> Optional[hir.Type]:
+        ty_or_bound = self.parse_type_ext(ty)
+        if ty_or_bound is None:
+            return None
+        if isinstance(ty_or_bound, hir.TypeBound):
+            raise RuntimeError("Expected a specific type but got generic type")
+        return ty_or_bound
+
+    def parse_type_ext(self, ty: classinfo.VarType) -> Optional[Union[hir.Type, hir.TypeBound]]:
         match ty:
             case classinfo.GenericInstance():
                 origin = ty.origin
@@ -101,12 +109,15 @@ class TypeParser:
                 return pt
             case classinfo.UnionType():
                 # raise RuntimeError("UnionType is not supported")
-                return None
+                variants = [self.parse_type(v) for v in ty.types]
+                if any(v is None for v in variants):
+                    raise RuntimeError("failed to parse union type variants")
+                return hir.UnionBound([hir.SubtypeBound(cast(hir.Type, v), True) for v in variants])
             case classinfo.SelfType():
                 assert self.self_type is not None
                 return self.self_type
             case classinfo.AnyType():
-                return None
+                return hir.AnyBound()
             case type():
                 dsl_type = get_dsl_type(ty)
                 assert dsl_type is not None, f"Type {ty} is not a valid DSL type"
@@ -129,19 +140,22 @@ def convert_func_signature(signature: classinfo.MethodType,
     type_parser.implicit_type_params = implicit_type_params
     params: List[Var] = []
     for arg in signature.args:
-        param_type = type_parser.parse_type(arg[1])
+        param_type = type_parser.parse_type_ext(arg[1])
         semantic = hir.ParameterSemantic.BYVAL
         if arg[0] == "self":
             assert self_type is not None
             param_type = self_type
             semantic = hir.ParameterSemantic.BYREF
-        if param_type is not None:
+        if param_type is None:
+            raise RuntimeError(
+                f"Unable to parse type of parameter {arg[0]}: {arg[1]}")
+        if isinstance(param_type, hir.Type):
             params.append(
                 Var(arg[0], param_type, span=None, semantic=semantic))
         else:
             if mode == 'parse':
                 gp = hir.GenericParameter(
-                    _implicit_typevar_name(arg[0]), ctx_name)
+                    _implicit_typevar_name(arg[0]), ctx_name, bound=param_type)
                 implicit_type_params[arg[0]] = hir.SymbolicType(gp)
                 type_parser.generic_params.append(gp)
             else:
@@ -149,9 +163,13 @@ def convert_func_signature(signature: classinfo.MethodType,
                     implicit_type_params[arg[0]], hir.SymbolicType)
             params.append(
                 Var(arg[0], implicit_type_params[arg[0]], span=None, semantic=semantic))
-    return_type = type_parser.parse_type(signature.return_type)
-    if return_type is not None:
-        return_type = return_type
+    return_type = type_parser.parse_type_ext(signature.return_type)
+    assert return_type is not None, f"failed to parse return type {signature.return_type}"
+    if isinstance(return_type, hir.AnyBound):
+        return_type = None
+    elif isinstance(return_type, hir.TypeBound):
+        raise NotImplementedError()
+    
     return hir.FunctionSignature(type_parser.generic_params, params, return_type), type_parser
 
 

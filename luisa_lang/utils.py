@@ -109,11 +109,14 @@ class Span:
                  getattr(ast, "end_col_offset", 0)),
         )
 
+
 def print_yellow(message: str) -> None:
     print(f"\033[33m{message}\033[0m")
 
+
 def print_red(message: str) -> None:
     print(f"\033[31m{message}\033[0m")
+
 
 def show_warning(message: str, span: Optional[Span] = None) -> None:
     if span is not None:
@@ -150,3 +153,7 @@ def checked_cast(t: type[T], obj: Any) -> T:
 
 def unique_hash(s: str) -> str:
     return sha256(s.encode()).hexdigest().upper()[:8]
+
+
+def round_to_align(s: int, a: int) -> int:
+    return s + (a - s % a) % a

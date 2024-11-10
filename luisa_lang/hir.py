@@ -16,7 +16,7 @@ from typing import (
 import typing
 from typing_extensions import override
 from luisa_lang import classinfo
-from luisa_lang.utils import Span
+from luisa_lang.utils import Span, round_to_align
 from abc import ABC, abstractmethod
 
 PATH_PREFIX = "luisa_lang"
@@ -306,31 +306,26 @@ class FloatType(ScalarType):
 class VectorType(Type):
     element: Type
     count: int
+    _align: int
+    _size: int
 
-    def __init__(self, element: Type, count: int) -> None:
+    def __init__(self, element: Type, count: int, align:int|None=None) -> None:
         super().__init__()
+        if align is None:
+            align = element.align()
         self.element = element
         self.count = count
+        self._align = align
+        assert (self.element.size() * self.count) % self._align == 0
+        self._size = round_to_align(self.element.size() * self.count, self._align)
 
-    def _special_size_align(self) -> Optional[Tuple[int, int]]:
-        if self.count != 3:
-            return None
-        if self.element.size() == 4:
-            return (16, 16)
-        return None
 
     def size(self) -> int:
-        special = self._special_size_align()
-        if special is not None:
-            return special[0]
-        return self.element.size() * self.count
+        return self._size
 
     def align(self) -> int:
-        special = self._special_size_align()
-        if special is not None:
-            return special[1]
-        return self.element.align()
-
+        return self._align
+    
     def __eq__(self, value: object) -> bool:
         return (
             isinstance(value, VectorType)
@@ -460,7 +455,7 @@ class StructType(Type):
     _field_dict: Dict[str, Type]
     # _monomorphification_cache: Dict[Tuple['GenericParameter', Type | 'Value'], Type]
 
-    def __init__(self, name: str,   display_name: str, fields: List[Tuple[str, Type]]) -> None:
+    def __init__(self, name: str, display_name: str, fields: List[Tuple[str, Type]]) -> None:
         super().__init__()
         self.name = name
         self._fields = fields
@@ -506,18 +501,24 @@ class StructType(Type):
 
 
 class TypeBound:
-    pass
+    @abstractmethod
+    def satisfied_by(self, ty: Type) -> bool:
+        pass
 
 
 class AnyBound(TypeBound):
-    pass
+    @override
+    def satisfied_by(self, ty: Type) -> bool:
+        return True
 
 
 class SubtypeBound(TypeBound):
     super_type: Type
+    exact_match: bool
 
-    def __init__(self, super_type: Type) -> None:
+    def __init__(self, super_type: Type, exact_match:bool) -> None:
         self.super_type = super_type
+        self.exact_match = exact_match
 
     def __repr__(self) -> str:
         return f"SubtypeBound({self.super_type})"
@@ -525,7 +526,13 @@ class SubtypeBound(TypeBound):
     def __eq__(self, value: object) -> bool:
         return isinstance(value, SubtypeBound) and value.super_type == self.super_type
 
-
+    @override
+    def satisfied_by(self, ty: Type) -> bool:
+        if self.exact_match:
+            return is_type_compatible_to(ty, self.super_type)
+        else:
+            raise NotImplementedError()
+    
 class UnionBound(TypeBound):
     bounds: List[SubtypeBound]
 
@@ -537,6 +544,10 @@ class UnionBound(TypeBound):
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, UnionBound) and value.bounds == self.bounds
+    
+    @override
+    def satisfied_by(self, ty: Type) -> bool:
+        return any(b.satisfied_by(ty) for b in self.bounds)
 
 
 class GenericParameter:
@@ -1199,9 +1210,18 @@ def match_template_args(
                 case SymbolicType():
                     if a.param.name in mapping:
                         return unify(mapping[a.param], b)
-                    if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
-                        raise TypeInferenceError(None,
-                                                 f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
+                    if a.param.bound is None:
+                        if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
+                            raise TypeInferenceError(None,
+                                                    f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
+                    else:
+                        if not a.param.bound.satisfied_by(b):
+                            raise TypeInferenceError(None, f"{b} does not satisfy bound {a.param.bound}")
+                        if isinstance(a.param.bound, UnionBound):
+                            for bound in a.param.bound.bounds:
+                                if bound.satisfied_by(b) and bound.super_type.is_concrete():
+                                    mapping[a.param] = bound.super_type
+                                    return
                     mapping[a.param] = b
                     return
                 case VectorType():

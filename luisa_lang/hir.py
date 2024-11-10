@@ -754,7 +754,6 @@ class FunctionType(Type):
     def align(self) -> int:
         raise RuntimeError("FunctionType has no align")
 
-
 class Node:
     """
     Base class for all nodes in the HIR. A node could be a value, a reference, or a statement.
@@ -1181,12 +1180,14 @@ class Function:
     export: bool
     locals: List[Var]
     complete: bool
+    is_method: bool
 
     def __init__(
         self,
         name: str,
         params: List[Var],
         return_type: Type | None,
+        is_method: bool,
     ) -> None:
         self.name = name
         self.params = params
@@ -1195,6 +1196,7 @@ class Function:
         self.export = False
         self.locals = []
         self.complete = False
+        self.is_method = is_method
 
 
 def match_template_args(

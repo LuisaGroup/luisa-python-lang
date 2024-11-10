@@ -198,7 +198,7 @@ class FuncParser:
             raise RuntimeError("Function definition expected.")
         self.func_def = obj_ast.body[0]
         self.vars = {}
-        self.parsed_func = hir.Function(name, [], None)
+        self.parsed_func = hir.Function(name, [], None, self_type is not None)
         self.type_var_ns = type_var_ns
         self.bb_stack = []
         self.break_and_continues = None

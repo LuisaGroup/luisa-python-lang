@@ -116,7 +116,7 @@ class Type(ABC):
             m = self.methods.get(field)
             if not m:
                 return None
-            return FunctionType(m)
+            return FunctionType(m, None)
         return None
 
     def method(self, name: str) -> Optional[FunctionLike | FunctionTemplate]:
@@ -130,6 +130,7 @@ class Type(ABC):
 
     def __len__(self) -> int:
         return 1
+
 
 class AnyType(Type):
     def size(self) -> int:
@@ -146,6 +147,7 @@ class AnyType(Type):
 
     def __str__(self) -> str:
         return "AnyType"
+
 
 class UnitType(Type):
     def size(self) -> int:
@@ -309,7 +311,7 @@ class VectorType(Type):
     _align: int
     _size: int
 
-    def __init__(self, element: Type, count: int, align:int|None=None) -> None:
+    def __init__(self, element: Type, count: int, align: int | None = None) -> None:
         super().__init__()
         if align is None:
             align = element.align()
@@ -317,15 +319,15 @@ class VectorType(Type):
         self.count = count
         self._align = align
         assert (self.element.size() * self.count) % self._align == 0
-        self._size = round_to_align(self.element.size() * self.count, self._align)
-
+        self._size = round_to_align(
+            self.element.size() * self.count, self._align)
 
     def size(self) -> int:
         return self._size
 
     def align(self) -> int:
         return self._align
-    
+
     def __eq__(self, value: object) -> bool:
         return (
             isinstance(value, VectorType)
@@ -461,12 +463,11 @@ class StructType(Type):
         self._fields = fields
         self.display_name = display_name
         self._field_dict = {name: ty for name, ty in fields}
-        
 
     @property
     def fields(self) -> List[Tuple[str, Type]]:
         return self._fields
-    
+
     @fields.setter
     def fields(self, value: List[Tuple[str, Type]]) -> None:
         self._fields = value
@@ -516,7 +517,7 @@ class SubtypeBound(TypeBound):
     super_type: Type
     exact_match: bool
 
-    def __init__(self, super_type: Type, exact_match:bool) -> None:
+    def __init__(self, super_type: Type, exact_match: bool) -> None:
         self.super_type = super_type
         self.exact_match = exact_match
 
@@ -532,7 +533,8 @@ class SubtypeBound(TypeBound):
             return is_type_compatible_to(ty, self.super_type)
         else:
             raise NotImplementedError()
-    
+
+
 class UnionBound(TypeBound):
     bounds: List[SubtypeBound]
 
@@ -544,7 +546,7 @@ class UnionBound(TypeBound):
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, UnionBound) and value.bounds == self.bounds
-    
+
     @override
     def satisfied_by(self, ty: Type) -> bool:
         return any(b.satisfied_by(ty) for b in self.bounds)
@@ -636,7 +638,9 @@ class SymbolicType(Type):
     def __repr__(self) -> str:
         return f"SymbolicType({self.param})"
 
+
 MonomorphizationFunc = Callable[[List[Type | Any]], Type]
+
 
 class ParametricType(Type):
     """
@@ -647,7 +651,7 @@ class ParametricType(Type):
     monomorphification_cache: Dict[Tuple[Union['Type', Any], ...], 'Type']
     monomorphification_func: Optional[MonomorphizationFunc]
 
-    def __init__(self, params: List[GenericParameter], 
+    def __init__(self, params: List[GenericParameter],
                  body: Type,
                  monomorphification_func: MonomorphizationFunc | None = None) -> None:
         super().__init__()
@@ -691,7 +695,7 @@ class BoundType(Type):
     args: List[Union[Type,  Any]]
     instantiated: Optional[Type]
 
-    def __init__(self, generic: ParametricType, args: List[Union[Type,  Any]], instantiated: Optional[Type]=None) -> None:
+    def __init__(self, generic: ParametricType, args: List[Union[Type,  Any]], instantiated: Optional[Type] = None) -> None:
         super().__init__()
         self.generic = generic
         self.args = args
@@ -727,6 +731,7 @@ class BoundType(Type):
         else:
             raise RuntimeError("method access on uninstantiated BoundType")
 
+
 class TypeConstructorType(Type):
     inner: Type
 
@@ -736,34 +741,40 @@ class TypeConstructorType(Type):
 
     def size(self) -> int:
         raise RuntimeError("TypeConstructorType has no size")
-    
+
     def align(self) -> int:
         raise RuntimeError("TypeConstructorType has no align")
-    
+
     def __eq__(self, value: object) -> bool:
         return isinstance(value, TypeConstructorType) and value.inner == self.inner
-    
+
     def __hash__(self) -> int:
         return hash((TypeConstructorType, self.inner))
 
+
 class FunctionType(Type):
     func_like: FunctionLike | FunctionTemplate
+    bound_object: Optional['Ref']
 
-    def __init__(self, func_like: FunctionLike | FunctionTemplate) -> None:
+    def __init__(self, func_like: FunctionLike | FunctionTemplate, bound_object: Optional['Ref']) -> None:
         super().__init__()
         self.func_like = func_like
+        self.bound_object = bound_object
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, FunctionType) and value.func_like is self.func_like
+        if self.bound_object is not None:
+            return value is self
+        return isinstance(value, FunctionType) and value.func_like is self.func_like and value.bound_object is None
 
     def __hash__(self) -> int:
-        return hash((FunctionType, id(self.func_like)))
+        return hash((FunctionType, id(self.func_like), id(self.bound_object)))
 
     def size(self) -> int:
         raise RuntimeError("FunctionType has no size")
 
     def align(self) -> int:
         raise RuntimeError("FunctionType has no align")
+
 
 class Node:
     """
@@ -831,6 +842,7 @@ class LocalRef(Ref):
 
 class Value(TypedNode):
     pass
+
 
 class Unit(Value):
     def __init__(self) -> None:
@@ -926,6 +938,15 @@ class Constant(Value):
     def __hash__(self) -> int:
         return hash(self.value)
 
+# class FunctionValue(Value):
+#     func: FunctionLike | FunctionTemplate
+#     bounded_object: Optional[Ref]
+
+#     def __init__(self, func: FunctionLike | FunctionTemplate,  bounded_object: Optional[Ref], span: Optional[Span] = None) -> None:
+#         super().__init__(FunctionType(func, bounded_object is not None), span)
+#         self.func = func
+#         self.bounded_object = bounded_object
+
 
 class TypeValue(Value):
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
@@ -934,7 +955,8 @@ class TypeValue(Value):
     def inner_type(self) -> Type:
         assert isinstance(self.type, TypeConstructorType)
         return self.type.inner
-    
+
+
 class Alloca(Ref):
     """
     A temporary variable
@@ -942,8 +964,6 @@ class Alloca(Ref):
 
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
         super().__init__(ty, span)
-
-
 
 
 # class Init(Value):
@@ -960,6 +980,7 @@ class AggregateInit(Value):
         super().__init__(type, span)
         self.args = args
 
+
 class Intrinsic(Value):
     name: str
     args: List[Value]
@@ -968,6 +989,13 @@ class Intrinsic(Value):
         super().__init__(type, span)
         self.name = name
         self.args = args
+
+    def __str__(self) -> str:
+        return f'Intrinsic({self.name}, {self.args})'
+
+    def __repr__(self) -> str:
+        return f'Intrinsic({self.name}, {self.args})'
+
 
 class Call(Value):
     op: FunctionLike
@@ -1152,7 +1180,6 @@ class ComptimeValue:
         return f"ComptimeValue({self.value})"
 
 
-
 class FunctionSignature:
     params: List[Var]
     return_type: Type | None
@@ -1213,10 +1240,11 @@ def match_template_args(
                     if a.param.bound is None:
                         if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
                             raise TypeInferenceError(None,
-                                                    f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
+                                                     f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
                     else:
                         if not a.param.bound.satisfied_by(b):
-                            raise TypeInferenceError(None, f"{b} does not satisfy bound {a.param.bound}")
+                            raise TypeInferenceError(
+                                None, f"{b} does not satisfy bound {a.param.bound}")
                         if isinstance(a.param.bound, UnionBound):
                             for bound in a.param.bound.bounds:
                                 if bound.satisfied_by(b) and bound.super_type.is_concrete():

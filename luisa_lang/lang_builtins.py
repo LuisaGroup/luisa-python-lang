@@ -1,5 +1,6 @@
 
 
+import types
 from luisa_lang.math_types import *
 import luisa_lang.hir as hir
 import typing
@@ -26,7 +27,6 @@ T = TypeVar("T")
 N = TypeVar("N", int, u32, u64)
 
 
-
 @func
 def dispatch_id() -> uint3:
     return intrinsic("dispatch_id", uint3)
@@ -40,7 +40,6 @@ def thread_id() -> uint3:
 @func
 def block_id() -> uint3:
     return intrinsic("block_id", uint3)
-
 
 
 def cast(target: type[T], value: Any) -> T:
@@ -79,7 +78,8 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def instantiate(f: F, *args: List[type]) -> F:
-    raise NotImplementedError("instantiate should not be called in host-side Python code. ")
+    raise NotImplementedError(
+        "instantiate should not be called in host-side Python code. ")
 
 
 @overload
@@ -105,6 +105,21 @@ def comptime(a):
         return ComptimeBlock()
     return a
 
+@func
+def trap() -> None:
+    """
+    Aborts the kernel execution
+    """
+    intrinsic("trap", types.NoneType)
+
+
+def device_assert(cond: bool, msg: str = "") -> typing.NoReturn:
+    """
+    Assert that the condition is true at runtime.
+    """
+    raise NotImplementedError(
+        "device_assert should not be called in host-side Python code. ")
+
 
 parse._add_special_function("comptime", comptime)
 parse._add_special_function("intrinsic", intrinsic)
@@ -112,6 +127,7 @@ parse._add_special_function("range", range)
 parse._add_special_function('reveal_type', typing.reveal_type)
 parse._add_special_function('cast', cast)
 parse._add_special_function('bitcast', bitcast)
+parse._add_special_function('device_assert', device_assert)
 
 
 def static_assert(cond: Any, msg: str = ""):
@@ -228,4 +244,8 @@ __all__: List[str] = [
     "thread_id",
     "block_id",
     "intrinsic",
+    'cast',
+    'bitcast',
+    'device_assert',
+    'trap',
 ]

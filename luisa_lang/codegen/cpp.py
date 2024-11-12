@@ -250,12 +250,17 @@ class FuncCodeGen:
     def gen_value_or_ref(self, value: hir.Value | hir.Ref) -> str:
         match value:
             case hir.Value() as value:
-                return self.gen_expr(value)
+                return self.gen_node_checked(value)
             case hir.Ref() as ref:
                 return self.gen_ref(ref)
             case _:
                 raise NotImplementedError(
                     f"unsupported value or reference: {value}")
+
+    def gen_node_checked(self, node: hir.Node) -> str:
+        if isinstance(node, hir.Constant):
+            return self.gen_expr(node)
+        return self.node_map[node]
 
     def gen_expr(self, expr: hir.Value) -> str:
         if expr.type and isinstance(expr.type, hir.FunctionType):
@@ -268,7 +273,7 @@ class FuncCodeGen:
             match expr:
                 case hir.Load() as load:
                     self.body.writeln(
-                        f"const auto &v{vid} = {self.gen_ref(load.ref)};")
+                        f"const auto &v{vid} = {self.gen_ref(load.ref)}; // load")
                 case hir.Index() as index:
                     base = self.gen_expr(index.base)
                     idx = self.gen_expr(index.index)
@@ -326,24 +331,29 @@ class FuncCodeGen:
         match node:
             case hir.Return() as ret:
                 if ret.value:
-                    self.body.writeln(f"return {self.gen_expr(ret.value)};")
+                    self.body.writeln(
+                        f"return {self.gen_node_checked(ret.value)};")
                 else:
                     self.body.writeln("return;")
             case hir.Assign() as assign:
+                if isinstance(assign.ref.type, (hir.FunctionType, hir.TypeConstructorType)):
+                    return None
                 ref = self.gen_ref(assign.ref)
-                value = self.gen_expr(assign.value)
+                value = self.gen_node_checked(assign.value)
                 self.body.writeln(f"{ref} = {value};")
             case hir.If() as if_stmt:
-                cond = self.gen_expr(if_stmt.cond)
-                self.body.writeln(f"if ({cond})")
+                cond = self.gen_node_checked(if_stmt.cond)
+                self.body.writeln(f"if ({cond}) {{")
                 self.body.indent += 1
                 self.gen_bb(if_stmt.then_body)
                 self.body.indent -= 1
+                self.body.writeln("}")
                 if if_stmt.else_body:
-                    self.body.writeln("else")
+                    self.body.writeln("else {")
                     self.body.indent += 1
                     self.gen_bb(if_stmt.else_body)
                     self.body.indent -= 1
+                    self.body.writeln("}")
                 return if_stmt.merge
             case hir.Break():
                 self.body.writeln("__loop_break = true; break;")
@@ -369,7 +379,7 @@ class FuncCodeGen:
                 self.body.writeln("bool __loop_break = false;")
                 self.gen_bb(loop.prepare)
                 if loop.cond:
-                    cond = self.gen_expr(loop.cond)
+                    cond = self.gen_node_checked(loop.cond)
                     self.body.writeln(f"if (!{cond}) break;")
                 self.body.writeln("do {")
                 self.body.indent += 1
@@ -388,7 +398,7 @@ class FuncCodeGen:
                 ty = self.base.type_cache.gen(alloca.type)
                 self.body.writeln(f"{ty} v{vid}{{}};")
                 self.node_map[alloca] = f"v{vid}"
-            case hir.Call() | hir.Constant() | hir.Load() | hir.Index() | hir.Member():
+            case hir.AggregateInit() | hir.Intrinsic() | hir.Call() | hir.Constant() | hir.Load() | hir.Index() | hir.Member():
                 self.gen_expr(node)
             case hir.Member() | hir.Index():
                 pass
@@ -413,6 +423,8 @@ class FuncCodeGen:
     def gen_locals(self):
         for local in self.func.locals:
             if local.name in self.params:
+                continue
+            if isinstance(local.type, (hir.FunctionType, hir.TypeConstructorType)):
                 continue
             assert (
                 local.type

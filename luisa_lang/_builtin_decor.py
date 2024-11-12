@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any, Callable, List, Optional, Set, TypeVar
 import typing
 from luisa_lang import hir
@@ -32,6 +33,14 @@ _F = TypeVar("_F", bound=Callable[..., Any])
 def intrinsic(name: str, ret_type: type[T], *args, **kwargs) -> T:
     raise NotImplementedError(
         "intrinsic functions should not be called in host-side Python code. "
+        "Did you mistakenly called a DSL function?"
+    )
+
+def byval(value: T) -> T:
+    """pass a value by value"""
+
+    raise NotImplementedError(
+        "byval should not be called in host-side Python code. "
         "Did you mistakenly called a DSL function?"
     )
 
@@ -168,7 +177,7 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
                 self_ty.instantiated.methods[name] = template
             else:
                 self_ty.methods[name] = template
-    ir_ty: hir.Type 
+    ir_ty: hir.Type
     if ir_ty_override is not None:
         ir_ty = ir_ty_override
     else:
@@ -239,6 +248,7 @@ def builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[type[_TT]], _TT]:
         return typing.cast(_TT, _dsl_struct_impl(cls, {}, ir_ty_override=ty))
     return decorator
 
+
 _KernelType = TypeVar("_KernelType", bound=Callable[..., None])
 
 
@@ -269,8 +279,29 @@ class InoutMarker:
         self.value = value
 
 
-inout = InoutMarker("inout")
-out = InoutMarker("out")
+class FuncProperties:
+    inline: bool | Literal["always"]
+    export: bool
+    byref: Set[str]
+
+    def __ini__(self, **kwargs):
+        self.byref = set()
+        inline = kwargs.get("inline", False)
+        if isinstance(inline, bool):
+            self.inline = inline
+        elif inline == "always":
+            self.inline = "always"
+        else:
+            raise ValueError(f"invalid value for inline: {inline}")
+
+        self.export = kwargs.get("export", False)
+        if not isinstance(self.export, bool):
+            raise ValueError(f"export should be a bool")
+
+        for k, v in kwargs.items():
+            if k not in ["inline", "export"]:
+                if v is byref:
+                    self.byref.add(k)
 
 
 @overload
@@ -278,18 +309,17 @@ def func(f: _F) -> _F: ...
 
 
 @overload
-def func(inline: bool | Literal["always"]
-         = False, **kwargs) -> Callable[[_F], _F]: ...
+def func(**kwargs) -> Callable[[_F], _F]: ...
 
 
 def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
     """
     Mark a function as a DSL function.
-    To mark an argument as inout/out, use the `var=inout` syntax in decorator arguments.
+    To mark an argument as byref, use the `var=byref` syntax in decorator arguments.
 
     Example:
     ```python
-    @luisa.func(a=inout, b=inout)
+    @luisa.func(a=byref, b=byref)
     def swap(a: int, b: int):
         a, b = b, a
     ```

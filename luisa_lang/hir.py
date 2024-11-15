@@ -1072,6 +1072,7 @@ class Assign(Node):
     value: Value
 
     def __init__(self, ref: Ref, value: Value, span: Optional[Span] = None) -> None:
+        assert not isinstance(value.type, (FunctionType, TypeConstructorType))  
         super().__init__(span)
         self.ref = ref
         self.value = value

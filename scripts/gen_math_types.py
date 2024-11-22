@@ -52,7 +52,7 @@ def main() -> None:
         print("# fmt: off")
         print("import typing as tp")
         print(
-            "from luisa_lang._builtin_decor import intrinsic, func, builtin_type",
+            "from luisa_lang._builtin_decor import intrinsic, func, builtin_type, byref",
         )
         print(
             "from luisa_lang.classinfo import register_class",
@@ -63,10 +63,12 @@ def main() -> None:
         def gen_float_builtins():
             print("class FloatBuiltin(tp.Generic[_F]):")
             for builtin in FLOAT_BULTINS_1:
-                print(f"    def {builtin}(self: _F) -> _F: return intrinsic('{builtin}', _F) # type: ignore")
+                print("    @func(inline='always')")
+                print(f"    def {builtin}(self: _F) -> _F: return intrinsic('math.{builtin}', _F, self) # type: ignore")
             for builtin in FLOAT_BULTINS_2:
+                print("    @func(inline='always')")
                 print(
-                    f"    def {builtin}(self: _F, _other: _F) -> _F: return intrinsic('{builtin}', _F) # type: ignore"
+                    f"    def {builtin}(self: _F, _other: _F) -> _F: return intrinsic('math.{builtin}', _F, self, other) # type: ignore"
                 )
             print("")
             for builtin in FLOAT_BULTINS_1:
@@ -79,17 +81,19 @@ def main() -> None:
                 )
             print("register_class(FloatBuiltin)")
 
-        def gen_binop(op: str, ty: str, operand_ty: str):
+        def gen_binop(op: str, ty: str, operand_ty: str, inplace=False):
             print(
                 f"""
-    def {op}(self, _other: {operand_ty}) -> '{ty}': return intrinsic("{op}.{ty}",  {ty},  _other)
+    @func(inline='always')
+    def {op}(self, _other: {operand_ty}) -> '{ty}': return intrinsic("binop.{op}.{ty}",  {ty},  {'self' if not inplace else 'byref(self)'}, _other)
 """
             )
 
         def gen_cmpop(op: str, ty: str, operand_ty: str,retrun_ty:str):
             print(
                 f"""
-    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return intrinsic("{op}.{ty}",  {retrun_ty},  _other) # type: ignore[override]
+    @func(inline='always')
+    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return intrinsic("cmp.{op}.{ty}",  {retrun_ty},  self, _other) # type: ignore[override]
 """
             )
 
@@ -99,7 +103,7 @@ def main() -> None:
                 gen_binop(f"__r{op}__", ty, operand_ty)
                 # gen in-place version
                 if inplace:
-                    gen_binop(f"__i{op}__", ty, operand_ty)
+                    gen_binop(f"__i{op}__", ty, operand_ty, inplace=True)
 
             if kind != Kind.BOOL:
                 gen("add")
@@ -129,7 +133,8 @@ def main() -> None:
         def gen_unaryop(op: str, ty: str):
             print(
                 f"""
-    def __{op}__(self) -> '{ty}': return intrinsic("{op}.{ty}",  {ty})
+    @func(inline='always')
+    def __{op}__(self) -> '{ty}': return intrinsic("unary.__{op}__.{ty}",  {ty}, self)
 """)
 
         def gen_scalar_type(ty: str, literal_ty: str, kind: Kind):
@@ -148,6 +153,7 @@ def main() -> None:
             print(
                 f"""@builtin_type({hir_ty})
 class {ty}{inherits_str}:
+    @func(inline='always')
     def __init__(self, _value: tp.Union['{ty}', {literal_ty}]) -> None:
         self = intrinsic("init.{ty}",  {ty},  _value)
 """

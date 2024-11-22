@@ -3,7 +3,7 @@ from typing import Any, Callable, List, Optional, Set, TypeVar
 import typing
 from luisa_lang import hir
 import inspect
-from luisa_lang.utils import get_full_name, get_union_args, unique_hash
+from luisa_lang.utils import get_full_name, get_union_args, unique_hash, unwrap
 from luisa_lang.classinfo import MethodType, VarType, GenericInstance, UnionType,  _get_cls_globalns, register_class, class_typeinfo
 from enum import auto, Enum
 from luisa_lang import classinfo, parse
@@ -36,8 +36,9 @@ def intrinsic(name: str, ret_type: type[T], *args, **kwargs) -> T:
         "Did you mistakenly called a DSL function?"
     )
 
+
 def byval(value: T) -> T:
-    """pass a value by value"""
+    """pass a value by value, this is only a marker and should not be called"""
 
     raise NotImplementedError(
         "byval should not be called in host-side Python code. "
@@ -46,12 +47,18 @@ def byval(value: T) -> T:
 
 
 def byref(value: T) -> T:
-    """pass a value by ref"""
+    """pass a value by ref, this is only a marker and should not be called"""
 
     raise NotImplementedError(
         "byref should not be called in host-side Python code. "
         "Did you mistakenly called a DSL function?"
     )
+
+
+def _is_method(f):
+    if inspect.ismethod(f):
+        return True
+    return inspect.isfunction(f) and hasattr(f, '__qualname__') and '.' in f.__qualname__
 
 
 class _ObjKind(Enum):
@@ -61,14 +68,15 @@ class _ObjKind(Enum):
     KERNEL = auto()
 
 
-def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dict[str, Any], foreign_type_var_ns: Dict[TypeVar, hir.Type | hir.ComptimeValue], self_type: Optional[hir.Type] = None):
+def _make_func_template(f: Callable[..., Any], func_name: str, func_sig: Optional[MethodType], func_globals: Dict[str, Any], foreign_type_var_ns: Dict[TypeVar, hir.Type | hir.ComptimeValue], props: hir.FuncProperties, self_type: Optional[hir.Type] = None):
     # parsing_ctx = _parse.ParsingContext(func_name, func_globals)
     # func_sig_parser = _parse.FuncParser(func_name, f, parsing_ctx, self_type)
     # func_sig = func_sig_parser.parsed_func
     # params = [v.name for v in func_sig_parser.params]
     # is_generic = func_sig_parser.p_ctx.type_vars != {}
+    if func_sig is None:
+        func_sig = classinfo.parse_func_signature(f, func_globals, [])
 
-    func_sig = classinfo.parse_func_signature(f, func_globals, [])
     func_sig_converted, sig_parser = parse.convert_func_signature(
         func_sig, func_name, func_globals, foreign_type_var_ns, {}, self_type)
     implicit_type_params = sig_parser.implicit_type_params
@@ -82,6 +90,10 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
                           hir.ComptimeValue] = foreign_type_var_ns.copy()
         mapped_implicit_type_params: Dict[str,
                                           hir.Type] = dict()
+        assert func_sig is not None
+        type_parser = parse.TypeParser(func_name, func_globals, type_var_ns, self_type, 'instantiate')
+        for (tv, t) in func_sig.env.items():
+            type_var_ns[tv] = unwrap(type_parser.parse_type(t))
         if is_generic:
             mapping = hir.match_func_template_args(func_sig_converted, args)
             if isinstance(mapping, hir.TypeInferenceError):
@@ -103,13 +115,20 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_globals: Dic
                 mapped_type = mapping[gp]
                 assert isinstance(mapped_type, hir.Type)
                 mapped_implicit_type_params[name] = mapped_type
+        
         func_sig_instantiated, _p = parse.convert_func_signature(
             func_sig, func_name, func_globals, type_var_ns, mapped_implicit_type_params, self_type, mode='instantiate')
+        # print(func_name, func_sig)
         assert len(
             func_sig_instantiated.generic_params) == 0, f"generic params should be resolved but found {func_sig_instantiated.generic_params}"
+        assert not isinstance(
+            func_sig_instantiated.return_type, hir.SymbolicType)
         func_parser = parse.FuncParser(
             func_name, f, func_sig_instantiated, func_globals, type_var_ns, self_type)
-        return func_parser.parse_body()
+        ret = func_parser.parse_body()
+        ret.inline_hint = props.inline
+        ret.export = props.export
+        return ret
     params = [v[0] for v in func_sig.args]
     is_generic = len(func_sig_converted.generic_params) > 0
     # print(
@@ -124,13 +143,17 @@ def _dsl_func_impl(f: _TT, kind: _ObjKind, attrs: Dict[str, Any]) -> _TT:
     import sourceinspect
     assert inspect.isfunction(f), f"{f} is not a function"
     # print(hir.GlobalContext.get)
-
     ctx = hir.GlobalContext.get()
     func_name = get_full_name(f)
     func_globals: Any = getattr(f, "__globals__", {})
-
+    props = _parse_func_kwargs(attrs)
+    is_method = _is_method(f)
+    setattr(f, '__luisa_func_props__', props)
+    if is_method:
+        return typing.cast(_TT, f)
     if kind == _ObjKind.FUNC:
-        template = _make_func_template(f, func_name, func_globals, {})
+        template = _make_func_template(
+            f, func_name, None, func_globals, {}, props)
         ctx.functions[f] = template
         setattr(f, "__luisa_func__", template)
         return typing.cast(_TT, f)
@@ -167,11 +190,16 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
         else:
             raise NotImplementedError()
 
-    def parse_methods(type_var_ns: Dict[TypeVar, hir.Type | Any], self_ty: hir.Type):
+    def parse_methods(type_var_ns: Dict[TypeVar, hir.Type | Any], self_ty: hir.Type,):
         for name in cls_info.methods:
             method_object = getattr(cls, name)
+            props: hir.FuncProperties
+            if hasattr(method_object, '__luisa_func_props__'):
+                props = getattr(method_object, '__luisa_func_props__')
+            else:
+                props = hir.FuncProperties()
             template = _make_func_template(
-                method_object, get_full_name(method_object), globalns, type_var_ns, self_type=self_ty)
+                method_object, get_full_name(method_object), cls_info.methods[name], globalns, type_var_ns, props, self_type=self_ty)
             if isinstance(self_ty, hir.BoundType):
                 assert isinstance(self_ty.instantiated, hir.StructType)
                 self_ty.instantiated.methods[name] = template
@@ -279,29 +307,26 @@ class InoutMarker:
         self.value = value
 
 
-class FuncProperties:
-    inline: bool | Literal["always"]
-    export: bool
-    byref: Set[str]
+def _parse_func_kwargs(kwargs: Dict[str, Any]) -> hir.FuncProperties:
+    props = hir.FuncProperties()
+    props.byref = set()
+    inline = kwargs.get("inline", False)
+    if isinstance(inline, bool):
+        props.inline = inline
+    elif inline == "always":
+        props.inline = "always"
+    else:
+        raise ValueError(f"invalid value for inline: {inline}")
 
-    def __ini__(self, **kwargs):
-        self.byref = set()
-        inline = kwargs.get("inline", False)
-        if isinstance(inline, bool):
-            self.inline = inline
-        elif inline == "always":
-            self.inline = "always"
-        else:
-            raise ValueError(f"invalid value for inline: {inline}")
+    props.export = kwargs.get("export", False)
+    if not isinstance(props.export, bool):
+        raise ValueError(f"export should be a bool")
 
-        self.export = kwargs.get("export", False)
-        if not isinstance(self.export, bool):
-            raise ValueError(f"export should be a bool")
-
-        for k, v in kwargs.items():
-            if k not in ["inline", "export"]:
-                if v is byref:
-                    self.byref.add(k)
+    for k, v in kwargs.items():
+        if k not in ["inline", "export"]:
+            if v is byref:
+                props.byref.add(k)
+    return props
 
 
 @overload
@@ -316,6 +341,9 @@ def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
     """
     Mark a function as a DSL function.
     To mark an argument as byref, use the `var=byref` syntax in decorator arguments.
+    Acceptable kwargs:
+    - inline: bool | "always"  # hint for inlining
+    - export: bool             # hint for exporting (for bundled C++ codegen)
 
     Example:
     ```python

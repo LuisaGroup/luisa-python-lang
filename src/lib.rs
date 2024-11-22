@@ -1,2 +1,1 @@
-pub mod hir;
-pub mod compiler;
+pub mod types;

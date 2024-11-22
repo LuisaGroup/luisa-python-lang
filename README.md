@@ -25,7 +25,7 @@ import luisa_lang as lc
 ## Basic Syntax
 ### Difference from Python
 There are some notable differences between luisa_lang and Python:
-- Variables have value semantics by default. Use `inout` to indicate that an argument that is passed by reference.
+- Variables have value semantics by default. Use `byref` to indicate that an argument that is passed by reference.
 - Generic functions and structs are implemented via monomorphization (a.k.a instantiation) at compile time rather than via type erasure.
 - Overloading subscript operator and attribute access is different from Python. Only `__getitem__` and `__getattr__` are needed, which returns a local reference.
 
@@ -55,9 +55,9 @@ a.x = 2.0
 lc.print(f'{a.x} {b.x}') # prints 2.0 1.0
 ```
 
-You can use `inout` to indicate that a variable is passed as a *local reference*. Assigning to an `inout` variable will update the original variable.
+You can use `byref` to indicate that a variable is passed as a *local reference*. Assigning to an `byref` variable will update the original variable.
 ```python
-@luisa.func(a=inout, b=inout)
+@luisa.func(a=byref, b=byref)
 def swap(a: int, b: int):
     a, b = b, a
 

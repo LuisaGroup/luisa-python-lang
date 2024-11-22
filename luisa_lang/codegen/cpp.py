@@ -7,6 +7,14 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple, Union
 from luisa_lang.hir import get_dsl_func
 
 
+@cache
+def _get_cpp_lib() -> str:
+    from luisa_lang.codegen.cpp_lib import CPP_LIB_COMPRESSED
+    import bz2
+    import base64
+    return bz2.decompress(base64.b64decode(CPP_LIB_COMPRESSED)).decode('utf-8')
+
+
 class TypeCodeGenCache:
     cache: Dict[hir.Type, str]
     impl: ScratchBuffer
@@ -31,11 +39,19 @@ class TypeCodeGenCache:
                 else:
                     return f"u{bits}"
             case hir.FloatType(bits=bits):
-                return f"f{bits}"
+                match bits:
+                    case 16:
+                        return 'lc_half'
+                    case 32:
+                        return 'lc_float'
+                    case 64:
+                        return 'lc_double'
+                    case _:
+                        raise RuntimeError("invalid float type")
             case hir.BoolType():
-                return "bool"
+                return "lc_bool"
             case hir.VectorType(element=element, count=count):
-                return f"vec<{self.gen(element)}, {count}>"
+                return f"{self.gen(element)}{count}>"
             case hir.StructType(name=name, fields=fields):
                 self.impl.writeln(f'struct {name} {{')
                 for field in fields:
@@ -187,7 +203,7 @@ class CppCodeGen(CodeGen):
         return name
 
     def finalize_code(self) -> str:
-        return self.type_cache.impl.body + self.generated_code.body
+        return _get_cpp_lib() + self.type_cache.impl.body + self.generated_code.body
 
 
 class FuncCodeGen:
@@ -215,7 +231,16 @@ class FuncCodeGen:
         params = ",".join(self.gen_var(
             p) for p in func.params if not isinstance(p.type, hir.FunctionType))
         assert func.return_type
-        self.signature = f'extern "C" auto {self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
+        
+        self.signature = f'auto {self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
+        if func.export:
+            self.signature = f'extern "C" {self.signature}'
+        if func.inline_hint == True:
+            self.signature = f"inline {self.signature}"
+        elif func.inline_hint == 'always':
+            self.signature = f"__lc_always_inline__ {self.signature}"
+        elif func.inline_hint == 'never':
+            self.signature = f"__lc_never_inline {self.signature}"
         self.body = ScratchBuffer()
         self.params = set(p.name for p in func.params)
         self.node_map = {}
@@ -286,8 +311,11 @@ class FuncCodeGen:
                     op = self.gen_func(call.op)
                     args_s = ','.join(self.gen_value_or_ref(
                         arg) for arg in call.args if not isinstance(arg.type, hir.FunctionType))
-                    self.body.writeln(
-                        f"auto v{vid} ={op}({args_s});")
+                    if call.type != hir.UnitType():
+                        self.body.writeln(
+                            f"auto v{vid} = {op}({args_s});")
+                    else:
+                        self.body.writeln(f"{op}({args_s});")
                 case hir.Constant() as constant:
                     value = constant.value
                     if isinstance(value, int):
@@ -312,12 +340,98 @@ class FuncCodeGen:
                         f"{ty} v{vid}{{ {','.join(self.gen_expr(e) for e in expr.args)} }};")
                 case hir.TypeValue():
                     pass
-                case hir.Intrinsic():
-                    intrin_name = expr.name.replace('.', '_')
-                    args_s = ','.join(self.gen_value_or_ref(
-                        arg) for arg in expr.args)
-                    self.body.writeln(
-                        f"auto v{vid} = __intrin__{intrin_name}({args_s});")
+                case hir.Intrinsic() as intrin:
+                    def do():
+                        intrin_name = intrin.name
+                        comps = intrin_name.split('.')
+                        gened_args = [self.gen_value_or_ref(
+                            arg) for arg in intrin.args]
+                        if comps[0] == 'cmp':
+                            cmp_dict = {
+                                '__eq__': '==',
+                                '__ne__': '!=',
+                                '__lt__': '<',
+                                '__le__': '<=',
+                                '__gt__': '>',
+                                '__ge__': '>=',
+                            }
+                            if comps[1] in cmp_dict:
+                                cmp = cmp_dict[comps[1]]
+                                self.body.writeln(
+                                    f"auto v{vid} = {gened_args[0]} {cmp} {gened_args[1]};")
+                            else:
+                                raise NotImplementedError(
+                                    f"unsupported cmp intrinsic: {intrin_name}")
+                        elif comps[0] == 'unary':
+                            unary_dict = {
+                                '__neg__': '-',
+                                '__pos__': '+',
+                                '__invert__': '~',
+                            }
+                            if comps[1] in unary_dict:
+                                unary = unary_dict[comps[1]]
+                                self.body.writeln(
+                                    f"auto v{vid} = {unary}{gened_args[0]};")
+                            else:
+                                raise NotImplementedError(
+                                    f"unsupported unary intrinsic: {intrin_name}")
+                        elif comps[0] == 'binop':
+                            binop_dict = {
+                                '__add__': '+',
+                                '__sub__': '-',
+                                '__mul__': '*',
+                                '__truediv__': '/',
+                                '__floordiv__': '/', # TODO: fix floordiv
+                                '__mod__': '%',
+                                '__pow__': '**',
+                                '__and__': '&',
+                                '__or__': '|',
+                                '__xor__': '^',
+                                '__lshift__': '<<',
+                                '__rshift__': '>>',
+                                '__eq__': '==',
+                                '__ne__': '!=',
+                                '__lt__': '<',
+                                '__le__': '<=',
+                                '__gt__': '>',
+                                '__ge__': '>=',
+                            }
+                            ibinop_dict = {
+                                '__iadd__': '+=',
+                                '__isub__': '-=',
+                                '__imul__': '*=',
+                                '__itruediv__': '/=',
+                                '__ifloordiv__': '/=', # TODO: fix floordiv
+                                '__imod__': '%=',
+                                '__ipow__': '**=',
+                                '__iand__': '&=',
+                                '__ior__': '|=',
+                                '__ixor__': '^=',
+                                '__ilshift__': '<<=',
+                                '__irshift__': '>>=',
+                            }
+                            if comps[1] in binop_dict:
+                                binop = binop_dict[comps[1]]
+                                self.body.writeln(
+                                    f"auto v{vid} = {gened_args[0]} {binop} {gened_args[1]};")
+                            elif comps[1] in ibinop_dict:
+                                binop = ibinop_dict[comps[1]]
+                                self.body.writeln(
+                                    f"{gened_args[0]} {binop} {gened_args[1]};  auto& v{vid} = {gened_args[0]};")
+                            else:
+                                raise NotImplementedError(
+                                    f"unsupported binop intrinsic: {intrin_name}")
+                        elif comps[0] == 'math':
+                            args_s = ','.join(gened_args)
+                            self.body.writeln(
+                                f"auto v{vid} = lc_{comps[1]}({args_s});")
+                        else:
+                            intrin_name = intrin.name.replace('.', '_')
+                            args_s = ','.join(gened_args)
+                            self.body.writeln(
+                                f"auto v{vid} = __intrin__{intrin_name}({args_s});")
+                    
+                    do()
                 case _:
                     raise NotImplementedError(
                         f"unsupported expression: {expr}")

@@ -7,6 +7,7 @@ from typing import (
     Any,
     Callable,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -41,6 +42,16 @@ The reason for using parameter name instead of GenericParameter is that python s
 FunctionTemplateResolvingFunc = Callable[[
     FunctionTemplateResolvingArgs], Union[FunctionLike, 'TemplateMatchingError']]
 
+class FuncProperties:
+    inline: bool | Literal["always"]
+    export: bool
+    byref: Set[str]
+
+    def __init__(self):
+        self.inline = False
+        self.export = False
+        self.byref = set()   
+
 
 class FunctionTemplate:
     """
@@ -56,6 +67,7 @@ class FunctionTemplate:
     is_generic: bool
     name: str
     params: List[str]
+    props: Optional[FuncProperties]
     """Function parameters (NOT type parameters)"""
 
     def __init__(self, name: str, params: List[str], parsing_func: FunctionTemplateResolvingFunc, is_generic: bool) -> None:
@@ -64,6 +76,7 @@ class FunctionTemplate:
         self.params = params
         self.is_generic = is_generic
         self.name = name
+        self.props = None
 
     def resolve(self, args: FunctionTemplateResolvingArgs | None) -> Union[FunctionLike, 'TemplateMatchingError']:
         args = args or []
@@ -937,17 +950,6 @@ class Constant(Value):
 
     def __hash__(self) -> int:
         return hash(self.value)
-
-# class FunctionValue(Value):
-#     func: FunctionLike | FunctionTemplate
-#     bounded_object: Optional[Ref]
-
-#     def __init__(self, func: FunctionLike | FunctionTemplate,  bounded_object: Optional[Ref], span: Optional[Span] = None) -> None:
-#         super().__init__(FunctionType(func, bounded_object is not None), span)
-#         self.func = func
-#         self.bounded_object = bounded_object
-
-
 class TypeValue(Value):
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
         super().__init__(TypeConstructorType(ty), span)
@@ -956,6 +958,9 @@ class TypeValue(Value):
         assert isinstance(self.type, TypeConstructorType)
         return self.type.inner
 
+class FunctionValue(Value):
+    def __init__(self, ty:FunctionType, span: Optional[Span] = None) -> None:
+        super().__init__(ty, span)
 
 class Alloca(Ref):
     """
@@ -983,9 +988,9 @@ class AggregateInit(Value):
 
 class Intrinsic(Value):
     name: str
-    args: List[Value]
+    args: List[Value | Ref]
 
-    def __init__(self, name: str, args: List[Value], type: Type, span: Optional[Span] = None) -> None:
+    def __init__(self, name: str, args: List[Value | Ref], type: Type, span: Optional[Span] = None) -> None:
         super().__init__(type, span)
         self.name = name
         self.args = args
@@ -1201,6 +1206,7 @@ class Function:
     locals: List[Var]
     complete: bool
     is_method: bool
+    inline_hint: Literal[True, 'always', 'never'] | None
 
     def __init__(
         self,
@@ -1217,6 +1223,7 @@ class Function:
         self.locals = []
         self.complete = False
         self.is_method = is_method
+        self.inline_hint = None
 
 
 def match_template_args(

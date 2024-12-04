@@ -120,12 +120,12 @@ def mangle_name(name: str) -> str:
 
 
 class Mangling:
-    cache: Dict[hir.Type | hir.FunctionLike, str]
+    cache: Dict[hir.Type | hir.Function, str]
 
     def __init__(self) -> None:
         self.cache = {}
 
-    def mangle(self, obj: Union[hir.Type, hir.FunctionLike]) -> str:
+    def mangle(self, obj: Union[hir.Type, hir.Function]) -> str:
         if obj in self.cache:
             return self.cache[obj]
         else:
@@ -133,7 +133,7 @@ class Mangling:
             self.cache[obj] = res
             return res
 
-    def mangle_impl(self, obj: Union[hir.Type, hir.FunctionLike]) -> str:
+    def mangle_impl(self, obj: Union[hir.Type, hir.Function]) -> str:
 
         match obj:
             case hir.UnitType():
@@ -266,7 +266,7 @@ class FuncCodeGen:
             case _:
                 raise NotImplementedError(f"unsupported reference: {ref}")
 
-    def gen_func(self, f: hir.FunctionLike) -> str:
+    def gen_func(self, f: hir.Function) -> str:
         if isinstance(f, hir.Function):
             return self.base.gen_function(f)
         else:
@@ -346,7 +346,12 @@ class FuncCodeGen:
                         comps = intrin_name.split('.')
                         gened_args = [self.gen_value_or_ref(
                             arg) for arg in intrin.args]
-                        if comps[0] == 'cmp':
+                        if comps[0] == 'init':
+                            assert expr.type
+                            ty = self.base.type_cache.gen(expr.type)
+                            self.body.writeln(
+                                f"{ty} v{vid}{{ {','.join(gened_args)} }};")
+                        elif comps[0] == 'cmp':
                             cmp_dict = {
                                 '__eq__': '==',
                                 '__ne__': '!=',

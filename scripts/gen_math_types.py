@@ -93,7 +93,7 @@ def main() -> None:
             print(
                 f"""
     @func(inline='always')
-    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return intrinsic("cmp.{op}.{ty}",  {retrun_ty},  self, _other) # type: ignore[override]
+    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return intrinsic("cmp.{op}.{ty}",  {retrun_ty},  self, _other) # type: ignore
 """
             )
 
@@ -228,6 +228,6 @@ class {ty}{inherits_str}:
                 gen_vector_type(f"u{name}{size}", f"u{bits}", "int",Kind.INT,f"bool{size}", size)
         print("__all__ = " + str(exports))
 
-
+    
 if __name__ == "__main__":
     main()

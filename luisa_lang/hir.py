@@ -22,12 +22,10 @@ from abc import ABC, abstractmethod
 
 PATH_PREFIX = "luisa_lang"
 
-FunctionLike = Union["Function"]
-
 
 # @dataclass
 # class FunctionTemplateResolveResult:
-#     func: Optional[FunctionLike]
+#     func: Optional[Function]
 #     matched: bool
 
 
@@ -40,17 +38,18 @@ The reason for using parameter name instead of GenericParameter is that python s
 
 
 FunctionTemplateResolvingFunc = Callable[[
-    FunctionTemplateResolvingArgs], Union[FunctionLike, 'TemplateMatchingError']]
+    FunctionTemplateResolvingArgs], Union['Function', 'TemplateMatchingError']]
+
 
 class FuncProperties:
-    inline: bool | Literal["always"]
+    inline: bool | Literal["never", "always"]
     export: bool
     byref: Set[str]
 
     def __init__(self):
         self.inline = False
         self.export = False
-        self.byref = set()   
+        self.byref = set()
 
 
 class FunctionTemplate:
@@ -63,7 +62,7 @@ class FunctionTemplate:
     """
     parsing_func: FunctionTemplateResolvingFunc
     __resolved: Dict[Tuple[Tuple[str,
-                                 Union['Type', Any]], ...], FunctionLike]
+                                 Union['Type', Any]], ...], "Function"]
     is_generic: bool
     name: str
     params: List[str]
@@ -78,7 +77,7 @@ class FunctionTemplate:
         self.name = name
         self.props = None
 
-    def resolve(self, args: FunctionTemplateResolvingArgs | None) -> Union[FunctionLike, 'TemplateMatchingError']:
+    def resolve(self, args: FunctionTemplateResolvingArgs | None) -> Union["Function", 'TemplateMatchingError']:
         args = args or []
         if not self.is_generic:
             key = tuple(args)
@@ -101,7 +100,7 @@ class DynamicIndex:
 
 
 class Type(ABC):
-    methods: Dict[str, Union[FunctionLike]]
+    methods: Dict[str, Union["Function", FunctionTemplate]]
     is_builtin: bool
 
     def __init__(self):
@@ -132,7 +131,7 @@ class Type(ABC):
             return FunctionType(m, None)
         return None
 
-    def method(self, name: str) -> Optional[FunctionLike | FunctionTemplate]:
+    def method(self, name: str) -> Optional[Union["Function", FunctionTemplate]]:
         m = self.methods.get(name)
         if m:
             return m
@@ -738,7 +737,7 @@ class BoundType(Type):
             raise RuntimeError("member access on uninstantiated BoundType")
 
     @override
-    def method(self, name) -> Optional[FunctionLike | FunctionTemplate]:
+    def method(self, name) -> Optional[Union["Function", FunctionTemplate]]:
         if self.instantiated is not None:
             return self.instantiated.method(name)
         else:
@@ -766,10 +765,10 @@ class TypeConstructorType(Type):
 
 
 class FunctionType(Type):
-    func_like: FunctionLike | FunctionTemplate
+    func_like: Union["Function", FunctionTemplate]
     bound_object: Optional['Ref']
 
-    def __init__(self, func_like: FunctionLike | FunctionTemplate, bound_object: Optional['Ref']) -> None:
+    def __init__(self, func_like: Union["Function", FunctionTemplate], bound_object: Optional['Ref']) -> None:
         super().__init__()
         self.func_like = func_like
         self.bound_object = bound_object
@@ -950,6 +949,8 @@ class Constant(Value):
 
     def __hash__(self) -> int:
         return hash(self.value)
+
+
 class TypeValue(Value):
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
         super().__init__(TypeConstructorType(ty), span)
@@ -958,9 +959,11 @@ class TypeValue(Value):
         assert isinstance(self.type, TypeConstructorType)
         return self.type.inner
 
+
 class FunctionValue(Value):
-    def __init__(self, ty:FunctionType, span: Optional[Span] = None) -> None:
+    def __init__(self, ty: FunctionType, span: Optional[Span] = None) -> None:
         super().__init__(ty, span)
+
 
 class Alloca(Ref):
     """
@@ -1003,14 +1006,14 @@ class Intrinsic(Value):
 
 
 class Call(Value):
-    op: FunctionLike
+    op: "Function"
     """After type inference, op should be a Value."""
 
     args: List[Value | Ref]
 
     def __init__(
         self,
-        op: FunctionLike,
+        op: "Function",
         args: List[Value | Ref],
         type: Type,
         span: Optional[Span] = None,
@@ -1077,7 +1080,7 @@ class Assign(Node):
     value: Value
 
     def __init__(self, ref: Ref, value: Value, span: Optional[Span] = None) -> None:
-        assert not isinstance(value.type, (FunctionType, TypeConstructorType))  
+        assert not isinstance(value.type, (FunctionType, TypeConstructorType))
         super().__init__(span)
         self.ref = ref
         self.value = value
@@ -1206,7 +1209,7 @@ class Function:
     locals: List[Var]
     complete: bool
     is_method: bool
-    inline_hint: Literal[True, 'always', 'never'] | None
+    inline_hint: bool | Literal['always', 'never']
 
     def __init__(
         self,
@@ -1223,7 +1226,7 @@ class Function:
         self.locals = []
         self.complete = False
         self.is_method = is_method
-        self.inline_hint = None
+        self.inline_hint = False
 
 
 def match_template_args(
@@ -1408,3 +1411,98 @@ def is_type_compatible_to(ty: Type, target: Type) -> bool:
     if isinstance(target, IntType):
         return isinstance(ty, GenericIntType)
     return False
+
+
+class FunctionInliner:
+    mapping: Dict[Ref | Value, Ref | Value]
+    ret: Value | None
+
+    def __init__(self, func: Function, args: List[Value | Ref], body: BasicBlock, span: Optional[Span] = None) -> None:
+        self.mapping = {}
+        for param, arg in zip(func.params, args):
+            self.mapping[param] = arg
+        assert func.body
+        self.do_inline(func.body, body)
+
+    def do_inline(self, func_body: BasicBlock, body: BasicBlock) -> None:
+        for node in func_body.nodes:
+            assert node not in self.mapping
+
+            match node:
+                case Var():
+                    assert node.type
+                    assert node.semantic == ParameterSemantic.BYVAL
+                    self.mapping[node] = Alloca(node.type, node.span)
+                case Load():
+                    mapped_var = self.mapping[node.ref]
+                    assert isinstance(mapped_var, Ref)
+                    body.append(Load(mapped_var))
+                case Index():
+                    base = self.mapping.get(node.base)
+                    assert isinstance(base, Value)
+                    index = self.mapping.get(node.index)
+                    assert isinstance(index, Value)
+                    assert node.type
+                    self.mapping[node] = body.append(
+                        Index(base, index, node.type, node.span))
+                case IndexRef():
+                    base = self.mapping.get(node.base)
+                    index = self.mapping.get(node.index)
+                    assert isinstance(base, Ref)
+                    assert isinstance(index, Value)
+                    assert node.type
+                    self.mapping[node] = body.append(IndexRef(
+                        base, index, node.type, node.span))
+                case Member():
+                    base = self.mapping.get(node.base)
+                    assert isinstance(base, Value)
+                    assert node.type
+                    self.mapping[node] = body.append(Member(
+                        base, node.field, node.type, node.span))
+                case MemberRef():
+                    base = self.mapping.get(node.base)
+                    assert isinstance(base, Ref)
+                    assert node.type
+                    self.mapping[node] = body.append(MemberRef(
+                        base, node.field, node.type, node.span))
+                case Call() as call:
+                    def do():
+                        args: List[Ref | Value] = []
+                        for arg in call.args:
+                            mapped_arg = self.mapping.get(arg)
+                            if mapped_arg is None:
+                                raise ParsingError(node, "unable to inline call")
+                            args.append(mapped_arg)
+                        assert call.type
+                        self.mapping[call] = body.append(
+                            Call(call.op, args, call.type, node.span))
+                    do()
+                case Intrinsic() as intrin:
+                    def do():
+                        args: List[Ref | Value] = []
+                        for arg in intrin.args:
+                            mapped_arg = self.mapping.get(arg)
+                            if mapped_arg is None:
+                                raise ParsingError(
+                                    node, "unable to inline intrinsic")
+                            args.append(mapped_arg)
+                        assert intrin.type
+                        self.mapping[intrin] = body.append(
+                            Intrinsic(intrin.name, args, intrin.type, node.span))
+                    do()
+                case Return():
+                    if self.ret is not None:
+                        raise ParsingError(node, "multiple return statement")
+                    assert node.value is not None
+                    mapped_value = self.mapping.get(node.value)
+                    if mapped_value is None or isinstance(mapped_value, Ref):
+                        raise ParsingError(node, "unable to inline return")
+                    self.ret = mapped_value
+                case _:
+                    raise ParsingError(node, "invalid node for inlining")
+
+    @staticmethod
+    def inline(func: Function, args: List[Value | Ref], body: BasicBlock, span: Optional[Span] = None) -> Value:
+        inliner = FunctionInliner(func, args, body, span)
+        assert inliner.ret
+        return inliner.ret

@@ -85,7 +85,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_sig: Optiona
         assert isinstance(p, hir.SymbolicType)
         implicit_generic_params.add(p.param)
 
-    def parsing_func(args: hir.FunctionTemplateResolvingArgs) -> hir.FunctionLike:
+    def parsing_func(args: hir.FunctionTemplateResolvingArgs) -> hir.Function:
         type_var_ns: Dict[TypeVar, hir.Type |
                           hir.ComptimeValue] = foreign_type_var_ns.copy()
         mapped_implicit_type_params: Dict[str,
@@ -127,7 +127,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_sig: Optiona
             func_name, f, func_sig_instantiated, func_globals, type_var_ns, self_type)
         ret = func_parser.parse_body()
         ret.inline_hint = props.inline
-        ret.export = props.export
+        ret.export = props.export   
         return ret
     params = [v[0] for v in func_sig.args]
     is_generic = len(func_sig_converted.generic_params) > 0
@@ -271,9 +271,9 @@ def struct(cls: type[_TT]) -> type[_TT]:
     return _dsl_decorator_impl(cls, _ObjKind.STRUCT, {})
 
 
-def builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[type[_TT]], _TT]:
-    def decorator(cls: type[_TT]) -> _TT:
-        return typing.cast(_TT, _dsl_struct_impl(cls, {}, ir_ty_override=ty))
+def builtin_type(ty: hir.Type, *args, **kwargs) -> Callable[[type[_TT]], type[_TT]]:
+    def decorator(cls: type[_TT]) -> type[_TT]:
+        return typing.cast(type[_TT], _dsl_struct_impl(cls, {}, ir_ty_override=ty))
     return decorator
 
 

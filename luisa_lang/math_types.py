@@ -133,17 +133,17 @@ class f32(FloatBuiltin['f32']):
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['f32', float]) -> 'f32': return intrinsic("binop.__imod__.f32",  f32,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__lt__.f32",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__lt__.f32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__le__.f32",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__le__.f32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__gt__.f32",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__gt__.f32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__ge__.f32",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__ge__.f32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__eq__.f32",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__eq__.f32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__ne__.f32",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['f32', float]) -> 'bool': return intrinsic("cmp.__ne__.f32",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __truediv__(self, _other:  tp.Union['f32', float]) -> 'f32': return intrinsic("binop.__truediv__.f32",  f32,  self, _other)
     @func(inline='always')
@@ -195,17 +195,17 @@ class f64(FloatBuiltin['f64']):
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['f64', float]) -> 'f64': return intrinsic("binop.__imod__.f64",  f64,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__lt__.f64",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__lt__.f64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__le__.f64",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__le__.f64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__gt__.f64",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__gt__.f64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__ge__.f64",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__ge__.f64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__eq__.f64",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__eq__.f64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__ne__.f64",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['f64', float]) -> 'bool': return intrinsic("cmp.__ne__.f64",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __truediv__(self, _other:  tp.Union['f64', float]) -> 'f64': return intrinsic("binop.__truediv__.f64",  f64,  self, _other)
     @func(inline='always')
@@ -257,17 +257,17 @@ class i8:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['i8', int]) -> 'i8': return intrinsic("binop.__imod__.i8",  i8,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__lt__.i8",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__lt__.i8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__le__.i8",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__le__.i8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__gt__.i8",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__gt__.i8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__ge__.i8",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__ge__.i8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__eq__.i8",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__eq__.i8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__ne__.i8",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['i8', int]) -> 'bool': return intrinsic("cmp.__ne__.i8",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['i8', int]) -> 'i8': return intrinsic("binop.__floordiv__.i8",  i8,  self, _other)
     @func(inline='always')
@@ -341,17 +341,17 @@ class u8:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['u8', int]) -> 'u8': return intrinsic("binop.__imod__.u8",  u8,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__lt__.u8",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__lt__.u8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__le__.u8",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__le__.u8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__gt__.u8",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__gt__.u8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__ge__.u8",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__ge__.u8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__eq__.u8",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__eq__.u8",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__ne__.u8",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['u8', int]) -> 'bool': return intrinsic("cmp.__ne__.u8",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['u8', int]) -> 'u8': return intrinsic("binop.__floordiv__.u8",  u8,  self, _other)
     @func(inline='always')
@@ -425,17 +425,17 @@ class i16:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['i16', int]) -> 'i16': return intrinsic("binop.__imod__.i16",  i16,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__lt__.i16",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__lt__.i16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__le__.i16",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__le__.i16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__gt__.i16",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__gt__.i16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__ge__.i16",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__ge__.i16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__eq__.i16",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__eq__.i16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__ne__.i16",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['i16', int]) -> 'bool': return intrinsic("cmp.__ne__.i16",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['i16', int]) -> 'i16': return intrinsic("binop.__floordiv__.i16",  i16,  self, _other)
     @func(inline='always')
@@ -509,17 +509,17 @@ class u16:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['u16', int]) -> 'u16': return intrinsic("binop.__imod__.u16",  u16,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__lt__.u16",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__lt__.u16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__le__.u16",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__le__.u16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__gt__.u16",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__gt__.u16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__ge__.u16",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__ge__.u16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__eq__.u16",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__eq__.u16",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__ne__.u16",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['u16', int]) -> 'bool': return intrinsic("cmp.__ne__.u16",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['u16', int]) -> 'u16': return intrinsic("binop.__floordiv__.u16",  u16,  self, _other)
     @func(inline='always')
@@ -593,17 +593,17 @@ class i32:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['i32', int]) -> 'i32': return intrinsic("binop.__imod__.i32",  i32,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__lt__.i32",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__lt__.i32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__le__.i32",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__le__.i32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__gt__.i32",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__gt__.i32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__ge__.i32",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__ge__.i32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__eq__.i32",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__eq__.i32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__ne__.i32",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['i32', int]) -> 'bool': return intrinsic("cmp.__ne__.i32",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['i32', int]) -> 'i32': return intrinsic("binop.__floordiv__.i32",  i32,  self, _other)
     @func(inline='always')
@@ -677,17 +677,17 @@ class u32:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['u32', int]) -> 'u32': return intrinsic("binop.__imod__.u32",  u32,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__lt__.u32",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__lt__.u32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__le__.u32",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__le__.u32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__gt__.u32",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__gt__.u32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__ge__.u32",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__ge__.u32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__eq__.u32",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__eq__.u32",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__ne__.u32",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['u32', int]) -> 'bool': return intrinsic("cmp.__ne__.u32",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['u32', int]) -> 'u32': return intrinsic("binop.__floordiv__.u32",  u32,  self, _other)
     @func(inline='always')
@@ -761,17 +761,17 @@ class i64:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['i64', int]) -> 'i64': return intrinsic("binop.__imod__.i64",  i64,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__lt__.i64",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__lt__.i64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__le__.i64",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__le__.i64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__gt__.i64",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__gt__.i64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__ge__.i64",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__ge__.i64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__eq__.i64",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__eq__.i64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__ne__.i64",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['i64', int]) -> 'bool': return intrinsic("cmp.__ne__.i64",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['i64', int]) -> 'i64': return intrinsic("binop.__floordiv__.i64",  i64,  self, _other)
     @func(inline='always')
@@ -845,17 +845,17 @@ class u64:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['u64', int]) -> 'u64': return intrinsic("binop.__imod__.u64",  u64,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__lt__.u64",  bool,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__lt__.u64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__le__.u64",  bool,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__le__.u64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__gt__.u64",  bool,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__gt__.u64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__ge__.u64",  bool,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__ge__.u64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__eq__.u64",  bool,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__eq__.u64",  bool,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__ne__.u64",  bool,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['u64', int]) -> 'bool': return intrinsic("cmp.__ne__.u64",  bool,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['u64', int]) -> 'u64': return intrinsic("binop.__floordiv__.u64",  u64,  self, _other)
     @func(inline='always')
@@ -905,9 +905,9 @@ class bool2:
     y: bool
     def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False) -> None: self = intrinsic("init.bool2", bool2, x, y)
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return intrinsic("cmp.__eq__.bool2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return intrinsic("cmp.__eq__.bool2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return intrinsic("cmp.__ne__.bool2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return intrinsic("cmp.__ne__.bool2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __and__(self, _other:  tp.Union['bool2', bool, bool]) -> 'bool2': return intrinsic("binop.__and__.bool2",  bool2,  self, _other)
     @func(inline='always')
@@ -957,17 +957,17 @@ class float2(FloatBuiltin['float2']):
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return intrinsic("binop.__imod__.float2",  float2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__lt__.float2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__lt__.float2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__le__.float2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__le__.float2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__gt__.float2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__gt__.float2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__ge__.float2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__ge__.float2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__eq__.float2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__eq__.float2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__ne__.float2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['float2', f32, float]) -> 'bool2': return intrinsic("cmp.__ne__.float2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __truediv__(self, _other:  tp.Union['float2', f32, float]) -> 'float2': return intrinsic("binop.__truediv__.float2",  float2,  self, _other)
     @func(inline='always')
@@ -1015,17 +1015,17 @@ class double2(FloatBuiltin['double2']):
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return intrinsic("binop.__imod__.double2",  double2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__lt__.double2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__lt__.double2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__le__.double2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__le__.double2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__gt__.double2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__gt__.double2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__ge__.double2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__ge__.double2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__eq__.double2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__eq__.double2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__ne__.double2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['double2', f64, float]) -> 'bool2': return intrinsic("cmp.__ne__.double2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __truediv__(self, _other:  tp.Union['double2', f64, float]) -> 'double2': return intrinsic("binop.__truediv__.double2",  double2,  self, _other)
     @func(inline='always')
@@ -1073,17 +1073,17 @@ class byte2:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return intrinsic("binop.__imod__.byte2",  byte2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__lt__.byte2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__lt__.byte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__le__.byte2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__le__.byte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__gt__.byte2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__gt__.byte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__ge__.byte2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__ge__.byte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__eq__.byte2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__eq__.byte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__ne__.byte2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['byte2', i8, int]) -> 'bool2': return intrinsic("cmp.__ne__.byte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['byte2', i8, int]) -> 'byte2': return intrinsic("binop.__floordiv__.byte2",  byte2,  self, _other)
     @func(inline='always')
@@ -1151,17 +1151,17 @@ class ubyte2:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return intrinsic("binop.__imod__.ubyte2",  ubyte2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__lt__.ubyte2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__lt__.ubyte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__le__.ubyte2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__le__.ubyte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__gt__.ubyte2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__gt__.ubyte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__ge__.ubyte2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__ge__.ubyte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__eq__.ubyte2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__eq__.ubyte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__ne__.ubyte2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'bool2': return intrinsic("cmp.__ne__.ubyte2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ubyte2', u8, int]) -> 'ubyte2': return intrinsic("binop.__floordiv__.ubyte2",  ubyte2,  self, _other)
     @func(inline='always')
@@ -1229,17 +1229,17 @@ class short2:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return intrinsic("binop.__imod__.short2",  short2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__lt__.short2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__lt__.short2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__le__.short2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__le__.short2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__gt__.short2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__gt__.short2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__ge__.short2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__ge__.short2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__eq__.short2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__eq__.short2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__ne__.short2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['short2', i16, int]) -> 'bool2': return intrinsic("cmp.__ne__.short2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['short2', i16, int]) -> 'short2': return intrinsic("binop.__floordiv__.short2",  short2,  self, _other)
     @func(inline='always')
@@ -1307,17 +1307,17 @@ class ushort2:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return intrinsic("binop.__imod__.ushort2",  ushort2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__lt__.ushort2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__lt__.ushort2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__le__.ushort2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__le__.ushort2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__gt__.ushort2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__gt__.ushort2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__ge__.ushort2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__ge__.ushort2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__eq__.ushort2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__eq__.ushort2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__ne__.ushort2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ushort2', u16, int]) -> 'bool2': return intrinsic("cmp.__ne__.ushort2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ushort2', u16, int]) -> 'ushort2': return intrinsic("binop.__floordiv__.ushort2",  ushort2,  self, _other)
     @func(inline='always')
@@ -1385,17 +1385,17 @@ class int2:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return intrinsic("binop.__imod__.int2",  int2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__lt__.int2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__lt__.int2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__le__.int2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__le__.int2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__gt__.int2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__gt__.int2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__ge__.int2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__ge__.int2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__eq__.int2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__eq__.int2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__ne__.int2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['int2', i32, int]) -> 'bool2': return intrinsic("cmp.__ne__.int2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['int2', i32, int]) -> 'int2': return intrinsic("binop.__floordiv__.int2",  int2,  self, _other)
     @func(inline='always')
@@ -1463,17 +1463,17 @@ class uint2:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return intrinsic("binop.__imod__.uint2",  uint2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__lt__.uint2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__lt__.uint2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__le__.uint2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__le__.uint2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__gt__.uint2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__gt__.uint2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__ge__.uint2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__ge__.uint2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__eq__.uint2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__eq__.uint2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__ne__.uint2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['uint2', u32, int]) -> 'bool2': return intrinsic("cmp.__ne__.uint2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['uint2', u32, int]) -> 'uint2': return intrinsic("binop.__floordiv__.uint2",  uint2,  self, _other)
     @func(inline='always')
@@ -1541,17 +1541,17 @@ class long2:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return intrinsic("binop.__imod__.long2",  long2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__lt__.long2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__lt__.long2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__le__.long2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__le__.long2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__gt__.long2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__gt__.long2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__ge__.long2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__ge__.long2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__eq__.long2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__eq__.long2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__ne__.long2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['long2', i64, int]) -> 'bool2': return intrinsic("cmp.__ne__.long2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['long2', i64, int]) -> 'long2': return intrinsic("binop.__floordiv__.long2",  long2,  self, _other)
     @func(inline='always')
@@ -1619,17 +1619,17 @@ class ulong2:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return intrinsic("binop.__imod__.ulong2",  ulong2,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__lt__.ulong2",  bool2,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__lt__.ulong2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__le__.ulong2",  bool2,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__le__.ulong2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__gt__.ulong2",  bool2,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__gt__.ulong2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__ge__.ulong2",  bool2,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__ge__.ulong2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__eq__.ulong2",  bool2,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__eq__.ulong2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__ne__.ulong2",  bool2,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ulong2', u64, int]) -> 'bool2': return intrinsic("cmp.__ne__.ulong2",  bool2,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ulong2', u64, int]) -> 'ulong2': return intrinsic("binop.__floordiv__.ulong2",  ulong2,  self, _other)
     @func(inline='always')
@@ -1674,9 +1674,9 @@ class bool3:
     z: bool
     def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False, z: tp.Union['bool', bool] = False) -> None: self = intrinsic("init.bool3", bool3, x, y, z)
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return intrinsic("cmp.__eq__.bool3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return intrinsic("cmp.__eq__.bool3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return intrinsic("cmp.__ne__.bool3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return intrinsic("cmp.__ne__.bool3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __and__(self, _other:  tp.Union['bool3', bool, bool]) -> 'bool3': return intrinsic("binop.__and__.bool3",  bool3,  self, _other)
     @func(inline='always')
@@ -1727,17 +1727,17 @@ class float3(FloatBuiltin['float3']):
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return intrinsic("binop.__imod__.float3",  float3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__lt__.float3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__lt__.float3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__le__.float3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__le__.float3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__gt__.float3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__gt__.float3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__ge__.float3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__ge__.float3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__eq__.float3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__eq__.float3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__ne__.float3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['float3', f32, float]) -> 'bool3': return intrinsic("cmp.__ne__.float3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __truediv__(self, _other:  tp.Union['float3', f32, float]) -> 'float3': return intrinsic("binop.__truediv__.float3",  float3,  self, _other)
     @func(inline='always')
@@ -1786,17 +1786,17 @@ class double3(FloatBuiltin['double3']):
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return intrinsic("binop.__imod__.double3",  double3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__lt__.double3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__lt__.double3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__le__.double3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__le__.double3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__gt__.double3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__gt__.double3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__ge__.double3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__ge__.double3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__eq__.double3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__eq__.double3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__ne__.double3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['double3', f64, float]) -> 'bool3': return intrinsic("cmp.__ne__.double3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __truediv__(self, _other:  tp.Union['double3', f64, float]) -> 'double3': return intrinsic("binop.__truediv__.double3",  double3,  self, _other)
     @func(inline='always')
@@ -1845,17 +1845,17 @@ class byte3:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return intrinsic("binop.__imod__.byte3",  byte3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__lt__.byte3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__lt__.byte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__le__.byte3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__le__.byte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__gt__.byte3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__gt__.byte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__ge__.byte3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__ge__.byte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__eq__.byte3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__eq__.byte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__ne__.byte3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['byte3', i8, int]) -> 'bool3': return intrinsic("cmp.__ne__.byte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['byte3', i8, int]) -> 'byte3': return intrinsic("binop.__floordiv__.byte3",  byte3,  self, _other)
     @func(inline='always')
@@ -1924,17 +1924,17 @@ class ubyte3:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return intrinsic("binop.__imod__.ubyte3",  ubyte3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__lt__.ubyte3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__lt__.ubyte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__le__.ubyte3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__le__.ubyte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__gt__.ubyte3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__gt__.ubyte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__ge__.ubyte3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__ge__.ubyte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__eq__.ubyte3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__eq__.ubyte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__ne__.ubyte3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'bool3': return intrinsic("cmp.__ne__.ubyte3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ubyte3', u8, int]) -> 'ubyte3': return intrinsic("binop.__floordiv__.ubyte3",  ubyte3,  self, _other)
     @func(inline='always')
@@ -2003,17 +2003,17 @@ class short3:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return intrinsic("binop.__imod__.short3",  short3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__lt__.short3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__lt__.short3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__le__.short3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__le__.short3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__gt__.short3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__gt__.short3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__ge__.short3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__ge__.short3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__eq__.short3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__eq__.short3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__ne__.short3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['short3', i16, int]) -> 'bool3': return intrinsic("cmp.__ne__.short3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['short3', i16, int]) -> 'short3': return intrinsic("binop.__floordiv__.short3",  short3,  self, _other)
     @func(inline='always')
@@ -2082,17 +2082,17 @@ class ushort3:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return intrinsic("binop.__imod__.ushort3",  ushort3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__lt__.ushort3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__lt__.ushort3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__le__.ushort3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__le__.ushort3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__gt__.ushort3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__gt__.ushort3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__ge__.ushort3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__ge__.ushort3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__eq__.ushort3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__eq__.ushort3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__ne__.ushort3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ushort3', u16, int]) -> 'bool3': return intrinsic("cmp.__ne__.ushort3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ushort3', u16, int]) -> 'ushort3': return intrinsic("binop.__floordiv__.ushort3",  ushort3,  self, _other)
     @func(inline='always')
@@ -2161,17 +2161,17 @@ class int3:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return intrinsic("binop.__imod__.int3",  int3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__lt__.int3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__lt__.int3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__le__.int3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__le__.int3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__gt__.int3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__gt__.int3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__ge__.int3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__ge__.int3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__eq__.int3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__eq__.int3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__ne__.int3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['int3', i32, int]) -> 'bool3': return intrinsic("cmp.__ne__.int3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['int3', i32, int]) -> 'int3': return intrinsic("binop.__floordiv__.int3",  int3,  self, _other)
     @func(inline='always')
@@ -2240,17 +2240,17 @@ class uint3:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return intrinsic("binop.__imod__.uint3",  uint3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__lt__.uint3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__lt__.uint3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__le__.uint3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__le__.uint3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__gt__.uint3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__gt__.uint3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__ge__.uint3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__ge__.uint3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__eq__.uint3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__eq__.uint3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__ne__.uint3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['uint3', u32, int]) -> 'bool3': return intrinsic("cmp.__ne__.uint3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['uint3', u32, int]) -> 'uint3': return intrinsic("binop.__floordiv__.uint3",  uint3,  self, _other)
     @func(inline='always')
@@ -2319,17 +2319,17 @@ class long3:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return intrinsic("binop.__imod__.long3",  long3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__lt__.long3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__lt__.long3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__le__.long3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__le__.long3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__gt__.long3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__gt__.long3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__ge__.long3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__ge__.long3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__eq__.long3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__eq__.long3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__ne__.long3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['long3', i64, int]) -> 'bool3': return intrinsic("cmp.__ne__.long3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['long3', i64, int]) -> 'long3': return intrinsic("binop.__floordiv__.long3",  long3,  self, _other)
     @func(inline='always')
@@ -2398,17 +2398,17 @@ class ulong3:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return intrinsic("binop.__imod__.ulong3",  ulong3,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__lt__.ulong3",  bool3,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__lt__.ulong3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__le__.ulong3",  bool3,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__le__.ulong3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__gt__.ulong3",  bool3,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__gt__.ulong3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__ge__.ulong3",  bool3,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__ge__.ulong3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__eq__.ulong3",  bool3,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__eq__.ulong3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__ne__.ulong3",  bool3,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ulong3', u64, int]) -> 'bool3': return intrinsic("cmp.__ne__.ulong3",  bool3,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ulong3', u64, int]) -> 'ulong3': return intrinsic("binop.__floordiv__.ulong3",  ulong3,  self, _other)
     @func(inline='always')
@@ -2454,9 +2454,9 @@ class bool4:
     w: bool
     def __init__(self, x: tp.Union['bool', bool] = False, y: tp.Union['bool', bool] = False, z: tp.Union['bool', bool] = False, w: tp.Union['bool', bool] = False) -> None: self = intrinsic("init.bool4", bool4, x, y, z, w)
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return intrinsic("cmp.__eq__.bool4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return intrinsic("cmp.__eq__.bool4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return intrinsic("cmp.__ne__.bool4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return intrinsic("cmp.__ne__.bool4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __and__(self, _other:  tp.Union['bool4', bool, bool]) -> 'bool4': return intrinsic("binop.__and__.bool4",  bool4,  self, _other)
     @func(inline='always')
@@ -2508,17 +2508,17 @@ class float4(FloatBuiltin['float4']):
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return intrinsic("binop.__imod__.float4",  float4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__lt__.float4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__lt__.float4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__le__.float4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__le__.float4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__gt__.float4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__gt__.float4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__ge__.float4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__ge__.float4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__eq__.float4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__eq__.float4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__ne__.float4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['float4', f32, float]) -> 'bool4': return intrinsic("cmp.__ne__.float4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __truediv__(self, _other:  tp.Union['float4', f32, float]) -> 'float4': return intrinsic("binop.__truediv__.float4",  float4,  self, _other)
     @func(inline='always')
@@ -2568,17 +2568,17 @@ class double4(FloatBuiltin['double4']):
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return intrinsic("binop.__imod__.double4",  double4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__lt__.double4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__lt__.double4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__le__.double4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__le__.double4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__gt__.double4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__gt__.double4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__ge__.double4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__ge__.double4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__eq__.double4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__eq__.double4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__ne__.double4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['double4', f64, float]) -> 'bool4': return intrinsic("cmp.__ne__.double4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __truediv__(self, _other:  tp.Union['double4', f64, float]) -> 'double4': return intrinsic("binop.__truediv__.double4",  double4,  self, _other)
     @func(inline='always')
@@ -2628,17 +2628,17 @@ class byte4:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return intrinsic("binop.__imod__.byte4",  byte4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__lt__.byte4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__lt__.byte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__le__.byte4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__le__.byte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__gt__.byte4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__gt__.byte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__ge__.byte4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__ge__.byte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__eq__.byte4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__eq__.byte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__ne__.byte4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['byte4', i8, int]) -> 'bool4': return intrinsic("cmp.__ne__.byte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['byte4', i8, int]) -> 'byte4': return intrinsic("binop.__floordiv__.byte4",  byte4,  self, _other)
     @func(inline='always')
@@ -2708,17 +2708,17 @@ class ubyte4:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return intrinsic("binop.__imod__.ubyte4",  ubyte4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__lt__.ubyte4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__lt__.ubyte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__le__.ubyte4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__le__.ubyte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__gt__.ubyte4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__gt__.ubyte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__ge__.ubyte4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__ge__.ubyte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__eq__.ubyte4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__eq__.ubyte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__ne__.ubyte4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'bool4': return intrinsic("cmp.__ne__.ubyte4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ubyte4', u8, int]) -> 'ubyte4': return intrinsic("binop.__floordiv__.ubyte4",  ubyte4,  self, _other)
     @func(inline='always')
@@ -2788,17 +2788,17 @@ class short4:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return intrinsic("binop.__imod__.short4",  short4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__lt__.short4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__lt__.short4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__le__.short4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__le__.short4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__gt__.short4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__gt__.short4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__ge__.short4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__ge__.short4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__eq__.short4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__eq__.short4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__ne__.short4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['short4', i16, int]) -> 'bool4': return intrinsic("cmp.__ne__.short4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['short4', i16, int]) -> 'short4': return intrinsic("binop.__floordiv__.short4",  short4,  self, _other)
     @func(inline='always')
@@ -2868,17 +2868,17 @@ class ushort4:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return intrinsic("binop.__imod__.ushort4",  ushort4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__lt__.ushort4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__lt__.ushort4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__le__.ushort4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__le__.ushort4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__gt__.ushort4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__gt__.ushort4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__ge__.ushort4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__ge__.ushort4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__eq__.ushort4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__eq__.ushort4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__ne__.ushort4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ushort4', u16, int]) -> 'bool4': return intrinsic("cmp.__ne__.ushort4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ushort4', u16, int]) -> 'ushort4': return intrinsic("binop.__floordiv__.ushort4",  ushort4,  self, _other)
     @func(inline='always')
@@ -2948,17 +2948,17 @@ class int4:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return intrinsic("binop.__imod__.int4",  int4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__lt__.int4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__lt__.int4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__le__.int4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__le__.int4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__gt__.int4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__gt__.int4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__ge__.int4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__ge__.int4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__eq__.int4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__eq__.int4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__ne__.int4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['int4', i32, int]) -> 'bool4': return intrinsic("cmp.__ne__.int4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['int4', i32, int]) -> 'int4': return intrinsic("binop.__floordiv__.int4",  int4,  self, _other)
     @func(inline='always')
@@ -3028,17 +3028,17 @@ class uint4:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return intrinsic("binop.__imod__.uint4",  uint4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__lt__.uint4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__lt__.uint4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__le__.uint4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__le__.uint4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__gt__.uint4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__gt__.uint4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__ge__.uint4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__ge__.uint4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__eq__.uint4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__eq__.uint4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__ne__.uint4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['uint4', u32, int]) -> 'bool4': return intrinsic("cmp.__ne__.uint4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['uint4', u32, int]) -> 'uint4': return intrinsic("binop.__floordiv__.uint4",  uint4,  self, _other)
     @func(inline='always')
@@ -3108,17 +3108,17 @@ class long4:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return intrinsic("binop.__imod__.long4",  long4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__lt__.long4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__lt__.long4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__le__.long4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__le__.long4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__gt__.long4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__gt__.long4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__ge__.long4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__ge__.long4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__eq__.long4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__eq__.long4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__ne__.long4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['long4', i64, int]) -> 'bool4': return intrinsic("cmp.__ne__.long4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['long4', i64, int]) -> 'long4': return intrinsic("binop.__floordiv__.long4",  long4,  self, _other)
     @func(inline='always')
@@ -3188,17 +3188,17 @@ class ulong4:
     @func(inline='always')
     def __imod__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return intrinsic("binop.__imod__.ulong4",  ulong4,  byref(self), _other)
     @func(inline='always')
-    def __lt__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__lt__.ulong4",  bool4,  self, _other) # type: ignore[override]
+    def __lt__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__lt__.ulong4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __le__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__le__.ulong4",  bool4,  self, _other) # type: ignore[override]
+    def __le__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__le__.ulong4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __gt__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__gt__.ulong4",  bool4,  self, _other) # type: ignore[override]
+    def __gt__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__gt__.ulong4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ge__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__ge__.ulong4",  bool4,  self, _other) # type: ignore[override]
+    def __ge__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__ge__.ulong4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __eq__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__eq__.ulong4",  bool4,  self, _other) # type: ignore[override]
+    def __eq__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__eq__.ulong4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
-    def __ne__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__ne__.ulong4",  bool4,  self, _other) # type: ignore[override]
+    def __ne__(self, _other:  tp.Union['ulong4', u64, int]) -> 'bool4': return intrinsic("cmp.__ne__.ulong4",  bool4,  self, _other) # type: ignore
     @func(inline='always')
     def __floordiv__(self, _other:  tp.Union['ulong4', u64, int]) -> 'ulong4': return intrinsic("binop.__floordiv__.ulong4",  ulong4,  self, _other)
     @func(inline='always')

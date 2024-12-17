@@ -63,7 +63,7 @@ class FunctionTemplate:
 
     """
     parsing_func: FunctionTemplateResolvingFunc
-    __resolved: Dict[Tuple[Tuple[str,
+    _resolved: Dict[Tuple[Tuple[str,
                                  Union['Type', Any]], ...], "Function"]
     is_generic: bool
     name: str
@@ -73,7 +73,7 @@ class FunctionTemplate:
 
     def __init__(self, name: str, params: List[str], parsing_func: FunctionTemplateResolvingFunc, is_generic: bool) -> None:
         self.parsing_func = parsing_func
-        self.__resolved = {}
+        self._resolved = {}
         self.params = params
         self.is_generic = is_generic
         self.name = name
@@ -85,16 +85,16 @@ class FunctionTemplate:
             key = tuple(args)
         else:
             key = tuple()
-        if key in self.__resolved:
-            return self.__resolved[key]
+        if key in self._resolved:
+            return self._resolved[key]
         func = self.parsing_func(args)
         if isinstance(func, TemplateMatchingError):
             return func
-        self.__resolved[key] = func
+        self._resolved[key] = func
         return func
 
     def reset(self) -> None:
-        self.__resolved = {}
+        self._resolved = {}
 
     def inline_hint(self) -> bool | Literal['always', 'never']:
         if self.props is None:

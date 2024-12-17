@@ -80,7 +80,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_sig: Optiona
         func_sig = classinfo.parse_func_signature(f, func_globals, [])
 
     func_sig_converted, sig_parser = parse.convert_func_signature(
-        func_sig, func_name, func_globals, foreign_type_var_ns, {}, self_type)
+        func_sig, func_name, props, func_globals, foreign_type_var_ns, {}, self_type)
     implicit_type_params = sig_parser.implicit_type_params
     implicit_generic_params: Set[hir.GenericParameter] = set()
     for p in implicit_type_params.values():
@@ -119,7 +119,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_sig: Optiona
                 mapped_implicit_type_params[name] = mapped_type
 
         func_sig_instantiated, _p = parse.convert_func_signature(
-            func_sig, func_name, func_globals, type_var_ns, mapped_implicit_type_params, self_type, mode='instantiate')
+            func_sig, func_name, props, func_globals, type_var_ns, mapped_implicit_type_params, self_type, mode='instantiate')
         # print(func_name, func_sig)
         assert len(
             func_sig_instantiated.generic_params) == 0, f"generic params should be resolved but found {func_sig_instantiated.generic_params}"

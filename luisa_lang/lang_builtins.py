@@ -121,8 +121,11 @@ def device_assert(cond: bool, msg: str = "") -> typing.NoReturn:
     raise NotImplementedError(
         "device_assert should not be called in host-side Python code. ")
 
+
 def sizeof(t: type[T]) -> u64:
-    raise NotImplementedError("sizeof should not be called in host-side Python code. ")
+    raise NotImplementedError(
+        "sizeof should not be called in host-side Python code. ")
+
 
 @overload
 def range(n: T) -> List[T]: ...
@@ -208,11 +211,11 @@ class Array(Generic[T, N]):
     def __init__(self) -> None:
         self = intrinsic("init.array", Array[T, N])
 
-    def __getitem__(self, index: int | u32 | u64) -> T:
+    def __getitem__(self, index: int | i32 | u32 | i64 | u64) -> T:
         return intrinsic("array.ref", T, byref(self), index)  # type: ignore
 
-    def __setitem__(self, index: int | u32 | u64, value: T) -> None:
-        pass
+    def __setitem__(self, index: int | i32 | u32 | i64 | u64, value: T | int | float) -> None:
+        """value: T | int | float annotation is to make mypy happy. this function is ignored by the compiler"""
 
     def __len__(self) -> u64:
         return intrinsic("array.size", u64, self)  # type: ignore
@@ -233,10 +236,11 @@ class Array(Generic[T, N]):
 
 @opaque("Buffer")
 class Buffer(Generic[T]):
-    def __getitem__(self, index: int | u32 | u64) -> T:
+    def __getitem__(self, index: int | i32 | u32 | i64 | u64) -> T:
         return intrinsic("buffer.ref", T, self, index)  # type: ignore
 
-    def __setitem__(self, index: int | u32 | u64, value: T) -> None:
+    def __setitem__(self,  index: int | i32 | u32 | i64 | u64,  value: T | int | float) -> None:
+        """value: T | int | float annotation is to make mypy happy. this function is ignored by the compiler"""
         pass
 
     def __len__(self) -> u64:

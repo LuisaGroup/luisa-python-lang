@@ -153,6 +153,7 @@ class TypeParser:
 
 def convert_func_signature(signature: classinfo.MethodType,
                            ctx_name: str,
+                           props:hir.FuncProperties,
                            globalns: Dict[str, Any],
                            type_var_ns: Dict[typing.TypeVar, hir.Type],
                            implicit_type_params: Dict[str, hir.Type],
@@ -172,6 +173,8 @@ def convert_func_signature(signature: classinfo.MethodType,
         if arg[0] == "self":
             assert self_type is not None
             param_type = self_type
+            semantic = hir.ParameterSemantic.BYREF
+        if arg[0] in props.byref:
             semantic = hir.ParameterSemantic.BYREF
         if param_type is None:
             raise RuntimeError(

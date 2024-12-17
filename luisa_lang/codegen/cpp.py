@@ -34,10 +34,16 @@ class TypeCodeGenCache:
     def gen_impl(self, ty: hir.Type) -> str:
         match ty:
             case hir.IntType(bits=bits, signed=signed):
+                int_names = {
+                    '8':'byte',
+                    '16':'short',
+                    '32':'int',
+                    '64':'long',
+                }
                 if signed:
-                    return f"i{bits}"
+                    return f"lc_{int_names[str(bits)]}"
                 else:
-                    return f"u{bits}"
+                    return f"lc_u{int_names[str(bits)]}"
             case hir.FloatType(bits=bits):
                 match bits:
                     case 16:
@@ -77,6 +83,15 @@ class TypeCodeGenCache:
                 return ''
             case hir.TypeConstructorType():
                 return ''
+            case hir.OpaqueType():
+                def do():
+                    match ty.name:
+                        case 'Buffer':
+                            elem_ty = self.gen(ty.extra_args[0])
+                            return f'__builtin__Buffer<{elem_ty}>'
+                        case _:
+                            raise NotImplementedError(f"unsupported opaque type: {ty.name}")
+                return do()
             case _:
                 raise NotImplementedError(f"unsupported type: {ty}")
 
@@ -167,6 +182,8 @@ class Mangling:
             case hir.BoundType():
                 assert obj.instantiated
                 return self.mangle(obj.instantiated)
+            case hir.OpaqueType():
+                return obj.name
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 
@@ -263,6 +280,16 @@ class FuncCodeGen:
                 base = self.gen_ref(index.base)
                 idx = self.gen_expr(index.index)
                 return f"{base}[{idx}]"
+            case hir.IntrinsicRef() as intrin:
+                def do():
+                    intrin_name = intrin.name
+                    gened_args = [self.gen_value_or_ref(
+                            arg) for arg in intrin.args]
+                    if intrin_name == 'buffer_ref':
+                        return f"{gened_args[0]}[{gened_args[1]}]"
+                    else:
+                        raise RuntimeError(f"unsupported intrinsic reference: {intrin_name}")
+                return do()
             case _:
                 raise NotImplementedError(f"unsupported reference: {ref}")
 

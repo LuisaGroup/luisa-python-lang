@@ -20,7 +20,7 @@ from typing import (
     overload,
     Any,
 )
-from luisa_lang._builtin_decor import func, intrinsic
+from luisa_lang._builtin_decor import func, intrinsic, opaque
 from luisa_lang import parse
 
 T = TypeVar("T")
@@ -105,6 +105,7 @@ def comptime(a):
         return ComptimeBlock()
     return a
 
+
 @func
 def trap() -> None:
     """
@@ -119,6 +120,16 @@ def device_assert(cond: bool, msg: str = "") -> typing.NoReturn:
     """
     raise NotImplementedError(
         "device_assert should not be called in host-side Python code. ")
+
+@overload
+def range(n:T) -> List[T]: ...
+@overload
+def range(start: T, end: T) -> List[T]: ...
+@overload
+def range(start: T, end: T, step: T) -> List[T]: ...
+def range(*args):
+    raise NotImplementedError(
+        "range should not be called in host-side Python code. ")
 
 
 parse._add_special_function("comptime", comptime)
@@ -166,8 +177,8 @@ _n = hir.SymbolicConstant(hir.GenericParameter(
     "_N", "luisa_lang.lang")), typeof(u32)
 
 
-# @_builtin_type(
-#     hir.ParametricType(
+# @builtin_type(
+#     hir.ParametricType([_t, _b]
 #         "Array", [hir.TypeParameter(_t, bound=[])], hir.ArrayType(_t, _n)
 #     )
 # )
@@ -192,21 +203,22 @@ _n = hir.SymbolicConstant(hir.GenericParameter(
 #     )
 
 # @builtin_type(
-#     # hir.ParametricType(
-#     #     "Buffer", [hir.TypeParameter(_t, bound=[])], hir.OpaqueType("Buffer")
-#     # )
+#     hir.ParametricType(
+#         [_t], [hir.TypeParameter(_t, bound=[])], hir.OpaqueType("Buffer")
+#     )
 # )
 
 
-# class Buffer(Generic[T]):
-#     def __getitem__(self, index: int | u32 | u64) -> T:
-#         return _intrinsic_impl()
+@opaque("Buffer")
+class Buffer(Generic[T]):
+    def __getitem__(self, index: int | u32 | u64) -> T:
+        return intrinsic("buffer_ref", T, self, index)  # type: ignore
 
-#     def __setitem__(self, index: int | u32 | u64, value: T) -> None:
-#         return _intrinsic_impl()
+    def __setitem__(self, index: int | u32 | u64, value: T) -> None:
+        pass
 
-#     def __len__(self) -> u32 | u64:
-#         return _intrinsic_impl()
+    def __len__(self) -> u64:
+        return intrinsic("buffer_size",  u64, self)  # type: ignore
 
 
 # @builtin_type(
@@ -232,8 +244,9 @@ _n = hir.SymbolicConstant(hir.GenericParameter(
 
 __all__: List[str] = [
     # 'Pointer',
-    # 'Buffer',
+    'Buffer',
     # 'Array',
+    'range',
     'comptime',
     'address_of',
     'unroll',

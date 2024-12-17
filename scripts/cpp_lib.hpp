@@ -14,10 +14,10 @@
 #endif
 
           
-int __float_as_int(float x) noexcept { return std::bit_cast<int>(x); }
-float __int_as_float(int x) noexcept { return std::bit_cast<float>(x); }
-float exp10f(float x) noexcept { return std::pow(10.0f, x); }
-float rsqrtf(float x) noexcept { return 1.0f / std::sqrt(x); }
+inline int __float_as_int(float x) noexcept { return std::bit_cast<int>(x); }
+inline float __int_as_float(int x) noexcept { return std::bit_cast<float>(x); }
+inline float exp10f(float x) noexcept { return std::pow(10.0f, x); }
+inline float rsqrtf(float x) noexcept { return 1.0f / std::sqrt(x); }
 inline int __clz(unsigned int x) {
     return __builtin_clz(x);
 }
@@ -3945,3 +3945,12 @@ template<> struct element_type_<lc_long4> { using type = lc_long; };
 template<> struct element_type_<lc_ulong2> { using type = lc_ulong; };
 template<> struct element_type_<lc_ulong3> { using type = lc_ulong; };
 template<> struct element_type_<lc_ulong4> { using type = lc_ulong; };
+
+template<class T>
+struct __builtin__Buffer {
+    T *data{};
+    size_t size{};
+    __device__ T &operator[](size_t i) noexcept { return data[i]; }
+    __device__ T &operator[](size_t i) const noexcept { return data[i]; }
+};
+

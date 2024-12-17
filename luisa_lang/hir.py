@@ -17,7 +17,7 @@ from typing import (
 import typing
 from typing_extensions import override
 from luisa_lang import classinfo
-from luisa_lang.utils import Span, round_to_align
+from luisa_lang.utils import Span, round_to_align, unwrap
 from abc import ABC, abstractmethod
 
 PATH_PREFIX = "luisa_lang"
@@ -45,11 +45,13 @@ class FuncProperties:
     inline: bool | Literal["never", "always"]
     export: bool
     byref: Set[str]
+    returning_ref: bool
 
     def __init__(self):
         self.inline = False
         self.export = False
         self.byref = set()
+        self.returning_ref = False
 
 
 class FunctionTemplate:
@@ -93,6 +95,11 @@ class FunctionTemplate:
 
     def reset(self) -> None:
         self.__resolved = {}
+
+    def inline_hint(self) -> bool | Literal['always', 'never']:
+        if self.props is None:
+            return False
+        return self.props.inline
 
 
 class DynamicIndex:
@@ -600,10 +607,12 @@ class GenericParameter:
 
 class OpaqueType(Type):
     name: str
+    extra_args: List[Any]
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, extra: List[Any] | None = None) -> None:
         super().__init__()
         self.name = name
+        self.extra_args = extra or []
 
     def size(self) -> int:
         raise RuntimeError("OpaqueType has no size")
@@ -612,10 +621,10 @@ class OpaqueType(Type):
         raise RuntimeError("OpaqueType has no align")
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, OpaqueType) and value.name == self.name
+        return isinstance(value, OpaqueType) and value.name == self.name and value.extra_args == self.extra_args
 
     def __hash__(self) -> int:
-        return hash((OpaqueType, self.name))
+        return hash((OpaqueType, self.name, tuple(self.extra_args)))
 
     def __str__(self) -> str:
         return self.name
@@ -1003,7 +1012,21 @@ class Intrinsic(Value):
 
     def __repr__(self) -> str:
         return f'Intrinsic({self.name}, {self.args})'
+    
+class IntrinsicRef(Ref):
+    name: str
+    args: List[Value | Ref]
 
+    def __init__(self, name: str, args: List[Value | Ref], type: Type, span: Optional[Span] = None) -> None:
+        super().__init__(type, span)
+        self.name = name
+        self.args = args
+
+    def __str__(self) -> str:
+        return f'IntrinsicRef({self.name}, {self.args})'
+    
+    def __repr__(self) -> str:
+        return f'IntrinsicRef({self.name}, {self.args})'
 
 class Call(Value):
     op: "Function"
@@ -1066,6 +1089,13 @@ class ParsingError(SpannedError):
         if self.span is None:
             return f"Parsing error:\n\t{self.message}"
         return f"Parsing error at {self.span}:\n\t{self.message}"
+
+
+class InlineError(SpannedError):
+    def __str__(self) -> str:
+        if self.span is None:
+            return f"Inline error:\n\t{self.message}"
+        return f"Inline error at {self.span}:\n\t{self.message}"
 
 
 class TypeInferenceError(SpannedError):
@@ -1159,6 +1189,14 @@ class Return(Terminator):
         self.value = value
 
 
+class ReturnRef(Terminator):
+    value: Ref
+
+    def __init__(self, value: Ref, span: Optional[Span] = None) -> None:
+        super().__init__(span)
+        self.value = value
+
+
 class Range(Value):
     start: Value
     step: Value
@@ -1169,6 +1207,13 @@ class Range(Value):
         self.start = start
         self.stop = stop
         self.step = step
+
+    def value_type(self) -> Type:
+        types = [self.start.type, self.stop.type, self.step.type]
+        for ty in types:
+            if not isinstance(ty, GenericIntType):
+                return unwrap(ty)
+        return unwrap(types[0])
 
 
 class ComptimeValue:
@@ -1209,7 +1254,8 @@ class Function:
     locals: List[Var]
     complete: bool
     is_method: bool
-    inline_hint: bool | Literal['always', 'never']
+    _inline_hint: bool | Literal['always', 'never']
+    returning_ref: bool
 
     def __init__(
         self,
@@ -1217,6 +1263,7 @@ class Function:
         params: List[Var],
         return_type: Type | None,
         is_method: bool,
+        returning_ref: bool,
     ) -> None:
         self.name = name
         self.params = params
@@ -1226,7 +1273,11 @@ class Function:
         self.locals = []
         self.complete = False
         self.is_method = is_method
-        self.inline_hint = False
+        self._inline_hint = False
+        self.returning_ref = returning_ref
+
+    def inline_hint(self) -> bool | Literal['always', 'never']:
+        return self._inline_hint
 
 
 def match_template_args(
@@ -1415,10 +1466,11 @@ def is_type_compatible_to(ty: Type, target: Type) -> bool:
 
 class FunctionInliner:
     mapping: Dict[Ref | Value, Ref | Value]
-    ret: Value | None
+    ret: Value | Ref | None
 
     def __init__(self, func: Function, args: List[Value | Ref], body: BasicBlock, span: Optional[Span] = None) -> None:
         self.mapping = {}
+        self.ret = None
         for param, arg in zip(func.params, args):
             self.mapping[param] = arg
         assert func.body
@@ -1435,8 +1487,11 @@ class FunctionInliner:
                     self.mapping[node] = Alloca(node.type, node.span)
                 case Load():
                     mapped_var = self.mapping[node.ref]
-                    assert isinstance(mapped_var, Ref)
-                    body.append(Load(mapped_var))
+                    if isinstance(node.ref, Ref) and isinstance(mapped_var, Value):
+                        self.mapping[node] = mapped_var
+                    else:
+                        assert isinstance(mapped_var, Ref)
+                        self.mapping[node] = body.append(Load(mapped_var))
                 case Index():
                     base = self.mapping.get(node.base)
                     assert isinstance(base, Value)
@@ -1471,7 +1526,8 @@ class FunctionInliner:
                         for arg in call.args:
                             mapped_arg = self.mapping.get(arg)
                             if mapped_arg is None:
-                                raise ParsingError(node, "unable to inline call")
+                                raise InlineError(
+                                    node, "unable to inline call")
                             args.append(mapped_arg)
                         assert call.type
                         self.mapping[call] = body.append(
@@ -1483,26 +1539,39 @@ class FunctionInliner:
                         for arg in intrin.args:
                             mapped_arg = self.mapping.get(arg)
                             if mapped_arg is None:
-                                raise ParsingError(
+                                raise InlineError(
                                     node, "unable to inline intrinsic")
                             args.append(mapped_arg)
                         assert intrin.type
                         self.mapping[intrin] = body.append(
                             Intrinsic(intrin.name, args, intrin.type, node.span))
                     do()
-                case Return():
+                case IntrinsicRef() as intrin:
+                    def do():
+                        args: List[Ref | Value] = []
+                        for arg in intrin.args:
+                            mapped_arg = self.mapping.get(arg)
+                            if mapped_arg is None:
+                                raise InlineError(
+                                    node, "unable to inline intrinsic")
+                            args.append(mapped_arg)
+                        assert intrin.type
+                        self.mapping[intrin] = body.append(
+                            IntrinsicRef(intrin.name, args, intrin.type, node.span))
+                    do()
+                case ReturnRef() | Return():
                     if self.ret is not None:
-                        raise ParsingError(node, "multiple return statement")
+                        raise InlineError(node, "multiple return statement")
                     assert node.value is not None
                     mapped_value = self.mapping.get(node.value)
-                    if mapped_value is None or isinstance(mapped_value, Ref):
-                        raise ParsingError(node, "unable to inline return")
+                    if mapped_value is None:
+                        raise InlineError(node, "unable to inline return")
                     self.ret = mapped_value
                 case _:
-                    raise ParsingError(node, "invalid node for inlining")
+                    raise ParsingError(node, f"invalid node {node} for inlining")
 
     @staticmethod
-    def inline(func: Function, args: List[Value | Ref], body: BasicBlock, span: Optional[Span] = None) -> Value:
+    def inline(func: Function, args: List[Value | Ref], body: BasicBlock, span: Optional[Span] = None) -> Value | Ref:
         inliner = FunctionInliner(func, args, body, span)
         assert inliner.ret
         return inliner.ret

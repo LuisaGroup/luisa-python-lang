@@ -33,10 +33,10 @@ def gen_cpp_lib():
 #endif
 
           
-int __float_as_int(float x) noexcept { return std::bit_cast<int>(x); }
-float __int_as_float(int x) noexcept { return std::bit_cast<float>(x); }
-float exp10f(float x) noexcept { return std::pow(10.0f, x); }
-float rsqrtf(float x) noexcept { return 1.0f / std::sqrt(x); }
+inline int __float_as_int(float x) noexcept { return std::bit_cast<int>(x); }
+inline float __int_as_float(int x) noexcept { return std::bit_cast<float>(x); }
+inline float exp10f(float x) noexcept { return std::pow(10.0f, x); }
+inline float rsqrtf(float x) noexcept { return 1.0f / std::sqrt(x); }
 inline int __clz(unsigned int x) {
     return __builtin_clz(x);
 }
@@ -954,6 +954,16 @@ template<class T> using element_type = typename element_type_<T>::type;
         gen_element_type(vt, 'lc_long')
     for vt in ['lc_ulong2', 'lc_ulong3', 'lc_ulong4']:
         gen_element_type(vt, 'lc_ulong')
+
+    print('''
+template<class T>
+struct __builtin__Buffer {
+    T *data{};
+    size_t size{};
+    __device__ T &operator[](size_t i) noexcept { return data[i]; }
+    __device__ T &operator[](size_t i) const noexcept { return data[i]; }
+};
+''', file=CPP_LIB_SRC)
 
 
 gen_cpp_lib()

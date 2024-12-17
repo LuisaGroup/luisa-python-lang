@@ -42,17 +42,31 @@ def is_valid_comptime_value_in_dsl_code(value: Any) -> bool:
 ParsingMode = Literal['parse', 'instantiate']
 
 
+def _make_type_parameteric_type() -> hir.ParametricType:
+    t = hir.GenericParameter('T', '__builtins__.type')
+    st = hir.SymbolicType(t)
+
+    def mono_func(args: List[hir.Type]) -> hir.Type:
+        assert len(args) == 1
+        return hir.TypeConstructorType(args[0])
+    type_type = hir.ParametricType([t], hir.TypeConstructorType(st), mono_func)
+    return type_type
+
+
+TYPE_PARAMETERIC_TYPE: hir.ParametricType = _make_type_parameteric_type()
+
+
 class TypeParser:
     ctx_name: str
     globalns: Dict[str, Any]
     self_type: Optional[Type]
-    type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue]
+    type_var_ns: Dict[typing.TypeVar, hir.Type]
     generic_params: List[hir.GenericParameter]
     generic_param_to_type_var: Dict[hir.GenericParameter, typing.TypeVar]
     implicit_type_params: Dict[str, hir.Type]
     mode: ParsingMode
 
-    def __init__(self,  ctx_name: str, globalns: Dict[str, Any],  type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue], self_type: Optional[Type], mode: ParsingMode) -> None:
+    def __init__(self,  ctx_name: str, globalns: Dict[str, Any],  type_var_ns: Dict[typing.TypeVar, hir.Type], self_type: Optional[Type], mode: ParsingMode) -> None:
         self.globalns = globalns
         self.self_type = self_type
         self.type_var_ns = type_var_ns
@@ -73,6 +87,16 @@ class TypeParser:
         match ty:
             case classinfo.GenericInstance():
                 origin = ty.origin
+                if origin is type:
+                    def handle_type_t():
+                        assert len(
+                            ty.args) == 1, "type[T] expects exactly one type argument"
+                        arg = self.parse_type(ty.args[0])
+                        assert arg is not None
+                        if self.mode == 'instantiate':
+                            return TYPE_PARAMETERIC_TYPE.instantiate([arg])
+                        return hir.BoundType(TYPE_PARAMETERIC_TYPE, [arg], None)
+                    return handle_type_t()
                 ir_ty = self.parse_type(origin)
                 if not ir_ty:
                     raise RuntimeError(
@@ -96,10 +120,6 @@ class TypeParser:
                 # print(f'{ty} @ {id(ty)} {ty.__name__} in {self.type_var_ns}? : {ty in self.type_var_ns}')
                 if ty in self.type_var_ns:
                     v = self.type_var_ns[ty]
-                    if isinstance(v, ComptimeValue):
-                        raise RuntimeError(
-                            "Type expected but got comptime value")
-                    # print(f'{ty} resolved to {v}')
                     return v
                 p = hir.GenericParameter(ty.__name__, self.ctx_name)
                 pt = hir.SymbolicType(p)
@@ -119,15 +139,22 @@ class TypeParser:
             case classinfo.AnyType():
                 return hir.AnyBound()
             case type():
+                if ty is type:
+                    raise RuntimeError(
+                        f"type alone cannot be used as a dsl type hint. use type[T] instead")
                 dsl_type = get_dsl_type(ty)
                 assert dsl_type is not None, f"Type {ty} is not a valid DSL type"
                 return dsl_type
+            case classinfo.LiteralType():
+                return hir.LiteralType(ty.value)
+            case _:
+                raise RuntimeError(f"Unsupported type {ty}")
 
 
 def convert_func_signature(signature: classinfo.MethodType,
                            ctx_name: str,
                            globalns: Dict[str, Any],
-                           type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue],
+                           type_var_ns: Dict[typing.TypeVar, hir.Type],
                            implicit_type_params: Dict[str, hir.Type],
                            self_type: Optional[Type],
                            mode: ParsingMode = 'parse'
@@ -200,7 +227,7 @@ class FuncParser:
     vars: Dict[str, hir.Var | ComptimeValue]
     func_def: ast.FunctionDef
     parsed_func: hir.Function
-    type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue]
+    type_var_ns: Dict[typing.TypeVar, hir.Type]
     bb_stack: List[hir.BasicBlock]
     type_parser: TypeParser
     break_and_continues: List[hir.Break | hir.Continue] | None
@@ -210,7 +237,7 @@ class FuncParser:
                  func: object,
                  signature: hir.FunctionSignature,
                  globalns: Dict[str, Any],
-                 type_var_ns: Dict[typing.TypeVar, hir.Type | ComptimeValue],
+                 type_var_ns: Dict[typing.TypeVar, hir.Type],
                  self_type: Optional[Type],
                  return_ref: bool
                  ) -> None:
@@ -574,6 +601,18 @@ class FuncParser:
             intrin_ret = self.handle_intrinsic(expr, False)
             assert isinstance(intrin_ret, hir.Value)
             return intrin_ret
+        # elif f is SPECIAL_FUNCTIONS_DICT['sizeof']:
+        #     if len(expr.args) != 1:
+        #         raise hir.ParsingError(
+        #             expr, f"lc.sizeof function expects exactly one argument")
+        #     arg_ty = self.parse_expr(expr.args[0])
+        #     if isinstance(arg_ty, ComptimeValue):
+        #         arg_ty = self.try_convert_comptime_value(
+        #             arg_ty, hir.Span.from_ast(expr.args[0]))
+        #     if not isinstance(arg_ty, hir.TypeValue):
+        #         raise hir.ParsingError(
+        #             expr.args[0], f"expected type but got {arg_ty}")
+        #     return self.cur_bb().append(hir.Constant(arg_ty.inner_type().size(), type=hir.GlobalContext().get().types[''], span=hir.Span.from_ast(expr)))
         elif f is SPECIAL_FUNCTIONS_DICT['cast'] or f is SPECIAL_FUNCTIONS_DICT['bitcast']:
             def do() -> hir.Intrinsic:
                 if len(expr.args) != 2:
@@ -702,11 +741,11 @@ class FuncParser:
                         arg, hir.Span.from_ast(expr.args[i]))
             return cast(List[hir.Value | hir.Ref], args)
 
-        if isinstance(func, hir.TypeValue):
+        if isinstance(func.type, hir.TypeConstructorType):
             # TypeConstructorType is unique for each type
             # so if any value has this type, it must be referring to the same underlying type
             # even if it comes from a very complex expression, it's still fine
-            cls = func.inner_type()
+            cls = func.type.inner
             assert cls
             if isinstance(cls, hir.ParametricType):
                 raise hir.ParsingError(

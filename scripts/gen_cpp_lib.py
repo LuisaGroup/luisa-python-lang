@@ -883,6 +883,13 @@ template<>
 [[nodiscard]] __device__ inline constexpr auto lc_one<lc_bool>() noexcept {
 return true;
 }
+template<typename T>
+struct lc_ptr {
+    T *data{};
+    explicit lc_ptr(lc_ulong addr) noexcept : data(reinterpret_cast<T *>(addr)) {}
+    T &operator[](size_t i) noexcept { return data[i]; }
+    T &operator*() noexcept { return *data; }
+};
 template<typename T, size_t N>
 class lc_array {
 

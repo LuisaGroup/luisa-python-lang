@@ -56,8 +56,12 @@ class TypeCodeGenCache:
                         raise RuntimeError("invalid float type")
             case hir.BoolType():
                 return "lc_bool"
+            case hir.PointerType(element=element):
+                return f"lc_ptr<{self.gen(element)}>"
             case hir.VectorType(element=element, count=count):
                 return f"{self.gen(element)}{count}>"
+            case hir.ArrayType(element=element, count=count):
+                return f"lc_array<{self.gen(element)}, {count}>"
             case hir.StructType(name=name, fields=fields):
                 self.impl.writeln(f'struct {name} {{')
                 for field in fields:
@@ -80,9 +84,13 @@ class TypeCodeGenCache:
                 assert ty.instantiated
                 return self.gen(ty.instantiated)
             case hir.FunctionType():
-                return ''
+                name = f'func_{unique_hash(ty.func_like.name)}_t'
+                self.impl.writeln(f'struct {name} {{}}; // function type of {ty.func_like.name}')
+                return name
             case hir.TypeConstructorType():
-                return ''
+                name = f'type_{unique_hash(self.gen(ty.inner))}_t'
+                self.impl.writeln(f'struct {name} {{}}; // type constructor of {ty.inner}')
+                return name
             case hir.OpaqueType():
                 def do():
                     match ty.name:
@@ -171,8 +179,8 @@ class Mangling:
             case hir.Function(name=name, params=params, return_type=ret):
                 assert ret
                 name = mangle_name(name)
-                params = list(filter(lambda p: not isinstance(
-                    p.type, (hir.FunctionType)), params))
+                # params = list(filter(lambda p: not isinstance(
+                #     p.type, (hir.FunctionType)), params))
                 return f'{name}_' + unique_hash(f"F{name}_{self.mangle(ret)}{''.join(self.mangle(unwrap(p.type)) for p in params)}")
             case hir.StructType(name=name):
                 return name
@@ -184,6 +192,10 @@ class Mangling:
                 return self.mangle(obj.instantiated)
             case hir.OpaqueType():
                 return obj.name
+            case hir.TypeConstructorType():
+                return self.mangle(obj.inner)
+            case hir.FunctionType():
+                return f'func_{unique_hash(obj.func_like.name)}'
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 
@@ -246,7 +258,7 @@ class FuncCodeGen:
         self.name = base.mangling.mangle(func)
         self.func = func
         params = ",".join(self.gen_var(
-            p) for p in func.params if not isinstance(p.type, hir.FunctionType))
+            p) for p in func.params)
         assert func.return_type
         
         self.signature = f'auto {self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
@@ -285,10 +297,13 @@ class FuncCodeGen:
                     intrin_name = intrin.name
                     gened_args = [self.gen_value_or_ref(
                             arg) for arg in intrin.args]
-                    if intrin_name == 'buffer_ref':
-                        return f"{gened_args[0]}[{gened_args[1]}]"
-                    else:
-                        raise RuntimeError(f"unsupported intrinsic reference: {intrin_name}")
+                    match intrin_name:
+                        case 'buffer.ref' | 'array.ref':
+                            return f"{gened_args[0]}[{gened_args[1]}]"
+                        case 'buffer.size' | 'array.size':
+                            return f"{gened_args[0]}.size"
+                        case _:
+                            raise RuntimeError(f"unsupported intrinsic reference: {intrin_name}")
                 return do()
             case _:
                 raise NotImplementedError(f"unsupported reference: {ref}")
@@ -312,17 +327,40 @@ class FuncCodeGen:
     def gen_node_checked(self, node: hir.Node) -> str:
         if isinstance(node, hir.Constant):
             return self.gen_expr(node)
+        if isinstance(node, hir.TypedNode) and isinstance(node.type, (hir.TypeConstructorType, hir.FunctionType)):
+            assert node.type
+            return f'{self.base.type_cache.gen(node.type)}{{}}'
+            
         return self.node_map[node]
 
     def gen_expr(self, expr: hir.Value) -> str:
-        if expr.type and isinstance(expr.type, hir.FunctionType):
-            return ''
+        # if expr.type and isinstance(expr.type, hir.FunctionType):
+        #     return ''
+        if isinstance(expr, hir.Constant):
+            value = expr.value
+            if isinstance(value, int):
+                return f"{value}"
+            elif isinstance(value, float):
+                return f"{value}f"
+            elif isinstance(value, bool):
+                return "true" if value else "false"
+            elif isinstance(value, str):
+                return f"\"{value}\""
+            elif isinstance(value, hir.Function):
+                return self.gen_func(value)
+            else:
+                raise NotImplementedError(
+                    f"unsupported constant: {expr}")
         if expr in self.node_map:
             return self.node_map[expr]
         vid = self.new_vid()
 
         def impl() -> None:
             match expr:
+                case hir.TypeValue() as type_value:
+                    assert type_value.type
+                    self.base.type_cache.gen(type_value.type)
+                    return
                 case hir.Load() as load:
                     self.body.writeln(
                         f"const auto &v{vid} = {self.gen_ref(load.ref)}; // load")
@@ -337,36 +375,17 @@ class FuncCodeGen:
                 case hir.Call() as call:
                     op = self.gen_func(call.op)
                     args_s = ','.join(self.gen_value_or_ref(
-                        arg) for arg in call.args if not isinstance(arg.type, hir.FunctionType))
+                        arg) for arg in call.args)
                     if call.type != hir.UnitType():
                         self.body.writeln(
                             f"auto v{vid} = {op}({args_s});")
                     else:
                         self.body.writeln(f"{op}({args_s});")
-                case hir.Constant() as constant:
-                    value = constant.value
-                    if isinstance(value, int):
-                        self.body.writeln(f"const auto v{vid} = {value};")
-                    elif isinstance(value, float):
-                        self.body.writeln(f"const auto v{vid} = {value};")
-                    elif isinstance(value, bool):
-                        s = "true" if value else "false"
-                        self.body.writeln(f"const auto v{vid} = {s};")
-                    elif isinstance(value, str):
-                        self.body.writeln(f"const auto v{vid} = \"{value}\";")
-                    elif isinstance(value, hir.Function):
-                        name = self.gen_func(value)
-                        self.body.writeln(f"auto&& v{vid} = {name};")
-                    else:
-                        raise NotImplementedError(
-                            f"unsupported constant: {constant}")
                 case hir.AggregateInit():
                     assert expr.type
                     ty = self.base.type_cache.gen(expr.type)
                     self.body.writeln(
                         f"{ty} v{vid}{{ {','.join(self.gen_expr(e) for e in expr.args)} }};")
-                case hir.TypeValue():
-                    pass
                 case hir.Intrinsic() as intrin:
                     def do():
                         intrin_name = intrin.name
@@ -544,7 +563,7 @@ class FuncCodeGen:
                 ty = self.base.type_cache.gen(alloca.type)
                 self.body.writeln(f"{ty} v{vid}{{}};")
                 self.node_map[alloca] = f"v{vid}"
-            case hir.AggregateInit() | hir.Intrinsic() | hir.Call() | hir.Constant() | hir.Load() | hir.Index() | hir.Member():
+            case hir.AggregateInit() | hir.Intrinsic() | hir.Call() | hir.Constant() | hir.Load() | hir.Index() | hir.Member() | hir.TypeValue() | hir.FunctionValue():
                 self.gen_expr(node)
             case hir.Member() | hir.Index():
                 pass
@@ -570,8 +589,8 @@ class FuncCodeGen:
         for local in self.func.locals:
             if local.name in self.params:
                 continue
-            if isinstance(local.type, (hir.FunctionType, hir.TypeConstructorType)):
-                continue
+            # if isinstance(local.type, (hir.FunctionType, hir.TypeConstructorType)):
+            #     continue
             assert (
                 local.type
             ), f"Local variable `{local.name}` contains unresolved type"

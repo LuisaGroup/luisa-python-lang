@@ -56,9 +56,21 @@ class SelfType:
 
     def __eq__(self, other):
         return isinstance(other, SelfType)
+    
+class LiteralType:
+    value: Any
+
+    def __init__(self, value: Any):
+        self.value = value
+
+    def __repr__(self):
+        return f"Literal[{self.value}]"
+
+    def __eq__(self, other):
+        return isinstance(other, LiteralType) and self.value == other.value
 
 
-VarType = Union[TypeVar, Type, GenericInstance, UnionType, SelfType, AnyType]
+VarType = Union[TypeVar, Type, GenericInstance, UnionType, SelfType, AnyType, LiteralType]
 
 
 def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
@@ -204,6 +216,8 @@ def parse_type_hint(hint: Any) -> VarType:
             return GenericInstance(origin, [parse_type_hint(arg) for arg in args])
         elif origin is Union:
             return UnionType([parse_type_hint(arg) for arg in typing.get_args(hint)])
+        elif origin is Literal:
+            return LiteralType(typing.get_args(hint)[0])
         else:
             raise RuntimeError(f"Unsupported origin type: {origin}")
    

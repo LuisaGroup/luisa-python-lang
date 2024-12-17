@@ -69,7 +69,7 @@ class _ObjKind(Enum):
 
 
 def _make_func_template(f: Callable[..., Any], func_name: str, func_sig: Optional[MethodType],
-                        func_globals: Dict[str, Any], foreign_type_var_ns: Dict[TypeVar, hir.Type | hir.ComptimeValue],
+                        func_globals: Dict[str, Any], foreign_type_var_ns: Dict[TypeVar, hir.Type],
                         props: hir.FuncProperties, self_type: Optional[hir.Type] = None):
     # parsing_ctx = _parse.ParsingContext(func_name, func_globals)
     # func_sig_parser = _parse.FuncParser(func_name, f, parsing_ctx, self_type)
@@ -88,8 +88,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_sig: Optiona
         implicit_generic_params.add(p.param)
 
     def parsing_func(args: hir.FunctionTemplateResolvingArgs) -> hir.Function:
-        type_var_ns: Dict[TypeVar, hir.Type |
-                          hir.ComptimeValue] = foreign_type_var_ns.copy()
+        type_var_ns: Dict[TypeVar, hir.Type] = foreign_type_var_ns.copy()
         mapped_implicit_type_params: Dict[str,
                                           hir.Type] = dict()
         assert func_sig is not None
@@ -166,7 +165,7 @@ def _dsl_func_impl(f: _TT, kind: _ObjKind, attrs: Dict[str, Any]) -> _TT:
 
 
 _MakeTemplateFn = Callable[[List[hir.GenericParameter]], hir.Type]
-_InstantiateFn = Callable[[List[Any]], hir.Type]
+_InstantiateFn = Callable[[List[hir.Type]], hir.Type]
 
 
 def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.Type | Tuple[_MakeTemplateFn, _InstantiateFn] | None = None, opqaue_override: str | None = None) -> type[_TT]:
@@ -202,6 +201,8 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
 
     def parse_methods(type_var_ns: Dict[TypeVar, hir.Type | Any], self_ty: hir.Type,):
         for name in cls_info.methods:
+            if name == '__setitem__': # __setitem__ is ignored deliberately
+                continue
             method_object = getattr(cls, name)
             props: hir.FuncProperties
             if hasattr(method_object, '__luisa_func_props__'):
@@ -214,7 +215,7 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
                 method_object, get_full_name(method_object), cls_info.methods[name], globalns, type_var_ns, props, self_type=self_ty)
             if isinstance(self_ty, hir.BoundType):
                 assert isinstance(self_ty.instantiated,
-                                  (hir.StructType, hir.OpaqueType))
+                                  (hir.ArrayType, hir.StructType, hir.OpaqueType))
                 self_ty.instantiated.methods[name] = template
             else:
                 self_ty.methods[name] = template
@@ -235,7 +236,7 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
         parse_fields(type_parser, ir_ty)
     is_generic = len(cls_info.type_vars) > 0
     if is_generic:
-        def monomorphization_func(args: List[hir.Type | Any]) -> hir.Type:
+        def monomorphization_func(args: List[hir.Type]) -> hir.Type:
             assert isinstance(ir_ty, hir.ParametricType)
             type_var_ns = {}
             if len(args) != len(cls_info.type_vars):

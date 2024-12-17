@@ -150,6 +150,27 @@ class Type(ABC):
     def __len__(self) -> int:
         return 1
 
+class LiteralType(Type):
+    value: Any
+
+    def __init__(self, value: Any) -> None:
+        super().__init__()
+        self.value = value
+
+    def size(self) -> int:
+        raise RuntimeError("LiteralType has no size")
+    
+    def align(self) -> int:
+        raise RuntimeError("LiteralType has no align")
+    
+    def is_concrete(self) -> bool:
+        return False
+    
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, LiteralType) and value.value == self.value
+    
+    def __hash__(self) -> int:
+        return hash((LiteralType, self.value))
 
 class AnyType(Type):
     def size(self) -> int:
@@ -660,7 +681,7 @@ class SymbolicType(Type):
         return f"SymbolicType({self.param})"
 
 
-MonomorphizationFunc = Callable[[List[Type | Any]], Type]
+MonomorphizationFunc = Callable[[List[Type]], Type]
 
 
 class ParametricType(Type):
@@ -954,10 +975,10 @@ class Constant(Value):
         self.value = value
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, Constant) and value.value == self.value
+        return isinstance(value, Constant) and type(value.value) == type(self.value) and value.value == self.value
 
     def __hash__(self) -> int:
-        return hash(self.value)
+        return hash((Constant, self.value))
 
 
 class TypeValue(Value):
@@ -1281,107 +1302,108 @@ class Function:
 
 
 def match_template_args(
-        template: List[Tuple[str, Union[Type, ComptimeValue]]],
-        args: List[Type | ComptimeValue]) -> Dict[GenericParameter, Type | ComptimeValue] | TypeInferenceError:
-    mapping: Dict[GenericParameter, Type | ComptimeValue] = {}
+        template: List[Tuple[str, Type]],
+        args: List[Type]) -> Dict[GenericParameter, Type] | TypeInferenceError:
+    mapping: Dict[GenericParameter, Type] = {}
 
-    def unify(a: Type | ComptimeValue, b: Type | ComptimeValue):
+    def unify(a: Type, b: Type):
         """
         Perform unification on two types or values, only a could contain generic parameters.
         """
         if a is b:
             return
-        if (isinstance(a, Type) and isinstance(b, ComptimeValue)) or (isinstance(b, Type) and isinstance(a, ComptimeValue)):
-            raise TypeInferenceError(None, "type and value cannot be unified")
-        if isinstance(a, Type) and isinstance(b, Type):
-            # unify type
-            match a:
-                case SymbolicType():
-                    if a.param.name in mapping:
-                        return unify(mapping[a.param], b)
-                    if a.param.bound is None:
-                        if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
-                            raise TypeInferenceError(None,
-                                                     f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
-                    else:
-                        if not a.param.bound.satisfied_by(b):
-                            raise TypeInferenceError(
-                                None, f"{b} does not satisfy bound {a.param.bound}")
-                        if isinstance(a.param.bound, UnionBound):
-                            for bound in a.param.bound.bounds:
-                                if bound.satisfied_by(b) and bound.super_type.is_concrete():
-                                    mapping[a.param] = bound.super_type
-                                    return
-                    mapping[a.param] = b
-                    return
-                case VectorType():
-                    if not isinstance(b, VectorType):
+
+        # unify type
+        match a:
+            case SymbolicType():
+                if a.param.name in mapping:
+                    return unify(mapping[a.param], b)
+                if a.param.bound is None:
+                    if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
+                        raise TypeInferenceError(None,
+                                                    f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
+                else:
+                    if not a.param.bound.satisfied_by(b):
+                        raise TypeInferenceError(
+                            None, f"{b} does not satisfy bound {a.param.bound}")
+                    if isinstance(a.param.bound, UnionBound):
+                        for bound in a.param.bound.bounds:
+                            if bound.satisfied_by(b) and bound.super_type.is_concrete():
+                                mapping[a.param] = bound.super_type
+                                return
+                mapping[a.param] = b
+                return
+            case VectorType():
+                if not isinstance(b, VectorType):
+                    raise TypeInferenceError(
+                        None, f"expected {a}, got {b}")
+                if a.count != b.count:
+                    raise TypeInferenceError(
+                        None, f"vector length mismach, expected {a}, got {b}")
+                unify(a.element, b.element)
+            case ArrayType():
+                if not isinstance(b, ArrayType):
+                    raise TypeInferenceError(
+                        None, f"expected {a}, got {b}")
+                # TODO: handle generic array length
+                if a.count != b.count:
+                    raise TypeInferenceError(
+                        None, f"array length mismach, expected {a}, got {b}")
+                unify(a.element, b.element)
+            case PointerType():
+                if not isinstance(b, PointerType):
+                    raise TypeInferenceError(
+                        None, f"expected {a}, got {b}")
+                unify(a.element, b.element)
+            case TupleType():
+                def do() -> None:
+                    if not isinstance(b, TupleType):
                         raise TypeInferenceError(
                             None, f"expected {a}, got {b}")
-                    if a.count != b.count:
-                        raise TypeInferenceError(
-                            None, f"vector length mismach, expected {a}, got {b}")
-                    unify(a.element, b.element)
-                case ArrayType():
-                    if not isinstance(b, ArrayType):
+                    if len(a.elements) != len(b.elements):
                         raise TypeInferenceError(
                             None, f"expected {a}, got {b}")
-                    # TODO: handle generic array length
-                    if a.count != b.count:
+                    for ea, eb in zip(a.elements, b.elements):
+                        unify(ea, eb)
+                do()
+            case StructType():
+                raise RuntimeError(
+                    "StructType should not appear in match_template_args")
+                # if not isinstance(b, StructType):
+                #     raise TypeInferenceError(
+                #         None, f"expected {a}, got {b}")
+                # if len(a.fields) != len(b.fields):
+                #     raise TypeInferenceError(
+                #         None, f"field cound mismatch, expected {a}, got {b}")
+                # for (fa, ta), (fb, tb) in zip(a.fields, b.fields):
+                #     if fa != fb:
+                #         raise TypeInferenceError(
+                #             None, f"field name mismatch,expected {a}, got {b}")
+                #     unify(ta, tb)
+            case BoundType():
+                def do() -> None:
+                    if not isinstance(b, BoundType):
+                        if isinstance(b, TypeConstructorType) and isinstance(a.generic.body, TypeConstructorType):
+                            assert len(a.args) == 1
+                            unify(a.args[0], b.inner)
+                            return
+                            
                         raise TypeInferenceError(
-                            None, f"array length mismach, expected {a}, got {b}")
-                    unify(a.element, b.element)
-                case PointerType():
-                    if not isinstance(b, PointerType):
+                            None, f"{b} is not a BoundType")
+                    if len(a.args) != len(b.args):
                         raise TypeInferenceError(
-                            None, f"expected {a}, got {b}")
-                    unify(a.element, b.element)
-                case TupleType():
-                    def do() -> None:
-                        if not isinstance(b, TupleType):
-                            raise TypeInferenceError(
-                                None, f"expected {a}, got {b}")
-                        if len(a.elements) != len(b.elements):
-                            raise TypeInferenceError(
-                                None, f"expected {a}, got {b}")
-                        for ea, eb in zip(a.elements, b.elements):
-                            unify(ea, eb)
-                    do()
-                case StructType():
-                    raise RuntimeError(
-                        "StructType should not appear in match_template_args")
-                    # if not isinstance(b, StructType):
-                    #     raise TypeInferenceError(
-                    #         None, f"expected {a}, got {b}")
-                    # if len(a.fields) != len(b.fields):
-                    #     raise TypeInferenceError(
-                    #         None, f"field cound mismatch, expected {a}, got {b}")
-                    # for (fa, ta), (fb, tb) in zip(a.fields, b.fields):
-                    #     if fa != fb:
-                    #         raise TypeInferenceError(
-                    #             None, f"field name mismatch,expected {a}, got {b}")
-                    #     unify(ta, tb)
-                case BoundType():
-                    def do() -> None:
-                        if not isinstance(b, BoundType):
-                            raise TypeInferenceError(
-                                None, f"{b} is not a BoundType")
-                        if len(a.args) != len(b.args):
-                            raise TypeInferenceError(
-                                None, f"expected {len(a.args)} arguments, got {len(b.args)}")
-                        for ea, eb in zip(a.args, b.args):
-                            unify(ea, eb)
-                        unify(a.generic.body, b.generic.body)
-                    do()
-                case ParametricType():
-                    raise RuntimeError(
-                        "ParametricType should not appear in match_template_args")
-                case _:
-                    if not is_type_compatible_to(b, a):
-                        raise TypeInferenceError(
-                            None, f"expected {a}, got {b}")
-        if isinstance(a, Value) and isinstance(b, Value):
-            raise NotImplementedError()
+                            None, f"expected {len(a.args)} arguments, got {len(b.args)}")
+                    for ea, eb in zip(a.args, b.args):
+                        unify(ea, eb)
+                    unify(a.generic.body, b.generic.body)
+                do()
+            case ParametricType():
+                raise RuntimeError(
+                    "ParametricType should not appear in match_template_args")
+            case _:
+                if not is_type_compatible_to(b, a):
+                    raise TypeInferenceError(
+                        None, f"expected {a}, got {b}")
         return False
     try:
         if len(template) != len(args):
@@ -1393,12 +1415,12 @@ def match_template_args(
         return e
 
 
-def match_func_template_args(sig: FunctionSignature, args: FunctionTemplateResolvingArgs) -> Dict[GenericParameter, Type | ComptimeValue] | TypeInferenceError:
+def match_func_template_args(sig: FunctionSignature, args: FunctionTemplateResolvingArgs) -> Dict[GenericParameter, Type] | TypeInferenceError:
     if len(sig.params) != len(args):
         return TypeInferenceError(
             None, f"expected {len(sig.params)} arguments, got {len(args)}")
 
-    template_args: List[Tuple[str, Union[Type, ComptimeValue]]] = []
+    template_args: List[Tuple[str, Type]] = []
     for param in sig.params:
         assert param.type is not None
         template_args.append((param.name, param.type))

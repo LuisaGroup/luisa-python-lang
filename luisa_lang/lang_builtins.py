@@ -20,11 +20,11 @@ from typing import (
     overload,
     Any,
 )
-from luisa_lang._builtin_decor import func, intrinsic, opaque
+from luisa_lang._builtin_decor import func, intrinsic, opaque, builtin_generic_type
 from luisa_lang import parse
 
 T = TypeVar("T")
-N = TypeVar("N", int, u32, u64)
+N = TypeVar("N")
 
 
 @func
@@ -121,12 +121,17 @@ def device_assert(cond: bool, msg: str = "") -> typing.NoReturn:
     raise NotImplementedError(
         "device_assert should not be called in host-side Python code. ")
 
+def sizeof(t: type[T]) -> u64:
+    raise NotImplementedError("sizeof should not be called in host-side Python code. ")
+
 @overload
-def range(n:T) -> List[T]: ...
+def range(n: T) -> List[T]: ...
 @overload
 def range(start: T, end: T) -> List[T]: ...
 @overload
 def range(start: T, end: T, step: T) -> List[T]: ...
+
+
 def range(*args):
     raise NotImplementedError(
         "range should not be called in host-side Python code. ")
@@ -139,6 +144,7 @@ parse._add_special_function('reveal_type', typing.reveal_type)
 parse._add_special_function('cast', cast)
 parse._add_special_function('bitcast', bitcast)
 parse._add_special_function('device_assert', device_assert)
+parse._add_special_function('sizeof', sizeof)
 
 
 def static_assert(cond: Any, msg: str = ""):
@@ -172,28 +178,44 @@ def typeof(value: Any) -> hir.Type:
     return ty
 
 
-_t = hir.SymbolicType(hir.GenericParameter("_T", "luisa_lang.lang"))
-_n = hir.SymbolicConstant(hir.GenericParameter(
-    "_N", "luisa_lang.lang")), typeof(u32)
+# _t = hir.SymbolicType(hir.GenericParameter("_T", "luisa_lang.lang"))
+# _n = hir.SymbolicConstant(hir.GenericParameter(
+#     "_N", "luisa_lang.lang")), typeof(u32)
 
 
-# @builtin_type(
-#     hir.ParametricType([_t, _b]
-#         "Array", [hir.TypeParameter(_t, bound=[])], hir.ArrayType(_t, _n)
-#     )
-# )
-# class Array(Generic[T, N]):
-#     def __init__(self) -> None:
-#         return _intrinsic_impl()
+def _make_array_type(params: List[hir.GenericParameter]) -> hir.Type:
+    assert len(params) == 2
+    elem_ty = hir.SymbolicType(params[0])
+    size = hir.SymbolicConstant(params[1])
+    return hir.ParametricType(params, hir.ArrayType(elem_ty, size))
 
-#     def __getitem__(self, index: int | u32 | u64) -> T:
-#         return _intrinsic_impl()
 
-#     def __setitem__(self, index: int | u32 | u64, value: T) -> None:
-#         return _intrinsic_impl()
+def _instantiate_array_type(args: List[Any]) -> hir.Type:
+    assert len(args) == 2, "Array should have 2 arguments"
+    assert isinstance(
+        args[1], hir.LiteralType), f"Array size should be a Literal but found {args[1]} of type {type(args[1])}"
+    array_len = args[1].value
+    assert isinstance(
+        array_len, int), f"Array size should be an integer but found {array_len} of type {type(array_len)}"
+    return hir.ArrayType(args[0], array_len)
 
-#     def __len__(self) -> u32 | u64:
-#         return _intrinsic_impl()
+
+@builtin_generic_type(
+    _make_array_type,
+    _instantiate_array_type
+)
+class Array(Generic[T, N]):
+    def __init__(self) -> None:
+        self = intrinsic("init.array", Array[T, N])
+
+    def __getitem__(self, index: int | u32 | u64) -> T:
+        return intrinsic("array.ref", T, byref(self), index)  # type: ignore
+
+    def __setitem__(self, index: int | u32 | u64, value: T) -> None:
+        pass
+
+    def __len__(self) -> u64:
+        return intrinsic("array.size", u64, self)  # type: ignore
 
 
 # def __buffer_ty():
@@ -212,40 +234,51 @@ _n = hir.SymbolicConstant(hir.GenericParameter(
 @opaque("Buffer")
 class Buffer(Generic[T]):
     def __getitem__(self, index: int | u32 | u64) -> T:
-        return intrinsic("buffer_ref", T, self, index)  # type: ignore
+        return intrinsic("buffer.ref", T, self, index)  # type: ignore
 
     def __setitem__(self, index: int | u32 | u64, value: T) -> None:
         pass
 
     def __len__(self) -> u64:
-        return intrinsic("buffer_size",  u64, self)  # type: ignore
+        return intrinsic("buffer.size",  u64, self)  # type: ignore
 
 
-# @builtin_type(
-#     hir.ParametricType(
-#         "Pointer", [hir.TypeParameter(_t, bound=[])], hir.PointerType(_t)
-#     )
-# )
-# class Pointer(Generic[T]):
-#     def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> T:
-#         return _intrinsic_impl()
+def _make_pointer_type(params: List[hir.GenericParameter]) -> hir.Type:
+    assert len(params) == 1
+    elem_ty = hir.SymbolicType(params[0])
+    return hir.ParametricType(params, hir.PointerType(elem_ty))
 
-#     def __setitem__(self, index: int | i32 | i64 | u32 | u64, value: T) -> None:
-#         return _intrinsic_impl()
 
-#     @property
-#     def value(self) -> T:
-#         return _intrinsic_impl()
+def _inst_pointer_type(args: List[Any]) -> hir.Type:
+    assert len(args) == 1
+    return hir.PointerType(args[0])
 
-#     @value.setter
-#     def value(self, value: T) -> None:
-#         return _intrinsic_impl()
+
+@builtin_generic_type(
+    _make_pointer_type,
+    _inst_pointer_type
+)
+class Pointer(Generic[T]):
+    def __init__(self, addr: u64) -> None:
+        self = intrinsic("init.pointer", Pointer[T], addr)
+
+    def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> T:
+        return intrinsic("pointer.read", T, self, index)  # type: ignore
+
+    def __setitem__(self, index: int | i32 | i64 | u32 | u64, value: T) -> None:
+        pass
+
+    def read(self) -> T:
+        return intrinsic("pointer.read", T, self)  # type: ignore
+
+    def write(self, value: T) -> None:
+        intrinsic("pointer.write", None, self, value)  # type: ignore
 
 
 __all__: List[str] = [
     # 'Pointer',
     'Buffer',
-    # 'Array',
+    'Array',
     'range',
     'comptime',
     'address_of',
@@ -261,4 +294,5 @@ __all__: List[str] = [
     'bitcast',
     'device_assert',
     'trap',
+    'sizeof',
 ]

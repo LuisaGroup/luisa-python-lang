@@ -208,6 +208,8 @@ def parse_type_hint(hint: Any) -> VarType:
         return hint
     if isinstance(hint, types.UnionType):
         return UnionType([parse_type_hint(arg) for arg in hint.__args__])
+    if hint is typing.Any:
+        return AnyType()
     origin = typing.get_origin(hint)
     if origin:
         if isinstance(origin, type):

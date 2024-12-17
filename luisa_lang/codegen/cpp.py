@@ -100,6 +100,10 @@ class TypeCodeGenCache:
                         case _:
                             raise NotImplementedError(f"unsupported opaque type: {ty.name}")
                 return do()
+            case hir.GenericIntType():
+                return 'int'
+            case hir.GenericFloatType():
+                return 'float'
             case _:
                 raise NotImplementedError(f"unsupported type: {ty}")
 
@@ -196,6 +200,10 @@ class Mangling:
                 return self.mangle(obj.inner)
             case hir.FunctionType():
                 return f'func_{unique_hash(obj.func_like.name)}'
+            case hir.GenericFloatType():
+                return 'f32'
+            case hir.GenericIntType():
+                return 'i32'
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 

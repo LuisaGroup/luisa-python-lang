@@ -1597,3 +1597,35 @@ class FunctionInliner:
         inliner = FunctionInliner(func, args, body, span)
         assert inliner.ret
         return inliner.ret
+
+
+def register_dsl_type_alias(target: type, alias: type):
+    """
+    Allow a type to be remapped to another type within DSL code.
+    Parameters:
+    target (type): The type to be remapped.
+    alias (type): The type to which the target type will be remapped.
+    Example:
+
+    For example, 
+    ```python
+    @lc.struct
+    class Foo:
+        x: int
+        y: int
+
+    class SomeOtherFoo:
+        components: List[int]
+        
+    register_dsl_type_alias(SomeOtherFoo, Foo)
+    
+    @lc.func
+    def foo(f: SomeOtherFoo): # SomeOtherFoo is interpreted as Foo
+        ...
+
+    ```
+    """
+    ctx = GlobalContext.get()
+    alias_ty = get_dsl_type(alias)
+    assert alias_ty, f"alias type {alias} is not a DSL type"
+    ctx.types[target] = alias_ty

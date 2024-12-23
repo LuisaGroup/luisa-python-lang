@@ -11,6 +11,7 @@ A new Python DSL frontend for LuisaCompute. Will be integrated into LuisaCompute
     - [Functions](#functions)
     - [User-defined Structs](#user-defined-structs)
     - [Control Flow](#control-flow)
+    - [Define DSL Operation for Non-DSL Types](#define-dsl-operation-for-non-dsl-types)
 - [Advanced Usage](#advanced-syntax)
     - [Generics](#generics)
     - [Metaprogramming](#metaprogramming)
@@ -102,6 +103,35 @@ class InfiniteArray:
 class Sphere:
     center: lc.float3
     radius: lc.float
+```
+
+### Define DSL Operation for Non-DSL Types
+Sometimes we want to use a non-DSL type in our DSL code. Such type could be imported from a third-party library or a built-in Python type. As long as we know the object layout, we can define the DSL operation for it by first defining a proxy struct that mirrors the object layout, and then define the operation for the proxy struct.
+
+```python
+# Assume we have a third-party library that defines a Vec3 class
+class Vec3:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+@lc.struct
+class Vec3Proxy:
+    x: lc.float
+    y: lc.float
+    z: lc.float
+
+    # write DSL operations here
+
+lc.register_dsl_type_alias(Vec3, Vec3Proxy)
+
+@lc.func
+def use_vec3(v: Vec3): # Vec3 is now treated as Vec3Proxy internally
+    v.x = 1.0
+    v.y = 2.0
+    v.z = 3.0
+
 ```
 
 ### Generics

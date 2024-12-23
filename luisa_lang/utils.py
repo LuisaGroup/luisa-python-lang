@@ -41,7 +41,7 @@ def increment_lineno_and_col_offset(
     return node
 
 
-def dedent_and_retrieve_indentation(lines: str) -> Tuple[str, int]:
+def dedent_and_retrieve_indentation(lines: List[str]) -> Tuple[str, int]:
     """
     Dedent the lines and return the indentation level of the first line.
     """

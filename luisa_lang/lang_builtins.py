@@ -208,6 +208,14 @@ def _instantiate_array_type(args: List[Any]) -> hir.Type:
     _instantiate_array_type
 )
 class Array(Generic[T, N]):
+    """
+    An array is a fixed-size collection of elements of type T. N need to be a Literal type.
+    Example:
+    ```python
+    arr = Array[int, Literal[10]]()
+    ```
+    """
+
     def __init__(self) -> None:
         self = intrinsic("init.array", Array[T, N])
 
@@ -236,6 +244,10 @@ class Array(Generic[T, N]):
 
 @opaque("Buffer")
 class Buffer(Generic[T]):
+    """
+    A buffer is a contiguuos memory of elements of type T.
+    """
+
     def __getitem__(self, index: int | u32 | i64 | u64) -> T:
         return intrinsic("buffer.ref", T, self, index)  # type: ignore
 
@@ -262,13 +274,30 @@ def _inst_pointer_type(args: List[Any]) -> hir.Type:
     _inst_pointer_type
 )
 class Pointer(Generic[T]):
+    """
+    A physical pointer (just like C pointer) to a memory location of type T.
+    Note that pointers might not be available in all backends.
+
+    ```python
+    p = Pointer[int](123456798) # 123456798 is the address of the memory location
+    i = p[0] # read the value at the memory location
+    p[0] = 10 # write the value at the memory location
+    # alternatively
+    i = p.read()
+    p.write(10)
+    # offset the pointer
+    x = p[1]
+    y = (p + 1).read()
+    ```
+    """
+
     def __init__(self, addr: u64) -> None:
         self = intrinsic("init.pointer", Pointer[T], addr)
 
-    def __getitem__(self, index: int | i32 | i64 | u32 | u64) -> T:
+    def __getitem__(self, index:  i32 | i64 | u32 | u64) -> T:
         return intrinsic("pointer.read", T, self, index)  # type: ignore
 
-    def __setitem__(self, index: int | i32 | i64 | u32 | u64, value: T) -> None:
+    def __setitem__(self, index: i32 | i64 | u32 | u64, value: T) -> None:
         pass
 
     def read(self) -> T:
@@ -276,6 +305,12 @@ class Pointer(Generic[T]):
 
     def write(self, value: T) -> None:
         intrinsic("pointer.write", None, self, value)  # type: ignore
+
+    def __add__(self, offset: i32 | i64 | u32 | u64) -> 'Pointer[T]':
+        return intrinsic("pointer.add", Pointer[T], self, offset)
+    
+    def __sub__(self, offset: i32 | i64 | u32 | u64) -> 'Pointer[T]':
+        return intrinsic("pointer.sub", Pointer[T], self, offset)
 
 
 __all__: List[str] = [

@@ -212,6 +212,22 @@ class {ty}{inherits_str}:
             )
             print("")
 
+        def gen_matrix_type(ty:str, vector_ty:str, scalar_ty:str, literal_scalar_ty:str, dim:int):
+            nonlocal exports
+            exports.append(ty)
+            comps = "xyzw"[:dim]
+            fields_def = "".join([f"    {comp}: {vector_ty}\n" for comp in comps])
+            inherits:List[str] = []
+            # if kind == Kind.FLOAT:
+            #     inherits.append(f"FloatBuiltin['{ty}']")
+            inherits_str = "" if len(inherits) == 0 else f"({', '.join(inherits)})"
+            print(
+                f"""@builtin_type(_hir.MatrixType({dim}))
+class {ty}{inherits_str}:
+{fields_def}
+    def __init__(self) -> None: self = intrinsic("init.{ty}", {ty})
+""")
+
         float_types = ["f32", "f64"]
         for size in [2, 3, 4]:
             float_types.append(f"float{size}")

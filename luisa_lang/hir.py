@@ -394,6 +394,8 @@ class VectorType(Type):
     def __len__(self) -> int:
         return self.count
 
+class MatrixType(Type):
+    pass
 
 class ArrayType(Type):
     element: Type

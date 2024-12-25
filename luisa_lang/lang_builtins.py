@@ -135,7 +135,7 @@ def range(start: T, end: T) -> List[T]: ...
 def range(start: T, end: T, step: T) -> List[T]: ...
 
 
-def range(*args):
+def range(*args, **kwargs):  # type: ignore
     raise NotImplementedError(
         "range should not be called in host-side Python code. ")
 
@@ -308,7 +308,7 @@ class Pointer(Generic[T]):
 
     def __add__(self, offset: i32 | i64 | u32 | u64) -> 'Pointer[T]':
         return intrinsic("pointer.add", Pointer[T], self, offset)
-    
+
     def __sub__(self, offset: i32 | i64 | u32 | u64) -> 'Pointer[T]':
         return intrinsic("pointer.sub", Pointer[T], self, offset)
 

@@ -1277,7 +1277,7 @@ class Function:
     locals: List[Var]
     complete: bool
     is_method: bool
-    _inline_hint: bool | Literal['always', 'never']
+    inline_hint: bool | Literal['always', 'never']
     returning_ref: bool
 
     def __init__(
@@ -1296,11 +1296,12 @@ class Function:
         self.locals = []
         self.complete = False
         self.is_method = is_method
-        self._inline_hint = False
+        self.inline_hint = False
         self.returning_ref = returning_ref
 
-    def inline_hint(self) -> bool | Literal['always', 'never']:
-        return self._inline_hint
+
+    
+
 
 
 def match_template_args(

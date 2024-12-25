@@ -95,9 +95,9 @@ class Span:
             return None
         if not hasattr(ast, "col_offset"):
             return None
-        if not hasattr(ast, "end_lineno") or ast.end_lineno is None:
+        if not hasattr(ast, "end_lineno") or getattr(ast, "end_lineno") is None:
             return None
-        if not hasattr(ast, "end_col_offset") or ast.end_col_offset is None:
+        if not hasattr(ast, "end_col_offset") or getattr(ast, "end_col_offset") is None:
             return None
         file = None
         if hasattr(ast, "source_file"):

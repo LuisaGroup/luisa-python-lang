@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "luisa-python-lang"
+description = "A New DSL Frontend for LuisaCompute"
+version = "0.1"
+requires-python = ">=3.12"
+dependencies = ["sourceinspect", "typing-extensions"]
+
+[tool.setuptools]
+packages = ["find:"]
+
+[tool.setuptools.package-data]
+luisa_lang = ["py.typed"]

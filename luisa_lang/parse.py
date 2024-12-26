@@ -235,15 +235,12 @@ class FuncParser:
     bb_stack: List[hir.BasicBlock]
     type_parser: TypeParser
     break_and_continues: List[hir.Break | hir.Continue] | None
-    returning_ref: bool
-
     def __init__(self, name: str,
                  func: object,
                  signature: hir.FunctionSignature,
                  globalns: Dict[str, Any],
                  type_var_ns: Dict[typing.TypeVar, hir.Type],
-                 self_type: Optional[Type],
-                 return_ref: bool
+                 self_type: Optional[Type]
                  ) -> None:
         self.type_parser = TypeParser(
             name, globalns, type_var_ns, self_type, 'instantiate')
@@ -251,7 +248,6 @@ class FuncParser:
         self.func = func
         self.signature = signature
         self.globalns = copy(globalns)
-        self.returning_ref = return_ref
         obj_ast, _obj_file = retrieve_ast_and_filename(func)
         # print(ast.dump(obj_ast))
         assert isinstance(obj_ast, ast.Module), f"{obj_ast} is not a module"

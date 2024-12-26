@@ -44,14 +44,10 @@ FunctionTemplateResolvingFunc = Callable[[
 class FuncProperties:
     inline: bool | Literal["never", "always"]
     export: bool
-    byref: Set[str]
-    returning_ref: bool
 
     def __init__(self):
         self.inline = False
         self.export = False
-        self.byref = set()
-        self.returning_ref = False
 
 
 class FunctionTemplate:
@@ -149,6 +145,32 @@ class Type(ABC):
 
     def __len__(self) -> int:
         return 1
+    
+class RefType(Type):
+    """
+    A logical reference type. Cannot be returned from functions/stored in aggregates.
+    """
+    element: Type
+
+    def __init__(self, element: Type) -> None:
+        super().__init__()
+        self.element = element
+        self.methods = element.methods
+
+    def size(self) -> int:
+        raise RuntimeError("RefTypes are logical and thus do not have a size")
+
+    def align(self) -> int:
+        raise RuntimeError("RefTypes are logical and thus do not have an align")
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, RefType) and value.element == self.element
+
+    def __hash__(self) -> int:
+        return hash((RefType, self.element))
+
+    def __str__(self) -> str:
+        return f"Ref[{self.element}]"
 
 class LiteralType(Type):
     value: Any

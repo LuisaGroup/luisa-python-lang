@@ -126,7 +126,7 @@ def _make_func_template(f: Callable[..., Any], func_name: str, func_sig: Optiona
         assert not isinstance(
             func_sig_instantiated.return_type, hir.SymbolicType)
         func_parser = parse.FuncParser(
-            func_name, f, func_sig_instantiated, func_globals, type_var_ns, self_type, props.returning_ref)
+            func_name, f, func_sig_instantiated, func_globals, type_var_ns, self_type)
         ret = func_parser.parse_body()
         ret.inline_hint = props.inline
         ret.export = props.export
@@ -200,7 +200,7 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
 
     def parse_methods(type_var_ns: Dict[TypeVar, hir.Type | Any], self_ty: hir.Type,):
         for name in cls_info.methods:
-            if name == '__setitem__': # __setitem__ is ignored deliberately
+            if name == '__setitem__':  # __setitem__ is ignored deliberately
                 continue
             method_object = getattr(cls, name)
             props: hir.FuncProperties
@@ -209,7 +209,8 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
             else:
                 props = hir.FuncProperties()
             if name == '__getitem__':
-                props.returning_ref = True
+                # props.returning_ref = True
+                raise NotImplementedError()
             template = _make_func_template(
                 method_object, get_full_name(method_object), cls_info.methods[name], globalns, type_var_ns, props, self_type=self_ty)
             if isinstance(self_ty, hir.BoundType):
@@ -356,14 +357,6 @@ class InoutMarker:
 
 def _parse_func_kwargs(kwargs: Dict[str, Any]) -> hir.FuncProperties:
     props = hir.FuncProperties()
-    props.byref = set()
-    return_ = kwargs.get("return", None)
-    if return_ is not None:
-        if return_ == 'ref':
-            props.returning_ref = True
-        else:
-            raise ValueError(
-                f"invalid value for return: {return_}, expected 'ref'")
     inline = kwargs.get("inline", False)
     if isinstance(inline, bool):
         props.inline = inline
@@ -375,11 +368,6 @@ def _parse_func_kwargs(kwargs: Dict[str, Any]) -> hir.FuncProperties:
     props.export = kwargs.get("export", False)
     if not isinstance(props.export, bool):
         raise ValueError(f"export should be a bool")
-
-    for k, v in kwargs.items():
-        if k not in ["inline", "export"]:
-            if v is byref:
-                props.byref.add(k)
     return props
 
 
@@ -394,15 +382,14 @@ def func(**kwargs) -> Callable[[_F], _F]: ...
 def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
     """
     Mark a function as a DSL function.
-    To mark an argument as byref, use the `var=byref` syntax in decorator arguments.
     Acceptable kwargs:
     - inline: bool | "always"  # hint for inlining
     - export: bool             # hint for exporting (for bundled C++ codegen)
 
     Example:
     ```python
-    @luisa.func(a=byref, b=byref)
-    def swap(a: int, b: int):
+    @luisa.func(export=True)
+    def swap(a: Ref[T], b: Ref[T]) -> None:
         a, b = b, a
     ```
     """
@@ -418,3 +405,21 @@ def func(*args, **kwargs) -> _F | Callable[[_F], _F]:
         return impl(f)
 
     return decorator
+
+
+def block[B:Callable[[], None]](block: B) -> B:
+    """
+    Define a block scope for DSL code.
+    Example:
+    ```python
+    x: int = 0
+    y: int = 1
+    @lc.block
+    def some_name():
+        nonlocal y
+        x = 1 # shadowing x
+        y = 2 # modify y
+    some_name() # block must be called immediately after definition
+    ```
+    """
+    return block

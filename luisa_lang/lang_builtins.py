@@ -19,13 +19,16 @@ from typing import (
     Literal,
     overload,
     Any,
+    Annotated
 )
-from luisa_lang._builtin_decor import func, intrinsic, opaque, builtin_generic_type
+from luisa_lang._builtin_decor import func, intrinsic, opaque, builtin_generic_type, byref
 from luisa_lang import parse
 
 T = TypeVar("T")
 N = TypeVar("N")
 
+type Ref[T] = Annotated[T, byref]
+""" A *reference* type. """
 
 
 @func

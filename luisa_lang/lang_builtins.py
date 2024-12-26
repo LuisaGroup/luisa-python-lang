@@ -27,6 +27,7 @@ T = TypeVar("T")
 N = TypeVar("N")
 
 
+
 @func
 def dispatch_id() -> uint3:
     return intrinsic("dispatch_id", uint3)

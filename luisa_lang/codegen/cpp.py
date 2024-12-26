@@ -35,10 +35,10 @@ class TypeCodeGenCache:
         match ty:
             case hir.IntType(bits=bits, signed=signed):
                 int_names = {
-                    '8':'byte',
-                    '16':'short',
-                    '32':'int',
-                    '64':'long',
+                    '8': 'byte',
+                    '16': 'short',
+                    '32': 'int',
+                    '64': 'long',
                 }
                 if signed:
                     return f"lc_{int_names[str(bits)]}"
@@ -85,11 +85,13 @@ class TypeCodeGenCache:
                 return self.gen(ty.instantiated)
             case hir.FunctionType():
                 name = f'func_{unique_hash(ty.func_like.name)}_t'
-                self.impl.writeln(f'struct {name} {{}}; // function type of {ty.func_like.name}')
+                self.impl.writeln(
+                    f'struct {name} {{}}; // function type of {ty.func_like.name}')
                 return name
             case hir.TypeConstructorType():
                 name = f'type_{unique_hash(self.gen(ty.inner))}_t'
-                self.impl.writeln(f'struct {name} {{}}; // type constructor of {ty.inner}')
+                self.impl.writeln(
+                    f'struct {name} {{}}; // type constructor of {ty.inner}')
                 return name
             case hir.OpaqueType():
                 def do():
@@ -98,7 +100,8 @@ class TypeCodeGenCache:
                             elem_ty = self.gen(ty.extra_args[0])
                             return f'__builtin__Buffer<{elem_ty}>'
                         case _:
-                            raise NotImplementedError(f"unsupported opaque type: {ty.name}")
+                            raise NotImplementedError(
+                                f"unsupported opaque type: {ty.name}")
                 return do()
             case hir.GenericIntType():
                 return 'int'
@@ -225,7 +228,8 @@ class CppCodeGen(CodeGen):
         if callable(func):
             dsl_func = get_dsl_func(func)
             assert dsl_func is not None
-            assert not dsl_func.is_generic, f"Generic functions should be resolved before codegen: {func}"
+            assert not dsl_func.is_generic, f"Generic functions should be resolved before codegen: {
+                func}"
             func_tmp = dsl_func.resolve([])
             assert isinstance(
                 func_tmp, hir.Function), f"Expected function, got {func_tmp}"
@@ -268,8 +272,9 @@ class FuncCodeGen:
         params = ",".join(self.gen_var(
             p) for p in func.params)
         assert func.return_type
-        
-        self.signature = f'auto {self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
+
+        self.signature = f'auto {
+            self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
         if func.export:
             self.signature = f'extern "C" {self.signature}'
         if func.inline_hint == True:
@@ -304,14 +309,15 @@ class FuncCodeGen:
                 def do():
                     intrin_name = intrin.name
                     gened_args = [self.gen_value_or_ref(
-                            arg) for arg in intrin.args]
+                        arg) for arg in intrin.args]
                     match intrin_name:
                         case 'buffer.ref' | 'array.ref':
                             return f"{gened_args[0]}[{gened_args[1]}]"
                         case 'buffer.size' | 'array.size':
                             return f"{gened_args[0]}.size"
                         case _:
-                            raise RuntimeError(f"unsupported intrinsic reference: {intrin_name}")
+                            raise RuntimeError(
+                                f"unsupported intrinsic reference: {intrin_name}")
                 return do()
             case _:
                 raise NotImplementedError(f"unsupported reference: {ref}")
@@ -338,7 +344,7 @@ class FuncCodeGen:
         if isinstance(node, hir.TypedNode) and isinstance(node.type, (hir.TypeConstructorType, hir.FunctionType)):
             assert node.type
             return f'{self.base.type_cache.gen(node.type)}{{}}'
-            
+
         return self.node_map[node]
 
     def gen_expr(self, expr: hir.Value) -> str:
@@ -440,7 +446,7 @@ class FuncCodeGen:
                                 '__sub__': '-',
                                 '__mul__': '*',
                                 '__truediv__': '/',
-                                '__floordiv__': '/', # TODO: fix floordiv
+                                '__floordiv__': '/',  # TODO: fix floordiv
                                 '__mod__': '%',
                                 '__pow__': '**',
                                 '__and__': '&',
@@ -460,7 +466,7 @@ class FuncCodeGen:
                                 '__isub__': '-=',
                                 '__imul__': '*=',
                                 '__itruediv__': '/=',
-                                '__ifloordiv__': '/=', # TODO: fix floordiv
+                                '__ifloordiv__': '/=',  # TODO: fix floordiv
                                 '__imod__': '%=',
                                 '__ipow__': '**=',
                                 '__iand__': '&=',
@@ -489,7 +495,7 @@ class FuncCodeGen:
                             args_s = ','.join(gened_args)
                             self.body.writeln(
                                 f"auto v{vid} = __intrin__{intrin_name}({args_s});")
-                    
+
                     do()
                 case _:
                     raise NotImplementedError(

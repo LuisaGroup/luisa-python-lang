@@ -153,7 +153,7 @@ class TypeParser:
 
 def convert_func_signature(signature: classinfo.MethodType,
                            ctx_name: str,
-                           props:hir.FuncProperties,
+                           props: hir.FuncProperties,
                            globalns: Dict[str, Any],
                            type_var_ns: Dict[typing.TypeVar, hir.Type],
                            implicit_type_params: Dict[str, hir.Type],
@@ -194,7 +194,8 @@ def convert_func_signature(signature: classinfo.MethodType,
             params.append(
                 Var(arg[0], implicit_type_params[arg[0]], span=None, semantic=semantic))
     return_type = type_parser.parse_type_ext(signature.return_type)
-    assert return_type is not None, f"failed to parse return type {signature.return_type}"
+    assert return_type is not None, f"failed to parse return type {
+        signature.return_type}"
     if isinstance(return_type, hir.AnyBound):
         return_type = None
     elif isinstance(return_type, hir.TypeBound):

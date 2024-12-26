@@ -1,5 +1,5 @@
 import inspect
-from types import NoneType
+from types import GenericAlias, NoneType
 import types
 import typing
 from typing import (
@@ -10,21 +10,23 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    TypeAliasType,
     TypeVar,
     Generic,
     Dict,
     Type,
     Union,
+    cast,
 )
 import functools
 from dataclasses import dataclass
 
 
 class GenericInstance:
-    origin: type
+    origin: 'VarType'
     args: List["VarType"]
 
-    def __init__(self, origin: type, args: List["VarType"]):
+    def __init__(self, origin: 'VarType', args: List["VarType"]):
         self.origin = origin
         self.args = args
 
@@ -41,6 +43,9 @@ class UnionType:
     def __repr__(self):
         return f"Union[{', '.join(map(repr, self.types))}]"
 
+    def substitute(self, env: Dict[TypeVar, 'VarType']) -> "UnionType":
+        return UnionType([subst_type(ty, env) for ty in self.types])
+
 
 class AnyType:
     def __repr__(self):
@@ -56,7 +61,8 @@ class SelfType:
 
     def __eq__(self, other):
         return isinstance(other, SelfType)
-    
+
+
 class LiteralType:
     value: Any
 
@@ -70,7 +76,23 @@ class LiteralType:
         return isinstance(other, LiteralType) and self.value == other.value
 
 
-VarType = Union[TypeVar, Type, GenericInstance, UnionType, SelfType, AnyType, LiteralType]
+class AnnotatedType:
+    origin: 'VarType'
+    annotations: List[Any]
+
+    def __init__(self, origin: 'VarType', annotations: List[Any]):
+        self.origin = origin
+        self.annotations = annotations
+
+    def __repr__(self):
+        return f"Annotated[{self.origin}, {self.annotations}]"
+
+    def substitute(self, env: Dict[TypeVar, 'VarType']) -> "AnnotatedType":
+        return AnnotatedType(subst_type(self.origin, env), self.annotations)
+
+
+type VarType = Union[TypeVar, Type, GenericInstance,
+                     UnionType, SelfType, AnyType, LiteralType, AnnotatedType]
 
 
 def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
@@ -79,6 +101,8 @@ def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
             return env.get(ty, ty)
         case GenericInstance(origin=origin, args=args):
             return GenericInstance(origin, [subst_type(arg, env) for arg in args])
+        case MethodType() | UnionType() | AnnotatedType():
+            return ty.substitute(env)
         case _:
             return ty
 
@@ -140,7 +164,8 @@ class ClassType:
     def instantiate(self, type_args: List[VarType]) -> "ClassType":
         if len(type_args) != len(self.type_vars):
             raise RuntimeError(
-                f"Expected {len(self.type_vars)} type arguments but got {len(type_args)}"
+                f"Expected {len(self.type_vars)}" +
+                f"type arguments but got {len(type_args)}"
             )
         env = dict(zip(self.type_vars, type_args))
         return ClassType(
@@ -172,7 +197,8 @@ def _get_base_classinfo(cls: type, globalns) -> List[tuple[str, ClassType]]:
     for base in cls.__orig_bases__:
         if hasattr(base, "__origin__"):
             base_params = []
-            base_orig = base.__origin__
+            base_orig: Any = base.__origin__
+
             if not _is_class_registered(base_orig) and base_orig not in _BUILTIN_ANNOTATION_BASES:
                 raise RuntimeError(
                     f"Base class {base_orig} of {cls} is not registered."
@@ -185,7 +211,8 @@ def _get_base_classinfo(cls: type, globalns) -> List[tuple[str, ClassType]]:
             if base_orig in _BUILTIN_ANNOTATION_BASES:
                 pass
             else:
-                base_info = class_typeinfo(base_orig)
+                assert isinstance(base_orig, type)
+                base_info = class_typeinfo(cast(type, base_orig))
                 info.append(
                     (base.__name__, base_info.instantiate(base_params)))
         else:
@@ -210,19 +237,40 @@ def parse_type_hint(hint: Any) -> VarType:
         return UnionType([parse_type_hint(arg) for arg in hint.__args__])
     if hint is typing.Any:
         return AnyType()
+    if isinstance(hint, TypeAliasType):
+        return parse_type_hint(hint.__value__)
+
     origin = typing.get_origin(hint)
     if origin:
-        if isinstance(origin, type):
-            # assert isinstance(origin, type), f"origin must be a type but got {origin}"
-            args = list(typing.get_args(hint))
-            return GenericInstance(origin, [parse_type_hint(arg) for arg in args])
+        if origin is typing.Annotated:
+            annotate_args = typing.get_args(hint)
+            return AnnotatedType(parse_type_hint(annotate_args[0]), list(annotate_args[1:]))
         elif origin is Union:
             return UnionType([parse_type_hint(arg) for arg in typing.get_args(hint)])
         elif origin is Literal:
             return LiteralType(typing.get_args(hint)[0])
+        elif isinstance(origin, TypeAliasType):
+            def do() -> VarType:
+                assert isinstance(hint, GenericAlias)
+                args = list(typing.get_args(hint))
+                assert len(args) == len(origin.__parameters__), f"Expected {
+                    len(origin.__parameters__)} type arguments but got {len(args)}"
+                true_origin = origin.__value__
+                parametric_args = origin.__parameters__
+                parsed_args = [parse_type_hint(arg) for arg in args]
+                env = dict(zip(parametric_args, parsed_args))
+                parsed_origin = parse_type_hint(true_origin)
+                return subst_type(parsed_origin, env)
+            return do()
+        elif isinstance(origin, type):
+            # assert isinstance(origin, type), f"origin must be a type but got {origin}"
+            args = list(typing.get_args(hint))
+            return GenericInstance(origin, [parse_type_hint(arg) for arg in args])
+
         else:
-            raise RuntimeError(f"Unsupported origin type: {origin}")
-   
+            raise RuntimeError(f"Unsupported origin type: {
+                               origin}, {type(origin), type(hint)}")
+
     if isinstance(hint, type):
         return hint
     if hint == typing.Self:
@@ -242,7 +290,7 @@ def extract_type_vars_from_hint(hint: typing.Any) -> List[TypeVar]:
 
 
 def get_type_vars(func: typing.Callable) -> List[TypeVar]:
-    type_hints = typing.get_type_hints(func)
+    type_hints = typing.get_type_hints(func, include_extras=True)
     type_vars = []
     for hint in type_hints.values():
         type_vars.extend(extract_type_vars_from_hint(hint))

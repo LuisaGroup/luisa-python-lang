@@ -142,7 +142,6 @@ _TT = TypeVar('_TT')
 
 
 def _dsl_func_impl(f: _TT, kind: _ObjKind, attrs: Dict[str, Any]) -> _TT:
-    import sourceinspect
     assert inspect.isfunction(f), f"{f} is not a function"
     # print(hir.GlobalContext.get)
     ctx = hir.GlobalContext.get()

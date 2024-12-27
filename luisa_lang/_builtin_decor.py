@@ -36,18 +36,14 @@ def intrinsic(name: str, ret_type: type[T], *args, **kwargs) -> T:
         "Did you mistakenly called a DSL function?"
     )
 
-
-def byval(value: T) -> T:
-    """pass a value by value, this is only a marker and should not be called"""
-
-    raise NotImplementedError(
-        "byval should not be called in host-side Python code. "
-        "Did you mistakenly called a DSL function?"
-    )
-
-
 def byref(value: T) -> T:
-    """pass a value by ref, this is only a marker and should not be called"""
+    """Indicate that the value is a reference/should be passed by reference
+    Example:
+
+    ```python 
+    x: lc.Ref[int] = byref(some_value) # x is bound to the reference of some_value
+    ```
+    """
 
     raise NotImplementedError(
         "byref should not be called in host-side Python code. "
@@ -208,11 +204,13 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
                 props = getattr(method_object, '__luisa_func_props__')
             else:
                 props = hir.FuncProperties()
+            method_sig = cls_info.methods[name]
             if name == '__getitem__':
-                # props.returning_ref = True
-                raise NotImplementedError()
+                assert isinstance(method_sig.return_type, hir.RefType), f"__getitem__ should return a RefType but got {
+                    method_sig.return_type}"
+                # raise NotImplementedError()
             template = _make_func_template(
-                method_object, get_full_name(method_object), cls_info.methods[name], globalns, type_var_ns, props, self_type=self_ty)
+                method_object, get_full_name(method_object), method_sig, globalns, type_var_ns, props, self_type=self_ty)
             if isinstance(self_ty, hir.BoundType):
                 assert isinstance(self_ty.instantiated,
                                   (hir.ArrayType, hir.StructType, hir.OpaqueType))

@@ -223,7 +223,7 @@ class Array(Generic[T, N]):
     def __init__(self) -> None:
         self = intrinsic("init.array", Array[T, N])
 
-    def __getitem__(self, index: int | u32 | i64 | u64) -> T:
+    def __getitem__(self, index: int | u32 | i64 | u64) -> Ref[T]:
         return intrinsic("array.ref", T, byref(self), index)  # type: ignore
 
     def __setitem__(self, index: int | u32 | i64 | u64, value: T) -> None:
@@ -252,7 +252,7 @@ class Buffer(Generic[T]):
     A buffer is a contiguuos memory of elements of type T.
     """
 
-    def __getitem__(self, index: int | u32 | i64 | u64) -> T:
+    def __getitem__(self, index: int | u32 | i64 | u64) -> Ref[T]:
         return intrinsic("buffer.ref", T, self, index)  # type: ignore
 
     def __setitem__(self,  index: int | u32 | i64 | u64,  value: T) -> None:
@@ -298,8 +298,8 @@ class Pointer(Generic[T]):
     def __init__(self, addr: u64) -> None:
         self = intrinsic("init.pointer", Pointer[T], addr)
 
-    def __getitem__(self, index:  i32 | i64 | u32 | u64) -> T:
-        return intrinsic("pointer.read", T, self, index)  # type: ignore
+    def __getitem__(self, index:  i32 | i64 | u32 | u64) -> Ref[T]:
+        return intrinsic("pointer.read", Ref[T], self, index)  # type: ignore
 
     def __setitem__(self, index: i32 | i64 | u32 | u64, value: T) -> None:
         pass

@@ -60,7 +60,7 @@ class FunctionTemplate:
     """
     parsing_func: FunctionTemplateResolvingFunc
     _resolved: Dict[Tuple[Tuple[str,
-                                 Union['Type', Any]], ...], "Function"]
+                                Union['Type', Any]], ...], "Function"]
     is_generic: bool
     name: str
     params: List[str]
@@ -145,7 +145,13 @@ class Type(ABC):
 
     def __len__(self) -> int:
         return 1
-    
+
+    def remove_ref(self) -> 'Type':
+        if isinstance(self, RefType):
+            return self.element
+        return self
+
+
 class RefType(Type):
     """
     A logical reference type. Cannot be returned from functions/stored in aggregates.
@@ -161,7 +167,8 @@ class RefType(Type):
         raise RuntimeError("RefTypes are logical and thus do not have a size")
 
     def align(self) -> int:
-        raise RuntimeError("RefTypes are logical and thus do not have an align")
+        raise RuntimeError(
+            "RefTypes are logical and thus do not have an align")
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, RefType) and value.element == self.element
@@ -172,6 +179,7 @@ class RefType(Type):
     def __str__(self) -> str:
         return f"Ref[{self.element}]"
 
+
 class LiteralType(Type):
     value: Any
 
@@ -181,18 +189,19 @@ class LiteralType(Type):
 
     def size(self) -> int:
         raise RuntimeError("LiteralType has no size")
-    
+
     def align(self) -> int:
         raise RuntimeError("LiteralType has no align")
-    
+
     def is_concrete(self) -> bool:
         return False
-    
+
     def __eq__(self, value: object) -> bool:
         return isinstance(value, LiteralType) and value.value == self.value
-    
+
     def __hash__(self) -> int:
         return hash((LiteralType, self.value))
+
 
 class AnyType(Type):
     def size(self) -> int:
@@ -416,8 +425,10 @@ class VectorType(Type):
     def __len__(self) -> int:
         return self.count
 
+
 class MatrixType(Type):
     pass
+
 
 class ArrayType(Type):
     element: Type
@@ -820,9 +831,9 @@ class TypeConstructorType(Type):
 
 class FunctionType(Type):
     func_like: Union["Function", FunctionTemplate]
-    bound_object: Optional['Ref']
+    bound_object: Optional['Value']
 
-    def __init__(self, func_like: Union["Function", FunctionTemplate], bound_object: Optional['Ref']) -> None:
+    def __init__(self, func_like: Union["Function", FunctionTemplate], bound_object: Optional['Value']) -> None:
         super().__init__()
         self.func_like = func_like
         self.bound_object = bound_object
@@ -893,19 +904,6 @@ class TypedNode(Node):
         self.span = span
 
 
-class Ref(TypedNode):
-    pass
-
-
-class LocalRef(Ref):
-    value: 'Value'
-
-    def __init__(self, value: 'Value') -> None:
-        super().__init__(value.type)
-        self.value = value
-        self.span = value.span
-
-
 class Value(TypedNode):
     pass
 
@@ -923,24 +921,33 @@ class SymbolicConstant(Value):
     ) -> None:
         super().__init__(type, span)
         self.generic = generic
-
-
 class ParameterSemantic(Enum):
     BYVAL = auto()
     BYREF = auto()
 
 
-class Var(Ref):
+class Var(TypedNode):
     name: str
     semantic: ParameterSemantic
 
     def __init__(
-        self, name: str, type: Optional[Type], span: Optional[Span], semantic=ParameterSemantic.BYVAL
+        self, name: str, type: Optional[Type], span: Optional[Span], semantic: ParameterSemantic = ParameterSemantic.BYVAL
     ) -> None:
+        assert not isinstance(type, RefType)
         super().__init__(type, span)
         self.name = name
-        self.type = type
         self.semantic = semantic
+
+
+class VarRef(Value):
+    var: Var
+
+    def __init__(
+        self, var: Var, span: Optional[Span]
+    ) -> None:
+        assert var.type is not None
+        super().__init__(RefType(var.type), span)
+        self.var = var
 
 
 class Member(Value):
@@ -963,31 +970,12 @@ class Index(Value):
         self.index = index
 
 
-class MemberRef(Ref):
-    base: Ref
-    field: str
-
-    def __init__(self, base: Ref, field: str, type: Type, span: Optional[Span]) -> None:
-        super().__init__(type, span)
-        self.base = base
-        self.field = field
-
-
-class IndexRef(Ref):
-    base: Ref
-    index: Value
-
-    def __init__(self, base: Ref, index: Value, type: Type, span: Optional[Span]) -> None:
-        super().__init__(type, span)
-        self.base = base
-        self.index = index
-
-
 class Load(Value):
-    ref: Ref
+    ref: Value
 
-    def __init__(self, ref: Ref) -> None:
+    def __init__(self, ref: Value) -> None:
         super().__init__(ref.type, ref.span)
+        assert isinstance(ref.type, RefType)
         self.ref = ref
 
 
@@ -1019,12 +1007,13 @@ class FunctionValue(Value):
         super().__init__(ty, span)
 
 
-class Alloca(Ref):
+class Alloca(Value):
     """
     A temporary variable
     """
 
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
+        assert isinstance(ty, RefType)
         super().__init__(ty, span)
 
 
@@ -1045,9 +1034,9 @@ class AggregateInit(Value):
 
 class Intrinsic(Value):
     name: str
-    args: List[Value | Ref]
+    args: List[Value]
 
-    def __init__(self, name: str, args: List[Value | Ref], type: Type, span: Optional[Span] = None) -> None:
+    def __init__(self, name: str, args: List[Value], type: Type, span: Optional[Span] = None) -> None:
         super().__init__(type, span)
         self.name = name
         self.args = args
@@ -1057,32 +1046,18 @@ class Intrinsic(Value):
 
     def __repr__(self) -> str:
         return f'Intrinsic({self.name}, {self.args})'
-    
-class IntrinsicRef(Ref):
-    name: str
-    args: List[Value | Ref]
 
-    def __init__(self, name: str, args: List[Value | Ref], type: Type, span: Optional[Span] = None) -> None:
-        super().__init__(type, span)
-        self.name = name
-        self.args = args
-
-    def __str__(self) -> str:
-        return f'IntrinsicRef({self.name}, {self.args})'
-    
-    def __repr__(self) -> str:
-        return f'IntrinsicRef({self.name}, {self.args})'
 
 class Call(Value):
     op: "Function"
     """After type inference, op should be a Value."""
 
-    args: List[Value | Ref]
+    args: List[Value]
 
     def __init__(
         self,
         op: "Function",
-        args: List[Value | Ref],
+        args: List[Value],
         type: Type,
         span: Optional[Span] = None,
     ) -> None:
@@ -1151,10 +1126,10 @@ class TypeInferenceError(SpannedError):
 
 
 class Assign(Node):
-    ref: Ref
+    ref: Value
     value: Value
 
-    def __init__(self, ref: Ref, value: Value, span: Optional[Span] = None) -> None:
+    def __init__(self, ref: Value, value: Value, span: Optional[Span] = None) -> None:
         assert not isinstance(value.type, (FunctionType, TypeConstructorType))
         super().__init__(span)
         self.ref = ref
@@ -1232,15 +1207,6 @@ class Return(Terminator):
     def __init__(self, value: Optional[Value], span: Optional[Span] = None) -> None:
         super().__init__(span)
         self.value = value
-
-
-class ReturnRef(Terminator):
-    value: Ref
-
-    def __init__(self, value: Ref, span: Optional[Span] = None) -> None:
-        super().__init__(span)
-        self.value = value
-
 
 class Range(Value):
     start: Value
@@ -1322,10 +1288,6 @@ class Function:
         self.returning_ref = returning_ref
 
 
-    
-
-
-
 def match_template_args(
         template: List[Tuple[str, Type]],
         args: List[Type]) -> Dict[GenericParameter, Type] | TypeInferenceError:
@@ -1346,7 +1308,7 @@ def match_template_args(
                 if a.param.bound is None:
                     if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
                         raise TypeInferenceError(None,
-                                                    f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
+                                                 f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
                 else:
                     if not a.param.bound.satisfied_by(b):
                         raise TypeInferenceError(
@@ -1412,7 +1374,7 @@ def match_template_args(
                             assert len(a.args) == 1
                             unify(a.args[0], b.inner)
                             return
-                            
+
                         raise TypeInferenceError(
                             None, f"{b} is not a BoundType")
                     if len(a.args) != len(b.args):
@@ -1512,10 +1474,10 @@ def is_type_compatible_to(ty: Type, target: Type) -> bool:
 
 
 class FunctionInliner:
-    mapping: Dict[Ref | Value, Ref | Value]
-    ret: Value | Ref | None
+    mapping: Dict[Var | Value, Value]
+    ret: Value | None
 
-    def __init__(self, func: Function, args: List[Value | Ref], body: BasicBlock, span: Optional[Span] = None) -> None:
+    def __init__(self, func: Function, args: List[Value], body: BasicBlock, span: Optional[Span] = None) -> None:
         self.mapping = {}
         self.ret = None
         for param, arg in zip(func.params, args):
@@ -1534,10 +1496,10 @@ class FunctionInliner:
                     self.mapping[node] = Alloca(node.type, node.span)
                 case Load():
                     mapped_var = self.mapping[node.ref]
-                    if isinstance(node.ref, Ref) and isinstance(mapped_var, Value):
+                    if isinstance(node.ref.type, RefType) and isinstance(mapped_var, Value):
                         self.mapping[node] = mapped_var
                     else:
-                        assert isinstance(mapped_var, Ref)
+                        assert isinstance(mapped_var.type, RefType)
                         self.mapping[node] = body.append(Load(mapped_var))
                 case Index():
                     base = self.mapping.get(node.base)
@@ -1547,29 +1509,15 @@ class FunctionInliner:
                     assert node.type
                     self.mapping[node] = body.append(
                         Index(base, index, node.type, node.span))
-                case IndexRef():
-                    base = self.mapping.get(node.base)
-                    index = self.mapping.get(node.index)
-                    assert isinstance(base, Ref)
-                    assert isinstance(index, Value)
-                    assert node.type
-                    self.mapping[node] = body.append(IndexRef(
-                        base, index, node.type, node.span))
                 case Member():
                     base = self.mapping.get(node.base)
                     assert isinstance(base, Value)
                     assert node.type
                     self.mapping[node] = body.append(Member(
                         base, node.field, node.type, node.span))
-                case MemberRef():
-                    base = self.mapping.get(node.base)
-                    assert isinstance(base, Ref)
-                    assert node.type
-                    self.mapping[node] = body.append(MemberRef(
-                        base, node.field, node.type, node.span))
                 case Call() as call:
                     def do():
-                        args: List[Ref | Value] = []
+                        args: List[Value] = []
                         for arg in call.args:
                             mapped_arg = self.mapping.get(arg)
                             if mapped_arg is None:
@@ -1582,7 +1530,7 @@ class FunctionInliner:
                     do()
                 case Intrinsic() as intrin:
                     def do():
-                        args: List[Ref | Value] = []
+                        args: List[Value] = []
                         for arg in intrin.args:
                             mapped_arg = self.mapping.get(arg)
                             if mapped_arg is None:
@@ -1593,20 +1541,7 @@ class FunctionInliner:
                         self.mapping[intrin] = body.append(
                             Intrinsic(intrin.name, args, intrin.type, node.span))
                     do()
-                case IntrinsicRef() as intrin:
-                    def do():
-                        args: List[Ref | Value] = []
-                        for arg in intrin.args:
-                            mapped_arg = self.mapping.get(arg)
-                            if mapped_arg is None:
-                                raise InlineError(
-                                    node, "unable to inline intrinsic")
-                            args.append(mapped_arg)
-                        assert intrin.type
-                        self.mapping[intrin] = body.append(
-                            IntrinsicRef(intrin.name, args, intrin.type, node.span))
-                    do()
-                case ReturnRef() | Return():
+                case Return():
                     if self.ret is not None:
                         raise InlineError(node, "multiple return statement")
                     assert node.value is not None
@@ -1615,10 +1550,11 @@ class FunctionInliner:
                         raise InlineError(node, "unable to inline return")
                     self.ret = mapped_value
                 case _:
-                    raise ParsingError(node, f"invalid node {node} for inlining")
+                    raise ParsingError(node, f"invalid node {
+                                       node} for inlining")
 
     @staticmethod
-    def inline(func: Function, args: List[Value | Ref], body: BasicBlock, span: Optional[Span] = None) -> Value | Ref:
+    def inline(func: Function, args: List[Value], body: BasicBlock, span: Optional[Span] = None) -> Value:
         inliner = FunctionInliner(func, args, body, span)
         assert inliner.ret
         return inliner.ret
@@ -1641,9 +1577,9 @@ def register_dsl_type_alias(target: type, alias: type):
 
     class SomeOtherFoo:
         components: List[int]
-        
+
     register_dsl_type_alias(SomeOtherFoo, Foo)
-    
+
     @lc.func
     def foo(f: SomeOtherFoo): # SomeOtherFoo is interpreted as Foo
         ...

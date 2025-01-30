@@ -50,6 +50,7 @@ def byref(value: T) -> T:
         "Did you mistakenly called a DSL function?"
     )
 
+parse._add_special_function('byref', byref)
 
 def _is_method(f):
     if inspect.ismethod(f):

@@ -160,6 +160,7 @@ class RefType(Type):
 
     def __init__(self, element: Type) -> None:
         super().__init__()
+        assert not isinstance(element, RefType)
         self.element = element
         self.methods = element.methods
 
@@ -178,6 +179,14 @@ class RefType(Type):
 
     def __str__(self) -> str:
         return f"Ref[{self.element}]"
+
+    @override
+    def member(self, field: Any) -> Optional['Type']:
+        ty = self.element.member(field)
+        if ty is None:
+            return None
+
+        return RefType(ty)
 
 
 class LiteralType(Type):
@@ -905,7 +914,9 @@ class TypedNode(Node):
 
 
 class Value(TypedNode):
-    pass
+    def is_ref(self) -> bool:
+        assert self.type is not None
+        return isinstance(self.type, RefType)
 
 
 class Unit(Value):
@@ -921,6 +932,8 @@ class SymbolicConstant(Value):
     ) -> None:
         super().__init__(type, span)
         self.generic = generic
+
+
 class ParameterSemantic(Enum):
     BYVAL = auto()
     BYREF = auto()
@@ -974,8 +987,8 @@ class Load(Value):
     ref: Value
 
     def __init__(self, ref: Value) -> None:
-        super().__init__(ref.type, ref.span)
         assert isinstance(ref.type, RefType)
+        super().__init__(ref.type.remove_ref(), ref.span)
         self.ref = ref
 
 
@@ -1013,8 +1026,8 @@ class Alloca(Value):
     """
 
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
-        assert isinstance(ty, RefType)
-        super().__init__(ty, span)
+        # assert isinstance(ty, RefType), f"expected a RefType but got {ty}"
+        super().__init__(RefType(ty), span)
 
 
 # class Init(Value):
@@ -1131,6 +1144,9 @@ class Assign(Node):
 
     def __init__(self, ref: Value, value: Value, span: Optional[Span] = None) -> None:
         assert not isinstance(value.type, (FunctionType, TypeConstructorType))
+        if not isinstance(ref.type, RefType):
+            raise ParsingError(
+                ref, f"cannot assign to a non-reference variable")
         super().__init__(span)
         self.ref = ref
         self.value = value
@@ -1208,6 +1224,7 @@ class Return(Terminator):
         super().__init__(span)
         self.value = value
 
+
 class Range(Value):
     start: Value
     step: Value
@@ -1266,7 +1283,6 @@ class Function:
     complete: bool
     is_method: bool
     inline_hint: bool | Literal['always', 'never']
-    returning_ref: bool
 
     def __init__(
         self,
@@ -1274,7 +1290,6 @@ class Function:
         params: List[Var],
         return_type: Type | None,
         is_method: bool,
-        returning_ref: bool,
     ) -> None:
         self.name = name
         self.params = params
@@ -1285,7 +1300,6 @@ class Function:
         self.complete = False
         self.is_method = is_method
         self.inline_hint = False
-        self.returning_ref = returning_ref
 
 
 def match_template_args(
@@ -1466,6 +1480,8 @@ def get_dsl_type(cls: type) -> Optional[Type]:
 def is_type_compatible_to(ty: Type, target: Type) -> bool:
     if ty == target or isinstance(ty, AnyType):
         return True
+    if isinstance(ty, RefType):
+        return is_type_compatible_to(ty.element, target)
     if isinstance(target, FloatType):
         return isinstance(ty, GenericFloatType)
     if isinstance(target, IntType):

@@ -136,6 +136,16 @@ class TypeParser:
             case classinfo.SelfType():
                 assert self.self_type is not None
                 return self.self_type
+            case classinfo.AnnotatedType():
+                def do_anno() -> hir.Type:
+                    origin = self.parse_type(ty.origin)
+                    assert origin is not None
+                    annotations = ty.annotations
+                    if annotations == [SPECIAL_FUNCTIONS_DICT['byref']]:
+                        return hir.RefType(origin)
+                    raise RuntimeError(
+                        f"Unsupported annotations {annotations}")
+                return do_anno()
             case classinfo.AnyType():
                 return hir.AnyBound()
             case type():
@@ -143,7 +153,8 @@ class TypeParser:
                     raise RuntimeError(
                         f"type alone cannot be used as a dsl type hint. use type[T] instead")
                 dsl_type = get_dsl_type(ty)
-                assert dsl_type is not None, f"Type {ty} is not a valid DSL type"
+                assert dsl_type is not None, f"Type {
+                    ty} is not a valid DSL type"
                 return dsl_type
             case classinfo.LiteralType():
                 return hir.LiteralType(ty.value)
@@ -172,16 +183,24 @@ def convert_func_signature(signature: classinfo.MethodType,
         semantic = hir.ParameterSemantic.BYVAL
         if arg[0] == "self":
             assert self_type is not None
-            param_type = self_type
-            semantic = hir.ParameterSemantic.BYREF
-        if arg[0] in props.byref:
-            semantic = hir.ParameterSemantic.BYREF
+            # santity check on self type, we should only accept
+            # Self and Ref[Self]
+            if isinstance(param_type, hir.RefType):
+                if param_type.element != self_type:
+                    raise RuntimeError(
+                        f"expected self type but got {param_type}")
+            elif param_type != self_type:
+                raise RuntimeError(
+                    f"expected self type but got {param_type}")
+
         if param_type is None:
             raise RuntimeError(
                 f"Unable to parse type of parameter {arg[0]}: {arg[1]}")
+        if isinstance(param_type, hir.RefType):
+            semantic = hir.ParameterSemantic.BYREF
         if isinstance(param_type, hir.Type):
             params.append(
-                Var(arg[0], param_type, span=None, semantic=semantic))
+                Var(arg[0], param_type.remove_ref(), span=None, semantic=semantic))
         else:
             if mode == 'parse':
                 gp = hir.GenericParameter(
@@ -235,6 +254,7 @@ class FuncParser:
     bb_stack: List[hir.BasicBlock]
     type_parser: TypeParser
     break_and_continues: List[hir.Break | hir.Continue] | None
+
     def __init__(self, name: str,
                  func: object,
                  signature: hir.FunctionSignature,
@@ -256,7 +276,7 @@ class FuncParser:
         self.func_def = obj_ast.body[0]
         self.vars = {}
         self.parsed_func = hir.Function(
-            name, [], None, self_type is not None, return_ref)
+            name, [], None, self_type is not None)
         self.type_var_ns = type_var_ns
         self.bb_stack = []
         self.break_and_continues = None
@@ -339,7 +359,7 @@ class FuncParser:
         raise hir.ParsingError(
             span, f"unsupported constant type {type(a.value)}, wrap it in lc.comptime(...) if you intead to use it as a compile-time expression")
 
-    def parse_name(self, name: ast.Name, new_var_hint: NewVarHint) -> hir.Ref | hir.Value | ComptimeValue:
+    def parse_name(self, name: ast.Name, new_var_hint: NewVarHint) -> hir.Var | hir.Value | ComptimeValue:
         span = hir.Span.from_ast(name)
         var = self.vars.get(name.id)
         # print(__builtins__)
@@ -391,10 +411,10 @@ class FuncParser:
             ty = base.member(hir.DynamicIndex())
             return ty
 
-    def parse_access_ref(self, expr: ast.Subscript | ast.Attribute) -> hir.Ref | hir.TypeValue | hir.FunctionValue | ComptimeValue:
+    def parse_access(self, expr: ast.Subscript | ast.Attribute) -> hir.Value | hir.TypeValue | hir.FunctionValue | ComptimeValue:
         span = hir.Span.from_ast(expr)
         if isinstance(expr, ast.Subscript):
-            value = self.parse_ref(expr.value)
+            value = self.parse_expr(expr.value)
             if isinstance(value, ComptimeValue):
                 raise hir.ParsingError(
                     expr, "attempt to access comptime value in DSL code; wrap it in lc.comptime(...) if you intead to use it as a compile-time expression")
@@ -420,17 +440,16 @@ class FuncParser:
                 return hir.TypeValue(
                     hir.BoundType(value.type.inner, type_args, value.type.inner.instantiate(type_args)))
             index = self.parse_expr(expr.slice)
-            assert isinstance(value, hir.Ref) and isinstance(index, hir.Value)
             index = self.convert_to_value(index, span)
             assert value.type
             index_ty = self.get_index_type(span, value.type, index)
             if index_ty is not None:
-                return self.cur_bb().append(hir.IndexRef(value, index, type=index_ty, span=span))
+                return self.cur_bb().append(hir.Index(value, index, type=index_ty, span=span))
             else:
                 # check __getitem__
                 if (method := value.type.method("__getitem__")) and method:
                     try:
-                        ret = self.parse_call_impl_ref(
+                        ret = self.parse_call_impl(
                             span, method, [value, index])
                     except hir.InlineError as e:
                         raise hir.InlineError(
@@ -438,20 +457,23 @@ class FuncParser:
                     if isinstance(ret, hir.TemplateMatchingError):
                         raise hir.TypeInferenceError(
                             expr, f"error calling __getitem__: {ret.message}")
+                    if not isinstance(ret.type, hir.RefType):
+                        raise hir.ParsingError(
+                            span, f"__getitem__ must return a reference")
                     return ret
                 else:
                     raise hir.TypeInferenceError(
                         expr, f"indexing not supported for type {value.type}")
         elif isinstance(expr, ast.Attribute):
             def do(expr: ast.Attribute):
-                value: hir.Ref | hir.Value | hir.ComptimeValue = self.parse_ref(
+                value: hir.Value | hir.ComptimeValue = self.parse_expr(
                     expr.value)
                 if isinstance(value, ComptimeValue):
                     if isinstance(value.value, ModuleType):
                         resolved = getattr(value.value, expr.attr)
                         return ComptimeValue(resolved, None)
                     value = self.try_convert_comptime_value(value, span)
-                if isinstance(value, hir.Ref):
+                if isinstance(value.type, hir.RefType):
                     attr_name = expr.attr
                     assert value.type
                     member_ty = value.type.member(attr_name)
@@ -462,7 +484,7 @@ class FuncParser:
                         if not isinstance(value, hir.TypeValue):
                             member_ty.bound_object = value
                         return hir.FunctionValue(member_ty)
-                    return self.cur_bb().append(hir.MemberRef(value, attr_name, type=member_ty, span=span))
+                    return self.cur_bb().append(hir.Member(value, attr_name, type=member_ty, span=span))
                 elif isinstance(value, hir.TypeValue):
                     member_ty = value.inner_type().member(expr.attr)
                     if not member_ty:
@@ -483,21 +505,7 @@ class FuncParser:
         # print(type(expr), type(expr) is ast.Attribute)
         raise NotImplementedError()  # unreachable
 
-    def parse_call_impl(self, span: hir.Span | None, f: hir.Function | hir.FunctionTemplate, args: List[hir.Value | hir.Ref], inline=False) -> hir.Value | hir.TemplateMatchingError:
-        ret = self.parse_call_impl_ex(span, f, args, inline)
-        if isinstance(ret, hir.Ref):
-            raise hir.ParsingError(
-                span, f"expected value but got reference")
-        return ret
-
-    def parse_call_impl_ref(self, span: hir.Span | None, f: hir.Function | hir.FunctionTemplate, args: List[hir.Value | hir.Ref]) -> hir.Ref | hir.TemplateMatchingError:
-        ret = self.parse_call_impl_ex(span, f, args, True, True)
-        if isinstance(ret, hir.Value):
-            raise hir.ParsingError(
-                span, f"expected reference but got value")
-        return ret
-
-    def parse_call_impl_ex(self, span: hir.Span | None, f: hir.Function | hir.FunctionTemplate, args: List[hir.Value | hir.Ref], inline=False, expect_ref=False) -> hir.Value | hir.Ref | hir.TemplateMatchingError:
+    def parse_call_impl(self, span: hir.Span | None, f: hir.Function | hir.FunctionTemplate, args: List[hir.Value], inline=False, expect_ref=False) -> hir.Value | hir.TemplateMatchingError:
         if expect_ref:
             if not inline:
                 raise hir.ParsingError(
@@ -528,7 +536,7 @@ class FuncParser:
                 assert not isinstance(resolved_f, hir.TemplateMatchingError)
         else:
             resolved_f = f
-        if expect_ref and not resolved_f.returning_ref:
+        if expect_ref and not isinstance(resolved_f.return_type, hir.RefType):
             raise hir.ParsingError(
                 span, "expected a function returning local reference but got a function returning value")
         param_tys = []
@@ -542,18 +550,17 @@ class FuncParser:
             )
         for i, (param_ty, arg) in enumerate(zip(param_tys, args)):
             assert arg.type is not None
-            if not hir.is_type_compatible_to(arg.type, param_ty):
+            if not hir.is_type_compatible_to(arg.type.remove_ref(), param_ty):
                 raise hir.TypeInferenceError(
                     span,
                     f"Argument {i} expected {param_ty}, got {arg.type}"
                 )
             if resolved_f.params[i].semantic == hir.ParameterSemantic.BYREF:
-                if isinstance(arg, hir.Value):
-                    tmp = self.cur_bb().append(hir.Alloca(arg.type, span))
-                    self.cur_bb().append(hir.Assign(tmp, arg, span))
-                    args[i] = tmp
+                if not isinstance(arg.type, hir.RefType):
+                    raise hir.ParsingError(
+                        span, f"expected reference but got value")
             else:
-                if isinstance(arg, hir.Ref):
+                if isinstance(arg.type, hir.RefType):
                     args[i] = self.cur_bb().append(hir.Load(arg))
         assert resolved_f.return_type
         if not inline:
@@ -561,16 +568,16 @@ class FuncParser:
         else:
             return hir.FunctionInliner.inline(resolved_f, args, self.cur_bb(), span)
 
-    def handle_intrinsic(self, expr: ast.Call, is_ref: bool) -> hir.Value | hir.Ref:
+    def handle_intrinsic(self, expr: ast.Call, is_ref: bool) -> hir.Value:
         intrinsic_name = expr.args[0]
         if not isinstance(intrinsic_name, ast.Constant) or not isinstance(intrinsic_name.value, str):
             raise hir.ParsingError(
                 expr, "intrinsic function expects a string literal as its first argument")
-        args: List[hir.Ref | hir.Value | hir.ComptimeValue] = []
+        args: List[hir.Value | hir.ComptimeValue] = []
         for a in expr.args[1:]:
             if isinstance(a, ast.Call) and isinstance(a.func, ast.Name) and a.func.id == 'byref':
-                r = self.parse_ref(a.args[0])
-                if isinstance(r, hir.Ref):
+                r = self.parse_expr(a.args[0])
+                if isinstance(r, hir.Value) and isinstance(r.type, hir.RefType):
                     args.append(r)
                 else:
                     raise hir.ParsingError(
@@ -584,17 +591,25 @@ class FuncParser:
         if not isinstance(ret_type, hir.TypeValue):
             raise hir.ParsingError(
                 expr, f"intrinsic function expects a type as its second argument but found {ret_type}")
-        if any([not isinstance(arg, (hir.Value, hir.Ref)) for arg in args[1:]]):
+        if any([not isinstance(arg, hir.Value) for arg in args[1:]]):
             raise hir.ParsingError(
-                expr, "intrinsic function expects values/refs as its arguments")
+                expr, "intrinsic function expects DSL values as its arguments")
+        intrinsic_ret_type: hir.Type
         if is_ref:
-            return self.cur_bb().append(
-                hir.IntrinsicRef(intrinsic_name.value, cast(List[hir.Value | hir.Ref], args[1:]),
-                                 ret_type.inner_type(), hir.Span.from_ast(expr)))
+            intrinsic_ret_type = hir.RefType(ret_type.inner_type())
         else:
-            return self.cur_bb().append(
-                hir.Intrinsic(intrinsic_name.value, cast(List[hir.Value | hir.Ref], args[1:]),
-                              ret_type.inner_type(), hir.Span.from_ast(expr)))
+            intrinsic_ret_type = ret_type.inner_type()
+        return self.cur_bb().append(
+            hir.Intrinsic(intrinsic_name.value, cast(List[hir.Value], args[1:]),
+                          intrinsic_ret_type, hir.Span.from_ast(expr)))
+        # if is_ref:
+        #     return self.cur_bb().append(
+        #         hir.IntrinsicRef(intrinsic_name.value, cast(List[hir.Value | hir.Ref], args[1:]),
+        #                          ret_type.inner_type(), hir.Span.from_ast(expr)))
+        # else:
+        #     return self.cur_bb().append(
+        #         hir.Intrinsic(intrinsic_name.value, cast(List[hir.Value | hir.Ref], args[1:]),
+        #                       ret_type.inner_type(), hir.Span.from_ast(expr)))
 
     def handle_special_functions(self, f: Callable[..., Any], expr: ast.Call) -> hir.Value | ComptimeValue:
         if f is SPECIAL_FUNCTIONS_DICT['intrinsic']:
@@ -705,26 +720,26 @@ class FuncParser:
         else:
             raise RuntimeError(f"Unsupported special function {f}")
 
-    def parse_call_ref(self, expr: ast.Call) -> hir.Ref:
-        func: hir.Ref | ComptimeValue | hir.TypeValue | hir.Value = self.parse_ref(
-            expr.func)
-        if isinstance(func, ComptimeValue):
-            if func.value is not SPECIAL_FUNCTIONS_DICT['intrinsic']:
-                raise hir.ParsingError(
-                    expr, f"expected intrinsic function but got {func}")
-            intrin_ref = self.handle_intrinsic(expr, True)
-            assert isinstance(intrin_ref, hir.Ref)
-            return intrin_ref
+    # def parse_call_ref(self, expr: ast.Call) -> hir.Ref:
+    #     func: hir.Ref | ComptimeValue | hir.TypeValue | hir.Value = self.parse_ref(
+    #         expr.func)
+    #     if isinstance(func, ComptimeValue):
+    #         if func.value is not SPECIAL_FUNCTIONS_DICT['intrinsic']:
+    #             raise hir.ParsingError(
+    #                 expr, f"expected intrinsic function but got {func}")
+    #         intrin_ref = self.handle_intrinsic(expr, True)
+    #         assert isinstance(intrin_ref, hir.Ref)
+    #         return intrin_ref
 
-        span = hir.Span.from_ast(expr)
-        if not isinstance(func, hir.FunctionValue):
-            raise hir.ParsingError(
-                expr, f"expected function but got {func}")
-        raise NotImplementedError()
+    #     span = hir.Span.from_ast(expr)
+    #     if not isinstance(func, hir.FunctionValue):
+    #         raise hir.ParsingError(
+    #             expr, f"expected function but got {func}")
+    #     raise NotImplementedError()
 
     def parse_call(self, expr: ast.Call) -> hir.Value | ComptimeValue:
-        func: hir.Ref | ComptimeValue | hir.TypeValue | hir.Value = self.parse_ref(
-            expr.func)  # TODO: this should be a parse_ref
+        func: ComptimeValue | hir.TypeValue | hir.Value = self.parse_expr(
+            expr.func)
         span = hir.Span.from_ast(expr)
 
         if isinstance(func, ComptimeValue):
@@ -733,13 +748,13 @@ class FuncParser:
             func = self.try_convert_comptime_value(
                 func, hir.Span.from_ast(expr))
 
-        def collect_args() -> List[hir.Value | hir.Ref]:
+        def collect_args() -> List[hir.Value]:
             args = [self.parse_expr(arg) for arg in expr.args]
             for i, arg in enumerate(args):
                 if isinstance(arg, ComptimeValue):
                     args[i] = self.try_convert_comptime_value(
                         arg, hir.Span.from_ast(expr.args[i]))
-            return cast(List[hir.Value | hir.Ref], args)
+            return cast(List[hir.Value], args)
 
         if isinstance(func.type, hir.TypeConstructorType):
             # TypeConstructorType is unique for each type
@@ -768,7 +783,7 @@ class FuncParser:
             bound_object = func.type.bound_object
             if bound_object is not None:
                 ret = self.parse_call_impl(
-                    span, func_like,  cast(List[hir.Ref | hir.Value], [bound_object]) + collect_args())
+                    span, func_like,  cast(List[hir.Value], [bound_object]) + collect_args())
             else:
                 ret = self.parse_call_impl(
                     span, func_like,  collect_args())
@@ -779,7 +794,7 @@ class FuncParser:
             # check if __call__ is defined
             if (method := func.type.method("__call__")) and method:
                 ret = self.parse_call_impl(
-                    span, method, cast(List[hir.Ref | hir.Value], [func]) + collect_args())
+                    span, method, cast(List[hir.Value], [func]) + collect_args())
                 if isinstance(ret, hir.TemplateMatchingError):
                     raise hir.ParsingError(expr, ret.message)
                 return ret
@@ -861,47 +876,18 @@ class FuncParser:
                 raise e from e
         return infer_binop(ops[0], ops[1])
 
-    def parse_ref(self, expr: ast.expr, new_var_hint: NewVarHint = False) -> hir.Ref | ComptimeValue | hir.TypeValue | hir.FunctionValue:
-        match expr:
-            case ast.Name():
-                ret = self.parse_name(expr, new_var_hint)
-                if isinstance(ret, (hir.Value)):
-                    if isinstance(ret.type, hir.TypeConstructorType):
-                        assert isinstance(ret, hir.TypeValue)
-                        return ret
-                    if isinstance(ret.type, hir.FunctionType):
-                        return hir.FunctionValue(ret.type, hir.Span.from_ast(expr))
-                    # raise hir.ParsingError(
-                    #     expr, f"{type(ret)} cannot be used as reference")
-                    assert ret.type
-                    tmp = self.cur_bb().append(hir.Alloca(ret.type, hir.Span.from_ast(expr)))
-                    self.cur_bb().append(hir.Assign(tmp, ret))
-                    return tmp
-                return ret
-            case ast.Subscript() | ast.Attribute():
-                return self.parse_access_ref(expr)
-            case ast.Call() as call:
-                return self.parse_call_ref(call)
-                # if call.func is SPECIAL_FUNCTIONS_DICT['intrinsic']:
-                #     return self.handle_special_functions(
-                #         call.func, call)
-                # return self.parse_call_impl_ref(hir.Span.from_ast(expr), self.parse_ref(call.func), [self.parse_expr(arg) for arg in call.args])
-            case _:
-                raise hir.ParsingError(
-                    expr, f"expression {ast.dump(expr)} cannot be parsed as reference")
-
     def parse_multi_assignment(self,
                                targets: List[ast.expr],
                                anno_ty_fn: List[Optional[Callable[..., hir.Type | None]]],
                                values: hir.Value | ComptimeValue) -> None:
         if isinstance(values, ComptimeValue):
-            parsed_targets = [self.parse_ref(t, 'comptime') for t in targets]
+            parsed_targets = [self.parse_expr(t, 'comptime') for t in targets]
             for i in range(len(parsed_targets)):
                 if isinstance(parsed_targets[i], hir.TypeValue):
                     raise hir.ParsingError(
                         targets[i], "types cannot be reassigned")
 
-            def do_assign(target: hir.Ref | ComptimeValue, value: ComptimeValue, i: int) -> None:
+            def do_assign(target: hir.Value | ComptimeValue, value: ComptimeValue, i: int) -> None:
                 span = hir.Span.from_ast(targets[i])
                 if isinstance(target, ComptimeValue):
                     target.update(value.value)
@@ -913,22 +899,22 @@ class FuncParser:
                     raise hir.ParsingError(
                         targets[0], f"expected {len(parsed_targets)} values to unpack, got {len(values.value)}")
                 for i, t in enumerate(parsed_targets):
-                    assert isinstance(t, (hir.Ref, ComptimeValue))
+                    assert isinstance(t, (hir.Value, ComptimeValue))
                     do_assign(t, values.value[i],
                               i)
             else:
                 t = parsed_targets[0]
-                assert isinstance(t, (hir.Ref, ComptimeValue))
+                assert isinstance(t, (hir.Value, ComptimeValue))
                 do_assign(t, values, 0)
         else:
-            parsed_targets = [self.parse_ref(t, 'dsl') for t in targets]
+            parsed_targets = [self.parse_expr(t, 'dsl') for t in targets]
             is_all_dsl = all(
-                isinstance(t, hir.Ref) for t in parsed_targets)
+                isinstance(t, hir.Value) for t in parsed_targets)
             if not is_all_dsl:
                 raise hir.ParsingError(
                     targets[0], "DSL value cannot be assigned to comptime variables")
             assert values.type
-            ref_targets = cast(List[hir.Ref], parsed_targets)
+            ref_targets = cast(List[hir.Value], parsed_targets)
 
             def do_unpack(length: int, extract_fn: Callable[[hir.Value, int, ast.expr], hir.Value]) -> None:
                 def check(i: int, val_type: hir.Type) -> None:
@@ -1021,17 +1007,30 @@ class FuncParser:
             raise hir.ParsingError(
                 expr, f"operator {type(op)} not defined for type {operand.type}")
 
-    def parse_expr(self, expr: ast.expr) -> hir.Value | ComptimeValue:
+    def parse_expr(self, expr: ast.expr, new_var_hint: NewVarHint = False) -> hir.Value | ComptimeValue:
+        span = hir.Span.from_ast(expr)
         match expr:
             case ast.Constant():
                 return self.parse_const(expr)
             case ast.Name():
-                ret = self.parse_name(expr, False)
-                if isinstance(ret, hir.Ref):
-                    ret = self.convert_to_value(ret, hir.Span.from_ast(expr))
+                ret = self.parse_name(expr, new_var_hint)
+                if isinstance(ret, hir.Var):
+                    return hir.VarRef(ret, span)
+                if isinstance(ret, (hir.Value)):
+                    if isinstance(ret.type, hir.TypeConstructorType):
+                        assert isinstance(ret, hir.TypeValue)
+                        return ret
+                    if isinstance(ret.type, hir.FunctionType):
+                        return hir.FunctionValue(ret.type, span)
+                    # raise hir.ParsingError(
+                    #     expr, f"{type(ret)} cannot be used as reference")
+                    assert ret.type
+                    tmp = self.cur_bb().append(hir.Alloca(ret.type, span))
+                    self.cur_bb().append(hir.Assign(tmp, ret))
+                    return tmp
                 return ret
             case ast.Subscript() | ast.Attribute():
-                return self.convert_to_value(self.parse_access_ref(expr), hir.Span.from_ast(expr))
+                return self.convert_to_value(self.parse_access(expr), span)
             case ast.BinOp() | ast.Compare():
                 return self.parse_binop(expr)
             case ast.UnaryOp():
@@ -1052,7 +1051,7 @@ class FuncParser:
                                 e, hir.Span.from_ast(expr.elts[i]))
                     tt: hir.TupleType = hir.TupleType(
                         [unwrap(e.type) for e in cast(List[hir.Value], elements)])
-                    return self.cur_bb().append(hir.AggregateInit(cast(List[hir.Value], elements), tt, span=hir.Span.from_ast(expr)))
+                    return self.cur_bb().append(hir.AggregateInit(cast(List[hir.Value], elements), tt, span))
             case _:
                 raise RuntimeError(f"Unsupported expression: {ast.dump(expr)}")
 
@@ -1067,10 +1066,10 @@ class FuncParser:
                 localns[name] = v.value
         return eval(code_object, self.globalns, localns)
 
-    def convert_to_value(self, value: hir.Value | hir.Ref | ComptimeValue, span: Optional[hir.Span] = None) -> hir.Value:
+    def convert_to_value(self, value: hir.Value | ComptimeValue, span: Optional[hir.Span] = None) -> hir.Value:
         if isinstance(value, ComptimeValue):
             value = self.try_convert_comptime_value(value, span)
-        if isinstance(value, hir.Ref):
+        if value.is_ref():
             value = hir.Load(value)
             self.cur_bb().append(value)
         return value
@@ -1138,8 +1137,8 @@ class FuncParser:
                 loop_range: hir.Range = iter_val
                 pred_bb = self.cur_bb()
                 self.bb_stack.pop()
-                loop_var = self.parse_ref(stmt.target, new_var_hint='dsl')
-                if not isinstance(loop_var, hir.Ref):
+                loop_var = self.parse_expr(stmt.target, new_var_hint='dsl')
+                if not isinstance(loop_var, hir.Value):
                     raise hir.ParsingError(
                         stmt, "for loop target must be a DSL variable")
                 if not loop_var.type:
@@ -1206,18 +1205,18 @@ class FuncParser:
                         if not hir.is_type_compatible_to(ty, self.parsed_func.return_type):
                             raise hir.ParsingError(
                                 stmt, f"return type mismatch: expected {self.parsed_func.return_type}, got {ty}")
-                if self.returning_ref:
+                if isinstance(self.signature.return_type, hir.RefType):
                     def do():
                         if not stmt.value:
                             raise hir.ParsingError(
                                 stmt, "if a function is returning local references, the return value must be provided")
-                        value = self.parse_ref(stmt.value)
-                        if not isinstance(value, hir.Ref):
+                        value = self.parse_expr(stmt.value)
+                        if not isinstance(value, hir.Value) or not value.is_ref():
                             raise hir.ParsingError(
                                 stmt, "invalid return target")
                         assert value.type
                         check_return_type(value.type)
-                        self.cur_bb().append(hir.ReturnRef(value))
+                        self.cur_bb().append(hir.Return(value))
                     do()
                 else:
                     def do():
@@ -1243,7 +1242,7 @@ class FuncParser:
                     )
             case ast.AugAssign():
                 method_name = AUG_ASSIGN_TO_METHOD_NAMES[type(stmt.op)]
-                var = self.parse_ref(stmt.target)
+                var = self.parse_expr(stmt.target)
                 value = self.parse_expr(stmt.value)
                 if isinstance(var, ComptimeValue):
                     if not isinstance(value, ComptimeValue):
@@ -1279,7 +1278,7 @@ class FuncParser:
                     self.parse_multi_assignment(
                         [stmt.target], [parse_anno_ty], self.parse_expr(stmt.value))
                 else:
-                    var = self.parse_ref(stmt.target, new_var_hint='dsl')
+                    var = self.parse_expr(stmt.target, new_var_hint='dsl')
                     anno_ty = parse_anno_ty()
                     assert isinstance(var, hir.Var)
                     if not var.type:

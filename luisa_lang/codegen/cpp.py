@@ -292,20 +292,20 @@ class FuncCodeGen:
         self.vid_cnt += 1
         return self.vid_cnt
 
-    def gen_ref(self, ref: hir.Ref) -> str:
+    def gen_ref(self, ref: hir.Value) -> str:
         if ref in self.node_map:
             return self.node_map[ref]
         match ref:
             case hir.Var() as var:
                 return var.name
-            case hir.MemberRef() as member:
+            case hir.Member() as member:
                 base = self.gen_ref(member.base)
                 return f"{base}.{member.field}"
-            case hir.IndexRef() as index:
+            case hir.Index() as index:
                 base = self.gen_ref(index.base)
                 idx = self.gen_expr(index.index)
                 return f"{base}[{idx}]"
-            case hir.IntrinsicRef() as intrin:
+            case hir.Intrinsic() as intrin:
                 def do():
                     intrin_name = intrin.name
                     gened_args = [self.gen_value_or_ref(
@@ -328,15 +328,19 @@ class FuncCodeGen:
         else:
             raise NotImplementedError(f"unsupported constant")
 
-    def gen_value_or_ref(self, value: hir.Value | hir.Ref) -> str:
-        match value:
-            case hir.Value() as value:
-                return self.gen_node_checked(value)
-            case hir.Ref() as ref:
-                return self.gen_ref(ref)
-            case _:
-                raise NotImplementedError(
-                    f"unsupported value or reference: {value}")
+    def gen_value_or_ref(self, value: hir.Value) -> str:
+        # match value:
+        #     case hir.Value() as value:
+        #         return self.gen_node_checked(value)
+        #     case hir.Ref() as ref:
+        #         return self.gen_ref(ref)
+        #     case _:
+        #         raise NotImplementedError(
+        #             f"unsupported value or reference: {value}")
+        if value.is_ref():
+           return self.gen_ref(value)
+        else:
+            return self.gen_expr(value)
 
     def gen_node_checked(self, node: hir.Node) -> str:
         if isinstance(node, hir.Constant):

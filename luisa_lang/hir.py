@@ -160,7 +160,7 @@ class RefType(Type):
 
     def __init__(self, element: Type) -> None:
         super().__init__()
-        assert not isinstance(element, RefType)
+        assert not isinstance(element, (RefType, FunctionType,TypeConstructorType))
         self.element = element
         self.methods = element.methods
 
@@ -185,9 +185,13 @@ class RefType(Type):
         ty = self.element.member(field)
         if ty is None:
             return None
-
+        if isinstance(ty,FunctionType):
+            return ty
         return RefType(ty)
 
+    @override
+    def method(self, name: str) -> Optional[Union["Function", FunctionTemplate]]:
+        return self.element.method(name)
 
 class LiteralType(Type):
     value: Any
@@ -669,6 +673,8 @@ class GenericParameter:
         bound_str = f" : {self.bound}" if self.bound else ""
         return f"GenericParameter({self.name}, {self.ctx_name}, {bound_str})"
 
+    def __str__(self) -> str:
+        return f"~{self.name}@{self.ctx_name}"
 
 class OpaqueType(Type):
     name: str
@@ -771,6 +777,9 @@ class ParametricType(Type):
 
     def __hash__(self) -> int:
         return hash((ParametricType, tuple(self.params), self.body))
+    
+    def __str__(self) -> str:
+        return f"{self.body}[{', '.join(str(p) for p in self.params)}]"
 
 
 class BoundType(Type):
@@ -802,6 +811,9 @@ class BoundType(Type):
 
     def __hash__(self):
         return hash((BoundType, self.generic, tuple(self.args)))
+    
+    def __str__(self) -> str:
+        return f"{self.generic}[{', '.join(str(a) for a in self.args)}]"
 
     @override
     def member(self, field) -> Optional['Type']:
@@ -958,8 +970,11 @@ class VarRef(Value):
     def __init__(
         self, var: Var, span: Optional[Span]
     ) -> None:
-        assert var.type is not None
-        super().__init__(RefType(var.type), span)
+        # assert var.type is not None
+        if var.type is not None:
+            super().__init__(RefType(var.type), span)
+        else:
+            super().__init__(None, span)
         self.var = var
 
 
@@ -1143,7 +1158,7 @@ class Assign(Node):
     value: Value
 
     def __init__(self, ref: Value, value: Value, span: Optional[Span] = None) -> None:
-        assert not isinstance(value.type, (FunctionType, TypeConstructorType))
+        assert not isinstance(value.type, (FunctionType, TypeConstructorType, RefType))
         if not isinstance(ref.type, RefType):
             raise ParsingError(
                 ref, f"cannot assign to a non-reference variable")

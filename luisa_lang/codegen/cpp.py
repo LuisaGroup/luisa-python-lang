@@ -107,6 +107,8 @@ class TypeCodeGenCache:
                 return 'int'
             case hir.GenericFloatType():
                 return 'float'
+            case hir.RefType():
+                return f"{self.gen(ty.element)} &"
             case _:
                 raise NotImplementedError(f"unsupported type: {ty}")
 
@@ -207,6 +209,8 @@ class Mangling:
                 return 'f32'
             case hir.GenericIntType():
                 return 'i32'
+            case hir.RefType():
+                return f'R{self.mangle(obj.element)}'
             case _:
                 raise NotImplementedError(f"unsupported object: {obj}")
 
@@ -319,6 +323,8 @@ class FuncCodeGen:
                             raise RuntimeError(
                                 f"unsupported intrinsic reference: {intrin_name}")
                 return do()
+            case hir.VarRef() as var_ref:
+                return var_ref.var.name
             case _:
                 raise NotImplementedError(f"unsupported reference: {ref}")
 
@@ -338,16 +344,13 @@ class FuncCodeGen:
         #         raise NotImplementedError(
         #             f"unsupported value or reference: {value}")
         if value.is_ref():
-           return self.gen_ref(value)
+            return self.gen_ref(value)
         else:
             return self.gen_expr(value)
 
     def gen_node_checked(self, node: hir.Node) -> str:
         if isinstance(node, hir.Constant):
             return self.gen_expr(node)
-        if isinstance(node, hir.TypedNode) and isinstance(node.type, (hir.TypeConstructorType, hir.FunctionType)):
-            assert node.type
-            return f'{self.base.type_cache.gen(node.type)}{{}}'
 
         return self.node_map[node]
 
@@ -375,19 +378,24 @@ class FuncCodeGen:
 
         def impl() -> None:
             match expr:
+                case hir.FunctionValue() as func_value:
+                    assert isinstance(func_value.type, hir.FunctionType)
+                    self.body.writeln(
+                        f'auto v{vid} = {self.base.type_cache.gen(func_value.type)}{{}};')
                 case hir.TypeValue() as type_value:
                     assert type_value.type
-                    self.base.type_cache.gen(type_value.type)
+                    self.body.writeln(
+                        f'auto v{vid} = {self.base.type_cache.gen(type_value.type)}{{}};')
                     return
                 case hir.Load() as load:
                     self.body.writeln(
                         f"const auto &v{vid} = {self.gen_ref(load.ref)}; // load")
                 case hir.Index() as index:
-                    base = self.gen_expr(index.base)
+                    base = self.gen_value_or_ref(index.base)
                     idx = self.gen_expr(index.index)
                     self.body.writeln(f"const auto v{vid} = {base}[{idx}];")
                 case hir.Member() as member:
-                    base = self.gen_expr(member.base)
+                    base = self.gen_value_or_ref(member.base)
                     self.body.writeln(
                         f"const auto v{vid} = {base}.{member.field};")
                 case hir.Call() as call:

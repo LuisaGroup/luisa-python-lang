@@ -183,15 +183,9 @@ def convert_func_signature(signature: classinfo.MethodType,
         semantic = hir.ParameterSemantic.BYVAL
         if arg[0] == "self":
             assert self_type is not None
-            # santity check on self type, we should only accept
-            # Self and Ref[Self]
-            if isinstance(param_type, hir.RefType):
-                if param_type.element != self_type:
-                    raise RuntimeError(
-                        f"expected self type but got {param_type}")
-            elif param_type != self_type:
-                raise RuntimeError(
-                    f"expected self type but got {param_type}")
+            assert isinstance(arg[1], classinfo.SelfType), "self is implicit set to Ref[Self], so do not provide type hint!"
+            param_type = hir.RefType(self_type)
+            semantic = hir.ParameterSemantic.BYREF
 
         if param_type is None:
             raise RuntimeError(
@@ -556,9 +550,10 @@ class FuncParser:
                     f"Argument {i} expected {param_ty}, got {arg.type}"
                 )
             if resolved_f.params[i].semantic == hir.ParameterSemantic.BYREF:
-                if not isinstance(arg.type, hir.RefType):
-                    raise hir.ParsingError(
-                        span, f"expected reference but got value")
+                # if not isinstance(arg.type, hir.RefType):
+                #     raise hir.ParsingError(
+                #         span, f"expected reference but got value")
+                tmp = self.cur_bb().append(hir.Alloca(arg))
             else:
                 if isinstance(arg.type, hir.RefType):
                     args[i] = self.cur_bb().append(hir.Load(arg))
@@ -918,20 +913,24 @@ class FuncParser:
 
             def do_unpack(length: int, extract_fn: Callable[[hir.Value, int, ast.expr], hir.Value]) -> None:
                 def check(i: int, val_type: hir.Type) -> None:
+                    def do_update_type_for_var(t:hir.Value, ty:hir.Type):
+                         if t.type is None:
+                            assert isinstance(t, hir.VarRef)
+                            t.var.type = ty
+                            t.type = hir.RefType(ty)
                     if len(anno_ty_fn) > 0 and (fn := anno_ty_fn[i]) is not None:
                         ty = fn()
                         if ty is None:
                             raise hir.ParsingError(
                                 targets[i], f"unable to infer type of target")
-                        if ref_targets[i].type is None:
-                            ref_targets[i].type = ty
+                        do_update_type_for_var(ref_targets[i], ty)
                     tt = ref_targets[i].type
                     if isinstance(val_type, hir.FunctionType) and val_type.bound_object is not None:
                         raise hir.TypeInferenceError(
                             targets[i], f"bounded method cannot be assigned to variable")
                     if not tt:
                         if val_type.is_concrete():
-                            ref_targets[i].type = val_type
+                            do_update_type_for_var(ref_targets[i], val_type)
                         else:
                             raise hir.TypeInferenceError(
                                 targets[i], f"unable to infer type of target, cannot assign with non-concrete type {val_type}")
@@ -944,7 +943,7 @@ class FuncParser:
                     check(0, values.type)
                     if not isinstance(values.type, (hir.FunctionType, hir.TypeConstructorType)):
                         self.cur_bb().append(hir.Assign(
-                            ref_targets[0], values))
+                            ref_targets[0], self.convert_to_value(values)))
                 elif len(ref_targets) == length:
                     for i, t in enumerate(ref_targets):
                         e = extract_fn(values, i, targets[i])
@@ -1014,9 +1013,7 @@ class FuncParser:
                 return self.parse_const(expr)
             case ast.Name():
                 ret = self.parse_name(expr, new_var_hint)
-                if isinstance(ret, hir.Var):
-                    return hir.VarRef(ret, span)
-                if isinstance(ret, (hir.Value)):
+                if isinstance(ret, (hir.Value, hir.Var)):
                     if isinstance(ret.type, hir.TypeConstructorType):
                         assert isinstance(ret, hir.TypeValue)
                         return ret
@@ -1024,13 +1021,13 @@ class FuncParser:
                         return hir.FunctionValue(ret.type, span)
                     # raise hir.ParsingError(
                     #     expr, f"{type(ret)} cannot be used as reference")
+                    if isinstance(ret, hir.Var):
+                        return hir.VarRef(ret, span)
                     assert ret.type
-                    tmp = self.cur_bb().append(hir.Alloca(ret.type, span))
-                    self.cur_bb().append(hir.Assign(tmp, ret))
-                    return tmp
+                    return ret
                 return ret
             case ast.Subscript() | ast.Attribute():
-                return self.convert_to_value(self.parse_access(expr), span)
+                return self.parse_access(expr)
             case ast.BinOp() | ast.Compare():
                 return self.parse_binop(expr)
             case ast.UnaryOp():

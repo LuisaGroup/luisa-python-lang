@@ -56,6 +56,7 @@ def _make_type_parameteric_type() -> hir.ParametricType:
 TYPE_PARAMETERIC_TYPE: hir.ParametricType = _make_type_parameteric_type()
 
 
+
 class TypeParser:
     ctx_name: str
     globalns: Dict[str, Any]
@@ -229,6 +230,7 @@ def _add_special_function(name: str, f: Callable[..., Any]) -> None:
     SPECIAL_FUNCTIONS_DICT[name] = f
     SPECIAL_FUNCTIONS.add(f)
 
+_add_special_function('print', print)
 
 NewVarHint = Literal[False, 'dsl', 'comptime']
 
@@ -238,6 +240,20 @@ def _friendly_error_message_for_unrecognized_type(ty: Any) -> str:
         return 'expected builtin function range, use lc.range instead'
     return f"expected DSL type but got {ty}"
 
+class FuncStack:
+    st: List['FuncParser']
+
+    def __init__(self) -> None:
+        self.st = []
+
+    def push(self, f: 'FuncParser') -> None:
+        self.st.append(f)
+
+    def pop(self) -> 'FuncParser':
+        return self.st.pop()
+
+
+FUNC_STACK = FuncStack()
 
 class FuncParser:
 
@@ -525,8 +541,7 @@ class FuncParser:
         raise NotImplementedError()  # unreachable
 
     def parse_call_impl(self, span: hir.Span | None, f: hir.Function | hir.FunctionTemplate, args: List[hir.Value]) -> hir.Value | hir.TemplateMatchingError:
-        
-        
+
         if isinstance(f, hir.FunctionTemplate):
             if f.is_generic:
                 template_resolve_args: hir.FunctionTemplateResolvingArgs = []
@@ -555,7 +570,7 @@ class FuncParser:
             resolved_f = f
         assert resolved_f.return_type
         expect_ref = isinstance(resolved_f.return_type, hir.RefType)
-        inline = expect_ref
+        inline = expect_ref or resolved_f.inline_hint == 'always'
         param_tys = []
         for p in resolved_f.params:
             assert p.type, f"Parameter {p.name} has no type"
@@ -628,7 +643,11 @@ class FuncParser:
         #                       ret_type.inner_type(), hir.Span.from_ast(expr)))
 
     def handle_special_functions(self, f: Callable[..., Any], expr: ast.Call) -> hir.Value | ComptimeValue:
-        if f is SPECIAL_FUNCTIONS_DICT['intrinsic']:
+        if f is print:
+            args = [self.parse_string_element(a) for a in expr.args]
+            self.cur_bb().append(hir.Print(args, hir.Span.from_ast(expr)))
+            return hir.Unit()
+        elif f is SPECIAL_FUNCTIONS_DICT['intrinsic']:
             intrin_ret = self.handle_intrinsic(expr)
             assert isinstance(intrin_ret, hir.Value)
             return intrin_ret
@@ -791,7 +810,6 @@ class FuncParser:
                 span, init,  [tmp]+collect_args())
             if isinstance(call, hir.TemplateMatchingError):
                 raise hir.ParsingError(expr, call.message)
-            assert isinstance(call, hir.Call)
             return self.cur_bb().append(hir.Load(tmp))
         assert func.type
         if isinstance(func.type, hir.FunctionType):
@@ -1094,6 +1112,19 @@ class FuncParser:
             self.cur_bb().append(value)
         return value
 
+    def parse_string_element(self, v: ast.expr) -> Union[str, hir.Value]:
+        span = hir.Span.from_ast(v)
+        if isinstance(v, ast.Constant) and isinstance(v.value, str):
+            return v.value
+        return self.convert_to_value(self.parse_expr(v), span)
+    
+    def parse_strings(self, expr: ast.JoinedStr | ast.Constant) -> List[Union[str, hir.Value]]:
+        match expr:
+            case ast.JoinedStr():
+                return [self.parse_string_element(v) for v in expr.values]
+            case ast.Constant():
+                return [self.parse_string_element(expr)]
+
     def parse_stmt(self, stmt: ast.stmt) -> None:
         span = hir.Span.from_ast(stmt)
         match stmt:
@@ -1260,6 +1291,27 @@ class FuncParser:
                     self.parse_multi_assignment(
                         [target], [], self.parse_expr(stmt.value)
                     )
+            case ast.Assert():
+                def handle_assert():
+                    test = self.parse_expr(stmt.test)
+                    msg = stmt.msg
+                    if isinstance(test, ComptimeValue):
+                        if msg:
+                            evaled_msg = f'assertion failed for comptime value {
+                                self.eval_expr(msg)}'
+                        else:
+                            evaled_msg = f'assertion failed for comptime value {
+                                test.value}'
+                        assert test.value, evaled_msg
+                    else:
+                        sep_msg: List[Union[hir.Value, str]] = []
+                        if msg is not None:
+                            if not isinstance(msg, (ast.Constant, ast.JoinedStr)):
+                                raise hir.ParsingError(
+                                    stmt, "assert message must be a string literal")
+                            sep_msg = self.parse_strings(msg)
+                        self.cur_bb().append(hir.Assert(test, sep_msg, span))
+                handle_assert()
             case ast.AugAssign():
                 method_name = AUG_ASSIGN_TO_METHOD_NAMES[type(stmt.op)]
                 var = self.parse_expr(stmt.target)
@@ -1318,6 +1370,7 @@ class FuncParser:
                 raise RuntimeError(f"Unsupported statement: {ast.dump(stmt)}")
 
     def parse_body(self):
+        FUNC_STACK.push(self)
         assert self.parsed_func is not None
         body = self.func_def.body
         entry = hir.BasicBlock(hir.Span.from_ast(self.func_def))
@@ -1331,6 +1384,7 @@ class FuncParser:
         if not self.parsed_func.return_type:
             self.parsed_func.return_type = hir.UnitType()
         self.parsed_func.complete = True
+        assert FUNC_STACK.pop() is self
         return self.parsed_func
 
 

@@ -21,7 +21,7 @@ from typing import (
     Any,
     Annotated
 )
-from luisa_lang._builtin_decor import func, intrinsic, opaque, builtin_generic_type, byref
+from luisa_lang._builtin_decor import func, intrinsic, opaque, builtin_generic_type, byref, struct
 from luisa_lang import parse
 
 T = TypeVar("T")
@@ -315,6 +315,37 @@ class Pointer(Generic[T]):
 
     def __sub__(self, offset: i32 | i64 | u32 | u64) -> 'Pointer[T]':
         return intrinsic("pointer.sub", Pointer[T], self, offset)
+
+
+@struct
+class RtxRay:
+    o: float3
+    d: float3
+    tmin: float
+    tmax: float
+
+    def __init__(self, o: float3, d: float3, tmin: float, tmax: float) -> None:
+        self.o = o
+        self.d = d
+        self.tmin = tmin
+        self.tmax = tmax
+
+
+@struct
+class RtxHit:
+    inst_id: u32
+    prim_id: u32
+    bary: float2
+
+    def __init__(self, inst_id: u32, prim_id: u32, bary: float2) -> None:
+        self.inst_id = inst_id
+        self.prim_id = prim_id
+        self.bary = bary
+
+
+@func
+def ray_query_pipeline(ray: RtxRay, on_surface_hit, on_procedural_hit) -> RtxHit:
+    return intrinsic("ray_query_pipeline", RtxHit, ray, on_surface_hit, on_procedural_hit)
 
 
 __all__: List[str] = [

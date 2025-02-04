@@ -142,7 +142,7 @@ class Type(ABC):
 
     def is_concrete(self) -> bool:
         return True
-    
+
     def is_addressable(self) -> bool:
         return True
 
@@ -163,8 +163,10 @@ class RefType(Type):
 
     def __init__(self, element: Type) -> None:
         super().__init__()
-        assert element.is_addressable(), f"RefType element {element} is not addressable"
-        assert not isinstance(element, (OpaqueType, RefType, FunctionType,TypeConstructorType))
+        assert element.is_addressable(), f"RefType element {
+            element} is not addressable"
+        assert not isinstance(
+            element, (OpaqueType, RefType, FunctionType, TypeConstructorType))
         self.element = element
         self.methods = element.methods
 
@@ -189,17 +191,18 @@ class RefType(Type):
         ty = self.element.member(field)
         if ty is None:
             return None
-        if isinstance(ty,FunctionType):
+        if isinstance(ty, FunctionType):
             return ty
         return RefType(ty)
 
     @override
     def method(self, name: str) -> Optional[Union["Function", FunctionTemplate]]:
         return self.element.method(name)
-    
+
     @override
     def is_addressable(self) -> bool:
         return False
+
 
 class LiteralType(Type):
     value: Any
@@ -221,7 +224,7 @@ class LiteralType(Type):
     @override
     def is_addressable(self) -> bool:
         return False
-    
+
     def __eq__(self, value: object) -> bool:
         return isinstance(value, LiteralType) and value.value == self.value
 
@@ -349,6 +352,7 @@ class GenericFloatType(ScalarType):
     def is_addressable(self) -> bool:
         return False
 
+
 class GenericIntType(ScalarType):
     @override
     def __eq__(self, value: object) -> bool:
@@ -381,6 +385,7 @@ class GenericIntType(ScalarType):
     @override
     def is_addressable(self) -> bool:
         return False
+
 
 class FloatType(ScalarType):
     bits: int
@@ -695,6 +700,7 @@ class GenericParameter:
     def __str__(self) -> str:
         return f"~{self.name}@{self.ctx_name}"
 
+
 class OpaqueType(Type):
     name: str
     extra_args: List[Any]
@@ -722,7 +728,7 @@ class OpaqueType(Type):
     @override
     def is_concrete(self) -> bool:
         return False
-    
+
     @override
     def is_addressable(self) -> bool:
         return False
@@ -800,17 +806,18 @@ class ParametricType(Type):
 
     def __hash__(self) -> int:
         return hash((ParametricType, tuple(self.params), self.body))
-    
+
     def __str__(self) -> str:
         return f"{self.body}[{', '.join(str(p) for p in self.params)}]"
 
     @override
     def is_concrete(self) -> bool:
         return self.body.is_concrete()
-    
+
     @override
     def is_addressable(self) -> bool:
         return self.body.is_addressable()
+
 
 class BoundType(Type):
     """
@@ -841,7 +848,7 @@ class BoundType(Type):
 
     def __hash__(self):
         return hash((BoundType, self.generic, tuple(self.args)))
-    
+
     def __str__(self) -> str:
         return f"{self.generic}[{', '.join(str(a) for a in self.args)}]"
 
@@ -862,10 +869,11 @@ class BoundType(Type):
     @override
     def is_addressable(self) -> bool:
         return self.generic.is_addressable()
-    
+
     @override
     def is_concrete(self) -> bool:
         return self.generic.is_concrete()
+
 
 class TypeConstructorType(Type):
     inner: Type
@@ -909,6 +917,7 @@ class FunctionType(Type):
 
     def align(self) -> int:
         raise RuntimeError("FunctionType has no align")
+
 
 class Node:
     """
@@ -999,12 +1008,14 @@ class Var(TypedNode):
         self.name = name
         self.semantic = semantic
 
+
 class VarValue(Value):
     var: Var
 
     def __init__(self, var: Var, span: Optional[Span]) -> None:
         super().__init__(var.type, span)
         self.var = var
+
 
 class VarRef(Value):
     var: Var
@@ -1155,6 +1166,8 @@ class TemplateMatchingError(Exception):
             return f"Template matching error:\n\t{self.message}"
         return f"Template matching error at {self.span}:\n\t{self.message}"
 
+class ComptimeCallStack:
+    pass
 
 class SpannedError(Exception):
     span: Span | None
@@ -1200,13 +1213,32 @@ class Assign(Node):
     value: Value
 
     def __init__(self, ref: Value, value: Value, span: Optional[Span] = None) -> None:
-        assert not isinstance(value.type, (FunctionType, TypeConstructorType, RefType))
+        assert not isinstance(
+            value.type, (FunctionType, TypeConstructorType, RefType))
         if not isinstance(ref.type, RefType):
             raise ParsingError(
                 ref, f"cannot assign to a non-reference variable")
         super().__init__(span)
         self.ref = ref
         self.value = value
+
+
+class Assert(Node):
+    cond: Value
+    msg: List[Union[Value, str]]
+
+    def __init__(self, cond: Value, msg: List[Union[Value, str]], span: Optional[Span] = None) -> None:
+        super().__init__(span)
+        self.cond = cond
+        self.msg = msg
+
+
+class Print(Node):
+    args: List[Union[Value, str]]
+
+    def __init__(self, args: List[Union[Value, str]], span: Optional[Span] = None) -> None:
+        super().__init__(span)
+        self.args = args
 
 
 class Terminator(Node):
@@ -1559,6 +1591,7 @@ class FunctionInliner:
             self.mapping[param] = arg
         for v in func.locals:
             if v in self.mapping:
+                # skip function parameters
                 continue
             assert v.type
             assert v.type.is_addressable()
@@ -1631,6 +1664,33 @@ class FunctionInliner:
                         self.mapping[intrin] = body.append(
                             Intrinsic(intrin.name, args, intrin.type, node.span))
                     do()
+                case If():
+                    cond = self.mapping.get(node.cond)
+                    assert isinstance(cond, Value)
+                    then_body = BasicBlock()
+                    else_body = BasicBlock()
+                    merge = BasicBlock()
+                    body.append(If(cond, then_body, else_body, merge))
+                    self.do_inline(node.then_body, then_body)
+                    if node.else_body:
+                        self.do_inline(node.else_body, else_body)
+                    body.append(merge)
+                case Loop():
+                    prepare = BasicBlock()
+                    if node.cond:
+                        cond = self.mapping.get(node.cond)
+                    else:
+                        cond = None
+                    assert cond is None or isinstance(cond, Value)
+                    body_ = BasicBlock()
+                    update = BasicBlock()
+                    merge = BasicBlock()
+                    body.append(Loop(prepare, cond, body_, update, merge))
+                    self.do_inline(node.prepare, prepare)
+                    self.do_inline(node.body, body_)
+                    if node.update:
+                        self.do_inline(node.update, update)
+                    body.append(merge)
                 case Return():
                     if self.ret is not None:
                         raise InlineError(node, "multiple return statement")
@@ -1646,6 +1706,9 @@ class FunctionInliner:
     @staticmethod
     def inline(func: Function, args: List[Value], body: BasicBlock, span: Optional[Span] = None) -> Value:
         inliner = FunctionInliner(func, args, body, span)
+        assert func.return_type
+        if func.return_type == UnitType():
+            return Unit()
         assert inliner.ret
         return inliner.ret
 

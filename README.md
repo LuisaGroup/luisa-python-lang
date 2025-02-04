@@ -7,7 +7,8 @@ A new Python DSL frontend for LuisaCompute. Will be integrated into LuisaCompute
 - [Basics](#basic-syntax)
     - [Difference from Python](#difference-from-python)
     - [Types](#types)
-    - [Value & Reference Semantics](#value--reference-semantics)
+    - [Value Semantics](#value-semantics)
+    - [Local References](#local-references)
     - [Functions](#functions)
     - [User-defined Structs](#user-defined-structs)
     - [Control Flow](#control-flow)
@@ -47,7 +48,7 @@ def add(a: lc.float, b: lc.float) -> lc.float:
 ```
 
 
-### Value & Reference Semantics
+### Value Semantics
 Variables have value semantics by default. This means that when you assign a variable to another, a copy is made.
 ```python
 a = lc.float3(1.0, 2.0, 3.0)
@@ -56,10 +57,11 @@ a.x = 2.0
 lc.print(f'{a.x} {b.x}') # prints 2.0 1.0
 ```
 
-You can use `byref` to indicate that a variable is passed as a *local reference*. Assigning to an `byref` variable will update the original variable.
+#### Local References
+There is a logical reference type `lc.Ref[T]` that can be used to pass a value by reference, similar to `inout` in GLSL/HLSL.
 ```python
-@luisa.func(a=byref, b=byref)
-def swap(a: int, b: int):
+@luisa.func
+def swap(a: lc.Ref[lc.float], b: lc.Ref[lc.float]):
     a, b = b, a
 
 a = lc.float3(1.0, 2.0, 3.0)
@@ -67,17 +69,42 @@ b = lc.float3(4.0, 5.0, 6.0)
 swap(a.x, b.x)
 lc.print(f'{a.x} {b.x}') # prints 4.0 1.0
 ```
+However, `lc.Ref[T]` is more powerful than `inout` in GLSL/HLSL. You can even return a reference from a function and use it later. 
 
-When overloading subscript operator or attribute access, you actually return a local reference to the object. 
+```python
+@lc.func
+def get_ref(a: lc.float3) -> lc.Ref[lc.float]:
+    return a.x
 
-#### Local References
-Local references are like pointers in C++. However, they cannot escape the expression boundary. This means that you cannot store a local reference in a variable and use it later. While you can return a local reference from a function, it must be returned from a uniform path. That is you cannot return different local references based on a condition.
+a = lc.float3(1.0, 2.0, 3.0)
+b = byref(get_ref(a)) # byref is necessary to indicate that the argument is passed by reference
+b = 2.0
+lc.print(f'{a.x} {b}') # prints 2.0 2.0
+```
 
+**Important**: `lc.Ref[T]` is not a true reference type nor a pointer. It is a logical reference that is resolved at compile time. This means that you cannot store a `lc.Ref[T]` in an aggregate type, such as an array or a struct. If you want to return a reference from a function, the function must be inlineable. You also cannot define a local reference inside non-uniform control flow such as `if` or `for` statements. See the following example for the semantics of local references.
+```python
+a: lc.Ref[T] = byref(some_ref_func()) # a is bound to the reference returned by some_ref_func()
+if cond():
+    a = another_ref_func() # does not bound `a` to a new reference, but changes the value of the reference
+    b: lc.Ref[T] = another_ref_func() # error, cannot define a local reference inside non-uniform control flow
+    # to workaround the above issue, you should define a new scope
+    @lc.block
+    def inner():
+        b: lc.Ref[T] = another_ref_func() # this is fine
+        # do something with b
+    inner()
+```
+Further more, when matching template arguments, matching `lc.Ref[T]` to a template argument `U` would result in `U` being `T` instead of `lc.Ref[T]`. 
+To force `U` to be `lc.Ref[T]`, you can use `lc.Ref[U]` as the template argument. 
+
+
+Certain special methods must return a local reference. For example, `__getitem__` and `__getattr__` must return a local reference. 
 
 ```python
 @lc.struct
 class InfiniteArray:
-    def __getitem__(self, index: int) -> int:
+    def __getitem__(self, index: int) -> lc.Ref[int]:
         return self.data[index] # returns a local reference
 
     # this method will be ignored by the compiler. but you can still put it here for linting
@@ -85,7 +112,7 @@ class InfiniteArray:
         pass
 
     # Not allowed, non-uniform return
-    def __getitem__(self, index: int) -> int:
+    def __getitem__(self, index: int) -> lc.Ref[int]:
         if index == 0:
             return self.data[0]
         else:
@@ -94,15 +121,45 @@ class InfiniteArray:
 ```
 
 
-
-
-
 ### User-defined Structs
 ```python
 @lc.struct
 class Sphere:
     center: lc.float3
     radius: lc.float
+```
+
+
+### Control Flow
+```python
+# the following control flow constructs are supported
+if cond:
+    pass
+elif cond:
+    pass
+else:
+    pass
+
+while cond:
+    pass
+
+for i in lc.range(10):
+    pass
+```
+Additionally, we provide a `lc.block` decorator that can be used to define a block of code that can be inlined into other functions. This is useful for defining shadowing variables or local references.
+
+```python
+a = 1
+b = 2   
+@lc.block
+def inner():
+    nonlocal b
+    a = 2
+    b = 3
+inner()
+lc.print(a) # prints 1
+lc.print(b) # prints 3
+
 ```
 
 ### Define DSL Operation for Non-DSL Types
@@ -176,9 +233,8 @@ def call_n_times(f: F):
             # or 
             lc.embed_code('apply_func(f, i)')
 
-# Hint a parameter is constexpr
-@lc.func(n=lc.comptime) # without this, n will be treated as a runtime variable and result in an error
-def pow(x: lc.float, n: int) -> lc.float:
+@lc.func
+def pow(x: lc.float, n: lc.Comptime[int]) -> lc.float:
     p = 1.0
     with lc.comptime():
         for _ in range(n):

@@ -1166,12 +1166,15 @@ class TemplateMatchingError(Exception):
             return f"Template matching error:\n\t{self.message}"
         return f"Template matching error at {self.span}:\n\t{self.message}"
 
+
 class ComptimeCallStack:
     pass
+
 
 class SpannedError(Exception):
     span: Span | None
     message: str
+    stack_trace: str | None
 
     def __init__(self, node: Node | Span | ast.AST | None, message: str) -> None:
         if node is not None:
@@ -1185,27 +1188,32 @@ class SpannedError(Exception):
         else:
             self.span = None
         self.message = message
+        self.stack_trace = None
+
+
+def _pretty_print_error(err_kind: str, stack_trace: Optional[str], span: Optional[Span], message: str) -> str:
+    s = f"{err_kind} error"
+    if span is not None:
+        s += f" at {span}"
+    s += f":\n\t{message}"
+    if stack_trace is not None:
+        s += f"\n{stack_trace}"
+    return s
 
 
 class ParsingError(SpannedError):
     def __str__(self) -> str:
-        if self.span is None:
-            return f"Parsing error:\n\t{self.message}"
-        return f"Parsing error at {self.span}:\n\t{self.message}"
+        return _pretty_print_error("Parsing", self.stack_trace, self.span, self.message)
 
 
 class InlineError(SpannedError):
     def __str__(self) -> str:
-        if self.span is None:
-            return f"Inline error:\n\t{self.message}"
-        return f"Inline error at {self.span}:\n\t{self.message}"
+        return _pretty_print_error("Inline", self.stack_trace, self.span, self.message)
 
 
 class TypeInferenceError(SpannedError):
     def __str__(self) -> str:
-        if self.span is None:
-            return f"Type inference error:\n\t{self.message}"
-        return f"Type inference error at {self.span}:\n\t{self.message}"
+        return _pretty_print_error("Type inference", self.stack_trace, self.span, self.message)
 
 
 class Assign(Node):

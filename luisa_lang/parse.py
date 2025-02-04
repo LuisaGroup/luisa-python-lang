@@ -251,6 +251,13 @@ class FuncStack:
 
     def pop(self) -> 'FuncParser':
         return self.st.pop()
+    
+    def dump_stack(self)->str:
+        trace = []
+        for i, f in enumerate(reversed(self.st)):
+            span = hir.Span.from_ast(f.func_def)
+            trace.append(f"{i}: {f.name} at {span if span else 'unknown'}")
+        return '\n'.join(trace)
 
 
 FUNC_STACK = FuncStack()
@@ -1371,21 +1378,27 @@ class FuncParser:
 
     def parse_body(self):
         FUNC_STACK.push(self)
-        assert self.parsed_func is not None
-        body = self.func_def.body
-        entry = hir.BasicBlock(hir.Span.from_ast(self.func_def))
-        self.bb_stack.append(entry)
-        for stmt in body:
-            self.parse_stmt(stmt)
-        assert len(self.bb_stack) == 1
-        self.parsed_func.body = entry
-        self.parsed_func.locals = list(
-            [x for x in self.vars.values() if isinstance(x, hir.Var)])
-        if not self.parsed_func.return_type:
-            self.parsed_func.return_type = hir.UnitType()
-        self.parsed_func.complete = True
-        assert FUNC_STACK.pop() is self
-        return self.parsed_func
+        try:
+            assert self.parsed_func is not None
+            body = self.func_def.body
+            entry = hir.BasicBlock(hir.Span.from_ast(self.func_def))
+            self.bb_stack.append(entry)
+            for stmt in body:
+                self.parse_stmt(stmt)
+            assert len(self.bb_stack) == 1
+            self.parsed_func.body = entry
+            self.parsed_func.locals = list(
+                [x for x in self.vars.values() if isinstance(x, hir.Var)])
+            if not self.parsed_func.return_type:
+                self.parsed_func.return_type = hir.UnitType()
+            self.parsed_func.complete = True
+            assert FUNC_STACK.pop() is self
+            return self.parsed_func
+        except hir.SpannedError as e:
+            if e.stack_trace is None:
+                e.stack_trace =  FUNC_STACK.dump_stack()
+            raise e from e
+
 
 
 UNARY_OP_TO_METHOD_NAMES: Dict[type, str] = {

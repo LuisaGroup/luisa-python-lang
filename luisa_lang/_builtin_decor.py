@@ -206,8 +206,13 @@ def _dsl_struct_impl(cls: type[_TT], attrs: Dict[str, Any], ir_ty_override: hir.
             else:
                 props = hir.FuncProperties()
             method_sig = cls_info.methods[name]
+            def is_ref_type(rt:classinfo.VarType):
+                if not isinstance(rt, classinfo.AnnotatedType):
+                    return False
+                anno = rt.annotations[0]
+                return anno is byref
             if name == '__getitem__':
-                assert isinstance(method_sig.return_type, hir.RefType), f"__getitem__ should return a RefType but got {
+                assert is_ref_type(method_sig.return_type), f"function `{cls.__qualname__}.{name}` __getitem__ should return a RefType but got {
                     method_sig.return_type}"
                 # raise NotImplementedError()
             template = _make_func_template(

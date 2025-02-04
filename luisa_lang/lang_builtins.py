@@ -253,7 +253,7 @@ class Buffer(Generic[T]):
     """
 
     def __getitem__(self, index: int | u32 | i64 | u64) -> Ref[T]:
-        return intrinsic("buffer.ref", T, self, index)  # type: ignore
+        return intrinsic("buffer.ref",  Ref[T], self, index)  # type: ignore
 
     def __setitem__(self,  index: int | u32 | i64 | u64,  value: T) -> None:
         pass

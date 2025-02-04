@@ -142,6 +142,9 @@ class Type(ABC):
 
     def is_concrete(self) -> bool:
         return True
+    
+    def is_addressable(self) -> bool:
+        return True
 
     def __len__(self) -> int:
         return 1
@@ -160,7 +163,8 @@ class RefType(Type):
 
     def __init__(self, element: Type) -> None:
         super().__init__()
-        assert not isinstance(element, (RefType, FunctionType,TypeConstructorType))
+        assert element.is_addressable(), f"RefType element {element} is not addressable"
+        assert not isinstance(element, (OpaqueType, RefType, FunctionType,TypeConstructorType))
         self.element = element
         self.methods = element.methods
 
@@ -192,6 +196,10 @@ class RefType(Type):
     @override
     def method(self, name: str) -> Optional[Union["Function", FunctionTemplate]]:
         return self.element.method(name)
+    
+    @override
+    def is_addressable(self) -> bool:
+        return False
 
 class LiteralType(Type):
     value: Any
@@ -206,9 +214,14 @@ class LiteralType(Type):
     def align(self) -> int:
         raise RuntimeError("LiteralType has no align")
 
+    @override
     def is_concrete(self) -> bool:
         return False
 
+    @override
+    def is_addressable(self) -> bool:
+        return False
+    
     def __eq__(self, value: object) -> bool:
         return isinstance(value, LiteralType) and value.value == self.value
 
@@ -332,6 +345,9 @@ class GenericFloatType(ScalarType):
     def is_concrete(self) -> bool:
         return False
 
+    @override
+    def is_addressable(self) -> bool:
+        return False
 
 class GenericIntType(ScalarType):
     @override
@@ -362,6 +378,9 @@ class GenericIntType(ScalarType):
     def is_concrete(self) -> bool:
         return False
 
+    @override
+    def is_addressable(self) -> bool:
+        return False
 
 class FloatType(ScalarType):
     bits: int
@@ -703,6 +722,10 @@ class OpaqueType(Type):
     @override
     def is_concrete(self) -> bool:
         return False
+    
+    @override
+    def is_addressable(self) -> bool:
+        return False
 
 
 class SymbolicType(Type):
@@ -781,6 +804,13 @@ class ParametricType(Type):
     def __str__(self) -> str:
         return f"{self.body}[{', '.join(str(p) for p in self.params)}]"
 
+    @override
+    def is_concrete(self) -> bool:
+        return self.body.is_concrete()
+    
+    @override
+    def is_addressable(self) -> bool:
+        return self.body.is_addressable()
 
 class BoundType(Type):
     """
@@ -829,6 +859,13 @@ class BoundType(Type):
         else:
             raise RuntimeError("method access on uninstantiated BoundType")
 
+    @override
+    def is_addressable(self) -> bool:
+        return self.generic.is_addressable()
+    
+    @override
+    def is_concrete(self) -> bool:
+        return self.generic.is_concrete()
 
 class TypeConstructorType(Type):
     inner: Type
@@ -872,7 +909,6 @@ class FunctionType(Type):
 
     def align(self) -> int:
         raise RuntimeError("FunctionType has no align")
-
 
 class Node:
     """
@@ -963,6 +999,12 @@ class Var(TypedNode):
         self.name = name
         self.semantic = semantic
 
+class VarValue(Value):
+    var: Var
+
+    def __init__(self, var: Var, span: Optional[Span]) -> None:
+        super().__init__(var.type, span)
+        self.var = var
 
 class VarRef(Value):
     var: Var
@@ -1334,6 +1376,8 @@ def match_template_args(
             case SymbolicType():
                 if a.param.name in mapping:
                     return unify(mapping[a.param], b)
+                if isinstance(b, RefType):
+                    return unify(a, b.element)
                 if a.param.bound is None:
                     if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
                         raise TypeInferenceError(None,
@@ -1513,6 +1557,12 @@ class FunctionInliner:
         self.ret = None
         for param, arg in zip(func.params, args):
             self.mapping[param] = arg
+        for v in func.locals:
+            if v in self.mapping:
+                continue
+            assert v.type
+            assert v.type.is_addressable()
+            self.mapping[v] = body.append(Alloca(v.type, v.span))
         assert func.body
         self.do_inline(func.body, body)
 
@@ -1521,10 +1571,19 @@ class FunctionInliner:
             assert node not in self.mapping
 
             match node:
-                case Var():
+                case VarValue():
                     assert node.type
-                    assert node.semantic == ParameterSemantic.BYVAL
-                    self.mapping[node] = Alloca(node.type, node.span)
+                    assert node.var in self.mapping
+                    self.mapping[node] = self.mapping[node.var]
+                case VarRef():
+                    assert node.var in self.mapping
+                    self.mapping[node] = self.mapping[node.var]
+                case Assign():
+                    ref = self.mapping.get(node.ref)
+                    assert isinstance(ref, Value)
+                    value = self.mapping.get(node.value)
+                    assert isinstance(value, Value)
+                    body.append(Assign(ref, value))
                 case Load():
                     mapped_var = self.mapping[node.ref]
                     if isinstance(node.ref.type, RefType) and isinstance(mapped_var, Value):
@@ -1562,11 +1621,11 @@ class FunctionInliner:
                 case Intrinsic() as intrin:
                     def do():
                         args: List[Value] = []
-                        for arg in intrin.args:
+                        for i, arg in enumerate(intrin.args):
                             mapped_arg = self.mapping.get(arg)
                             if mapped_arg is None:
                                 raise InlineError(
-                                    node, "unable to inline intrinsic")
+                                    node, f"unable to inline intrinsic, {i}-th argument {arg} is not mapped")
                             args.append(mapped_arg)
                         assert intrin.type
                         self.mapping[intrin] = body.append(

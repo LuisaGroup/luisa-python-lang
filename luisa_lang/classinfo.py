@@ -227,6 +227,20 @@ def _get_cls_globalns(cls: type) -> Dict[str, Any]:
     return module.__dict__
 
 
+class TypeParsingError(Exception):
+    pass
+
+
+class UnsupportedTypeHintError(TypeParsingError):
+    def __init__(self, hint: Any):
+        super().__init__(f"Unsupported type hint: {hint}")
+
+
+class UnsupportedOriginError(TypeParsingError):
+    def __init__(self, origin: Any):
+        super().__init__(f"Unsupported origin type: {origin}")
+
+
 def parse_type_hint(hint: Any) -> VarType:
     # print(hint, type(hint))
     if hint is None:
@@ -268,14 +282,14 @@ def parse_type_hint(hint: Any) -> VarType:
             return GenericInstance(origin, [parse_type_hint(arg) for arg in args])
 
         else:
-            raise RuntimeError(f"Unsupported origin type: {
-                               origin}, {type(origin), type(hint)}")
+            raise UnsupportedOriginError(
+                f"{origin}, {type(origin), type(hint)}")
 
     if isinstance(hint, type):
         return hint
     if hint == typing.Self:
         return SelfType()
-    raise RuntimeError(f"Unsupported type hint: {hint}")
+    raise UnsupportedTypeHintError(f"{hint}")
 
 
 def extract_type_vars_from_hint(hint: typing.Any) -> List[TypeVar]:

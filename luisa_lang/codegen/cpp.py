@@ -281,9 +281,9 @@ class FuncCodeGen:
             self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
         if func.export:
             self.signature = f'extern "C" {self.signature}'
-        if func.inline_hint == True:
+        else:
             self.signature = f"inline {self.signature}"
-        elif func.inline_hint == 'always':
+        if func.inline_hint == 'always':
             self.signature = f"__lc_always_inline__ {self.signature}"
         elif func.inline_hint == 'never':
             self.signature = f"__lc_never_inline {self.signature}"
@@ -378,6 +378,9 @@ class FuncCodeGen:
 
         def impl() -> None:
             match expr:
+                case hir.VarValue() as var_value:
+                    self.body.writeln(
+                        f"auto&& v{vid} = {var_value.var.name};")
                 case hir.FunctionValue() as func_value:
                     assert isinstance(func_value.type, hir.FunctionType)
                     self.body.writeln(
@@ -393,11 +396,11 @@ class FuncCodeGen:
                 case hir.Index() as index:
                     base = self.gen_value_or_ref(index.base)
                     idx = self.gen_expr(index.index)
-                    self.body.writeln(f"const auto v{vid} = {base}[{idx}];")
+                    self.body.writeln(f"auto&& v{vid} = {base}[{idx}];")
                 case hir.Member() as member:
                     base = self.gen_value_or_ref(member.base)
                     self.body.writeln(
-                        f"const auto v{vid} = {base}.{member.field};")
+                        f"auto&& v{vid} = {base}.{member.field};")
                 case hir.Call() as call:
                     op = self.gen_func(call.op)
                     args_s = ','.join(self.gen_value_or_ref(
@@ -523,7 +526,7 @@ class FuncCodeGen:
             case hir.Return() as ret:
                 if ret.value:
                     self.body.writeln(
-                        f"return {self.gen_node_checked(ret.value)};")
+                        f"return {self.gen_value_or_ref(ret.value)};")
                 else:
                     self.body.writeln("return;")
             case hir.Assign() as assign:
@@ -586,13 +589,14 @@ class FuncCodeGen:
             case hir.Alloca() as alloca:
                 vid = self.new_vid()
                 assert alloca.type
-                ty = self.base.type_cache.gen(alloca.type)
-                self.body.writeln(f"{ty} v{vid}{{}};")
+                ty = self.base.type_cache.gen(alloca.type.remove_ref())
+                self.body.writeln(f"{ty} v{vid}{{}}; // alloca")
                 self.node_map[alloca] = f"v{vid}"
             case hir.AggregateInit() | hir.Intrinsic() | hir.Call() | hir.Constant() | hir.Load() | hir.Index() | hir.Member() | hir.TypeValue() | hir.FunctionValue():
-                self.gen_expr(node)
-            case hir.Member() | hir.Index():
-                pass
+                if isinstance(node, hir.TypedNode) and node.is_ref():
+                    pass
+                else:
+                    self.gen_expr(node)
         return None
 
     def gen_bb(self, bb: hir.BasicBlock):

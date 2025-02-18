@@ -176,7 +176,6 @@ a = Sphere.host_type(center=lc.float3.host_type(1.0, 2.0, 3.0), radius=1.0)
 # outside lc.trace and lc.func, the above line is equivalent to
 a = Sphere(center=lc.float3(1.0, 2.0, 3.0), radius=1.0) 
 assert isinstance(a, Sphere.host_type)
-
 ```
 
 ### Generics
@@ -201,7 +200,7 @@ def make_type(t: type[T], *args) -> T:
 
 
 ### Metaprogramming
-We provide a flexible approach to metaprogramming by allowing users to mix Python code and DSL code.
+We provide a flexible approach to metaprogramming by allowing users to mix Python code and DSL code. DSL variables can be stored in Python variables, and users can use this to build computation graph dynamically. 
 
 ```python
 # Compile time reflection
@@ -222,6 +221,12 @@ def powi(x: lc.float, n: int) -> lc.float: # pass in n as a native python type
 
 powi(x, 3) # would unroll the loop 3 times
 
+@lc.func
+def dispatch_func(tag: lc.int, funcs: List[Callable[[Any], Any]], x: Any) -> Any:
+    with lc.switch(tag) as s:
+        for i in lc.static(range(len(funcs))):
+            with s.case(i):
+                return funcs[i](x)
 
 ```
 

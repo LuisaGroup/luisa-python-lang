@@ -142,34 +142,36 @@ def is_dsl_var(obj: Any) -> bool:
     return isinstance(obj, Var)
 
 
-def redirect_name_lookup(name: str) -> Any:
-    """
-    In DSL code, `name` is rewritten to `redirect_name_lookup(name)`
-    """
-    raise NotImplementedError('TODO')
-
-
-def redirect_assign(dst: Any, src: Any, expected_type: type | None = None) -> Any:
-    """
-    In DSL code, `dst = src` is rewritten to `dst = redirect_assign(dst, src)`
-    """
-    if isinstance(dst, Var):
-        assert isinstance(
-            src, Var), "Attempting to assign normal python value to DSL variable"
-        push_to_current_bb(hir.Assign(
-            dst.get_internal().node, src.get_internal().node))
-        return dst
-    else:
-        return src
-
-
-def redirect_aug_assign(dst: Any, method: str, src: Any) -> Any:
+class TraceContext:
     pass
+
+# def redirect_name_lookup(name: str) -> Any:
+#     """
+#     In DSL code, `name` is rewritten to `redirect_name_lookup(name)`
+#     """
+#     raise NotImplementedError('TODO')
+
+
+# def redirect_assign(dst: Any, src: Any, expected_type: type | None = None) -> Any:
+#     """
+#     In DSL code, `dst = src` is rewritten to `dst = redirect_assign(dst, src)`
+#     """
+#     if isinstance(dst, Var):
+#         assert isinstance(
+#             src, Var), "Attempting to assign normal python value to DSL variable"
+#         push_to_current_bb(hir.Assign(
+#             dst.get_internal().node, src.get_internal().node))
+#         return dst
+#     else:
+#         return src
+
+
+# def redirect_aug_assign(dst: Any, method: str, src: Any) -> Any:
+#     pass
 
 
 __all__: List[str] = [
     'Var',
     'is_jit',
-    'redirect_assign',
-    'redirect_aug_assign',
+    'TraceContext',
 ]

@@ -1,7 +1,7 @@
 import ast
 import textwrap
 import types
-from typing import Any, List, NoReturn, Optional, Tuple, TypeVar, overload
+from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar, overload
 import sourceinspect
 from hashlib import sha256
 
@@ -86,7 +86,8 @@ class Span:
         if self.file is None:
             return f"{self.start[0]}:{self.start[1]}-{self.end[0]}:{self.end[1]}"
         return (
-            f"{self.file}:{self.start[0]}:{self.start[1]}-{self.end[0]}:{self.end[1]}"
+            f"{self.file}:{self.start[0]}:{
+                self.start[1]}-{self.end[0]}:{self.end[1]}"
         )
 
     @staticmethod
@@ -157,3 +158,28 @@ def unique_hash(s: str) -> str:
 
 def round_to_align(s: int, a: int) -> int:
     return s + (a - s % a) % a
+
+
+class NestedHashMap[K, V]:
+    parent: Optional["NestedHashMap[K, V]"]
+    mapping: Dict[K, V]
+
+    def __init__(self, parent: Optional["NestedHashMap[K, V]"] = None) -> None:
+        self.parent = parent
+        self.mapping = {}
+
+    def insert(self, key: K, value: V) -> None:
+        self.mapping[key] = value
+
+    def get(self, key: K) -> Optional[V]:
+        if key in self.mapping:
+            return self.mapping[key]
+        if self.parent is not None:
+            return self.parent.get(key)
+        return None
+    
+    def contains(self, key: K) -> bool:
+        return self.get(key) is not None
+
+    def push(self) -> "NestedHashMap[K, V]":
+        return NestedHashMap(parent=self)

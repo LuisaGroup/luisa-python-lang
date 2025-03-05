@@ -164,7 +164,7 @@ for i in lc.range(10):
 ```
 
 ### Accessing Host Types
-Each DSL type has a corresponding native host type that can be accessed through the `host_type` attribute. The host type is a struct that contains the same fields and as the DSL type. You can use the host type to pass data between the host and the DSL code. 
+Each DSL type has a corresponding native host type that can be accessed through the `dtype` attribute. The host type is a struct that contains the same fields and as the DSL type. You can use the host type to pass data between the host and the DSL code. 
 
 ```python
 class Sphere:
@@ -172,10 +172,10 @@ class Sphere:
     radius: lc.float
 
 # explicitly using the host type
-a = Sphere.host_type(center=lc.float3.host_type(1.0, 2.0, 3.0), radius=1.0)
+a = Sphere.dtype(center=lc.float3.dtype(1.0, 2.0, 3.0), radius=1.0)
 # outside lc.trace and lc.func, the above line is equivalent to
 a = Sphere(center=lc.float3(1.0, 2.0, 3.0), radius=1.0) 
-assert isinstance(a, Sphere.host_type)
+assert isinstance(a, Sphere.dtype)
 ```
 
 ### Generics

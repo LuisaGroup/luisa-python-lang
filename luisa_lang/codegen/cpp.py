@@ -529,7 +529,6 @@ class FuncCodeGen:
         return f'v{vid}'
 
     def gen_node(self, node: hir.Node) -> Optional[hir.BasicBlock]:
-
         match node:
             case hir.Return() as ret:
                 if ret.value:
@@ -621,9 +620,9 @@ class FuncCodeGen:
             loop_again = False
             old_bb = bb
             self.body.writeln(f"// BasicBlock Begin {bb.span}")
-            for i, node in enumerate(bb.nodes):
+            for node in bb.nodes():
                 if (next := self.gen_node(node)) and next is not None:
-                    assert i == len(bb.nodes) - 1
+                    assert node.next is None
                     loop_again = True
                     bb = next
                     break

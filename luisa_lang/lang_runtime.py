@@ -64,7 +64,7 @@ def push_to_current_bb[T:hir.Node](node: T) -> T:
     return current_func().cur_bb().append(node)
 
 
-class VarInternal:
+class Symbolic:
     node: hir.Value
     scope: Scope
 
@@ -78,9 +78,9 @@ class VarInternal:
 
 class Var:
     """
-    A variable in DSL
+    The base class for all dsl types. Each dsl variable can either store a symbolic representation or the actual value
     """
-    __internal__: VarInternal
+    __symbolic__: Optional[Symbolic]
 
     def __init__(self, dtype=type[Any]):
         """
@@ -89,43 +89,61 @@ class Var:
         dsl_type = hir.get_dsl_type(dtype)
         if dsl_type is None:
             raise ValueError(f'{dtype} is not a valid DSL type')
-        self.__internal__ = VarInternal(
-            current_func().create_var('', dsl_type))
+        self.__symbolic__ = Symbolic(
+            current_func().create_var('', dsl_type.default()))
 
     @classmethod
-    def from_node(cls, node: hir.Value) -> 'Var':
+    def from_hir_node[T:Var](cls: type[T], node: hir.Value) -> T:
         """
         Create a variable directly from a typed HIR node
         """
         instance = cls.__new__(cls)
-        instance.__internal__ = VarInternal(node)
+        instance.__symbolic__ = Symbolic(node)
         return instance
 
-    def get_internal(self) -> VarInternal:
+    def symbolic(self) -> Symbolic:
         """
-        Retrieve the internal representation of the variable
-        Do not use call this method in normal code
+        Retrieve the internal symbolic representation of the variable. This is used for internal DSL code generation.
         """
-        return self.__internal__
+        assert self.__symbolic__ is not None, "Attempting to access symbolic representation of a non-symbolic variable"
+        return self.__symbolic__
 
-def intrinsic[T:Var](name: str, ret_type: type[T], *args: Any) -> T:
+    def is_symbolic(self) -> bool:
+        """
+        Check if the variable is symbolic
+        """
+        return self.__symbolic__ is not None
+
+
+def intrinsic[T:Var](name: str, ret_type: type[T] | None, *args) -> hir.Value:
     """
     Call an intrinsic function
     """
-    nodes = []
+    nodes: List[hir.Value] = []
     for i, a in enumerate(args):
         if isinstance(a, Var):
-            nodes.append(a.get_internal().node)
+            nodes.append(a.symbolic().node)
+        elif isinstance(a, hir.Value):
+            nodes.append(a)
         else:
-            raise ValueError(f'{i}-th argument is not a DSL variable')
-    ret_dsl_type = hir.get_dsl_type(ret_type)
-    if ret_dsl_type is None:
-        raise ValueError(f'{ret_type} is not a valid DSL type')
-    assert hasattr(ret_type, 'from_node')
-    ret = cast(T, ret_type.from_node(push_to_current_bb(
-        hir.Intrinsic(name, nodes, ret_dsl_type))))
-    assert isinstance(ret, ret_type)
-    return ret
+            raise ValueError(
+                f'Argument {i} is not a valid DSL variable or HIR node')
+    if ret_type is not None:
+        ret_dsl_type = hir.get_dsl_type(ret_type).default()
+        if ret_dsl_type is None:
+            raise ValueError(f'{ret_type} is not a valid DSL type')
+    else:
+        ret_dsl_type = hir.UnitType()
+    return push_to_current_bb(
+        hir.Intrinsic(name, nodes, ret_dsl_type))
+
+
+def assign(dst: Var, src: Var) -> None:
+    """
+    Assign the value of `src` to `dst`
+    """
+    push_to_current_bb(hir.Assign(
+        dst.symbolic().node, src.symbolic().node))
 
 
 def is_jit() -> bool:
@@ -140,6 +158,11 @@ def is_dsl_var(obj: Any) -> bool:
     Check if the object is a DSL variable
     """
     return isinstance(obj, Var)
+
+
+def current_span() -> hir.Span | None:
+    return None
+
 
 
 class TraceContext:
@@ -174,4 +197,5 @@ __all__: List[str] = [
     'Var',
     'is_jit',
     'TraceContext',
+    'intrinsic',
 ]

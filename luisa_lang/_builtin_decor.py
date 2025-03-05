@@ -1,29 +1,112 @@
-# from dataclasses import dataclass
-# from typing import Any, Callable, List, Optional, Set, TypeVar
-# import typing
-# from luisa_lang import hir
-# import inspect
-# from luisa_lang.utils import get_full_name, get_union_args, unique_hash, unwrap
-# from luisa_lang.classinfo import MethodType, VarType, GenericInstance, UnionType,  _get_cls_globalns, register_class, class_typeinfo
-# from enum import auto, Enum
-# from luisa_lang import classinfo, parse
-# import inspect
-# from typing import (
-#     Callable,
-#     Dict,
-#     List,
-#     Optional,
-#     Sequence,
-#     Set,
-#     Tuple,
-#     TypeAlias,
-#     TypeVar,
-#     Union,
-#     Generic,
-#     Literal,
-#     overload,
-#     Any,
-# )
+from dataclasses import dataclass
+from typing import Any, Callable, List, Optional, Set, TypeVar, cast
+import typing
+
+from lang_runtime import is_jit
+from utils import get_full_name, unique_hash
+from luisa_lang import hir
+from luisa_lang import classinfo
+from luisa_lang import ast_rewrite
+import inspect
+from typing import (
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeAlias,
+    TypeVar,
+    Union,
+    Generic,
+    Literal,
+    overload,
+    Any,
+)
+
+
+def _parse_type(ty: classinfo.VarType) -> hir.Type:
+    match ty:
+        case Type() as t:
+            return hir.get_dsl_type(t).default()
+        case classinfo.GenericInstance() as gi:
+            template = hir.get_dsl_type(gi.origin)
+            return template.instantiate(tuple(gi.args))
+        case _:
+            raise NotImplementedError()
+
+
+def _dsl_struct_impl[T](cls: type[T], ir_ty_override: hir.Type | None = None) -> type[T]:
+    ctx = hir.GlobalContext()
+    assert cls not in ctx.types, f"Class {cls} is already registered in the global context"
+    classinfo.register_class(cls)
+    cls_info = classinfo.class_typeinfo(cls)
+    is_generic = len(cls_info.type_vars) > 0
+    globalns = classinfo._get_cls_globalns(cls)
+    globalns[cls.__name__] = cls
+
+    def instantiation_func(args: Tuple[hir.TypeTemplateArg, ...]) -> hir.Type:
+        if not is_generic:
+            assert len(
+                args) == 0, f"Expected 0 type arguments but got {len(args)}"
+        instantiated_cls = cls_info.instantiate(list(args))
+        ir_ty: hir.Type
+        if ir_ty_override is None:
+            fields: List[Tuple[str, hir.Type]] = []
+            for name, field in instantiated_cls.fields.items():
+                field_ty = _parse_type(field)
+                if field_ty is None:
+                    raise hir.TypeCheckError(
+                        None, f"Cannot infer type for field {name} of {cls.__name__}")
+                fields.append((name, field_ty))
+            ir_ty = hir.StructType(
+                f'{cls.__name__}_{unique_hash(cls.__qualname__)}', cls.__qualname__, fields)
+        else:
+            ir_ty = ir_ty_override
+        for name in cls_info.methods:
+            method_object = getattr(cls, name)
+            template = _make_func_template(
+                method_object, globalns)
+            ir_ty.methods[name] = template
+        return ir_ty
+
+    ctx.types[cls] = hir.TypeTemplate(instantiation_func)
+    return cls
+
+
+def _rewrite_func(f: Callable[..., Any]) -> Callable[..., Any]:
+    if hasattr(f, '__luisa_func__'):
+        return getattr(f, '__luisa_func__')
+    rewritten = ast_rewrite.rewrite_function(f)
+    setattr(f, '__luisa_func__', rewritten)
+    return rewritten
+
+
+def _make_func_template(f: Callable[..., Any], globalns: Dict[str, Any], trace_only: bool) -> hir.FunctionTemplate:
+    sig = classinfo.parse_func_signature(f, globalns, [], False)
+    rewritten = _rewrite_func(f)
+
+    def instantiation_func(args: Tuple[hir.FunctionTemplateArg, ...]) -> hir.Function:
+        raise NotImplementedError()
+
+
+def struct[T](cls: type[T]) -> type[T]:
+    return _dsl_struct_impl(cls)
+
+
+def trace[F:Callable[..., Any]](f: F) -> F:
+    return f
+
+
+def func[F:Callable[..., Any]](f: F) -> F:
+    def wrapper(*args, **kwargs):
+        if not is_jit():
+            return f(*args, **kwargs)
+        if hasattr(f, '__luisa_func__'):
+            return getattr(f, '__luisa_func__')(*args, **kwargs)
+    return cast(F, wrapper)
 
 # T = TypeVar('T')
 # _T = TypeVar("_T", bound=type)
@@ -40,7 +123,7 @@
 #     """Indicate that the value is a reference/should be passed by reference
 #     Example:
 
-#     ```python 
+#     ```python
 #     x: lc.Ref[int] = byref(some_value) # x is bound to the reference of some_value
 #     ```
 #     """

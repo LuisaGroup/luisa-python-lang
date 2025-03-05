@@ -1,5 +1,6 @@
 import ast
 from ast import NodeTransformer
+import copy
 from typing import Callable, Any, List, Set, cast
 from utils import checked_cast, retrieve_ast_and_filename, NestedHashMap
 
@@ -7,6 +8,8 @@ from utils import checked_cast, retrieve_ast_and_filename, NestedHashMap
 Rewrite rules:
 a function `f(args...)` is rewritten to `f(__lc_ctx__, args...)`
 each name lookup `name` is rewritten to `__lc_ctx__[`name`]`
+
+`a: expr = b` is rewritten to `__lc_ctx__.anno_ty(a, expr); __lc_ctx__[a] = b`
 
 `x op y` is rewritten to `__lc_ctx__.redirect_binary(op, x, y)`
 `x op= y` is rewritten to `x = __lc_ctx__.redirect_unary(op, x, y)`
@@ -70,10 +73,20 @@ class FuncRewriter(NodeTransformer):
     # def handle_assign(self, targets: List[ast.expr], value: ast.expr) -> List[ast.stmt]:
     #     pass
 
+    def visit_list_stmt(self, stmts: List[ast.stmt]) -> List[ast.stmt]:
+        res = []
+        for stmt in stmts:
+            transformed = self.visit(stmt)
+            if isinstance(transformed, list):
+                res.extend(transformed)
+            else:
+                res.append(transformed)
+        for stmt in res:
+            assert isinstance(stmt, ast.stmt), f"stmt is not ast.stmt: {stmt}"
+        return cast(List[ast.stmt], res)
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        body = []
-        for i, stmt in enumerate(node.body):
-            body.append(checked_cast(ast.stmt, self.visit(stmt)))
+        body = self.visit_list_stmt(node.body)
         node.body = body
         return node
 
@@ -85,7 +98,22 @@ class FuncRewriter(NodeTransformer):
         return self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
-        return self.generic_visit(node)
+        target = checked_cast(ast.expr, self.visit(node.target))
+        assert isinstance(target, (ast.Name, ast.Subscript, ast.Attribute))
+        target.ctx = ast.Load()
+        anno = ast.Expr(value=ast.Call(
+            func=ast.Attribute(value=ast.Name(
+                id='__lc_ctx__', ctx=ast.Load()), attr='anno_ty', ctx=ast.Load()),
+            args=[target],
+            keywords=[]
+        ))
+        if node.value is None:
+            return anno
+        target = copy.deepcopy(target)
+        target.ctx = ast.Store()
+        assign = ast.Assign(targets=[target], value=self.visit(
+            node.value))
+        return [anno, assign]
 
     def visit_BinOp(self, node: ast.BinOp) -> Any:
         lhs = self.visit(node.left)
@@ -105,7 +133,7 @@ class FuncRewriter(NodeTransformer):
             args=[ast.Constant(value=type(node.op).__name__), operand],
             keywords=[]
         )
-    
+
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         value = self.visit(node.value)
         return ast.Subscript(
@@ -118,7 +146,7 @@ class FuncRewriter(NodeTransformer):
             slice=node.slice,
             ctx=node.ctx
         )
-    
+
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         value = self.visit(node.value)
         return ast.Attribute(
@@ -150,12 +178,9 @@ class FuncRewriter(NodeTransformer):
                 args=[],
                 keywords=[]
             ),
-            body=[],
+            body=self.visit_list_stmt(node.body),
             orelse=[]
         )
-        for stmt in node.body:
-            true_branch.body.append(checked_cast(
-                ast.stmt, self.generic_visit(stmt)))
         false_branch = ast.If(
             test=ast.Call(
                 func=ast.Attribute(value=ast.Name(
@@ -163,12 +188,11 @@ class FuncRewriter(NodeTransformer):
                 args=[],
                 keywords=[]
             ),
-            body=[],
+            body=self.visit_list_stmt(node.orelse),
             orelse=[]
         )
         for stmt in node.orelse:
-            false_branch.body.append(checked_cast(ast.stmt, self.generic_visit(stmt))
-                                     )
+            false_branch.body.append(checked_cast(ast.stmt, self.visit(stmt)))
         with_stmt = ast.With(
             items=[with_item],
             body=[true_branch, false_branch]
@@ -178,7 +202,7 @@ class FuncRewriter(NodeTransformer):
     def visit_Return(self, node: ast.Return) -> Any:
         ret_value: ast.expr | None = None
         if node.value is not None:
-            tmp = self.generic_visit(node.value)
+            tmp = self.visit(node.value)
             assert isinstance(tmp, ast.expr)
             ret_value = tmp
         return ast.If(

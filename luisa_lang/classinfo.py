@@ -23,15 +23,21 @@ from dataclasses import dataclass
 
 
 class GenericInstance:
-    origin: 'VarType'
+    origin: type
     args: List["VarType"]
 
-    def __init__(self, origin: 'VarType', args: List["VarType"]):
+    def __init__(self, origin: type, args: List["VarType"]):
         self.origin = origin
         self.args = args
 
     def __repr__(self):
         return f"{self.origin}[{', '.join(map(repr, self.args))}]"
+    
+    def __eq__(self, other):
+        return isinstance(other, GenericInstance) and self.origin == other.origin and self.args == other.args
+    
+    def __hash__(self):
+        return hash((self.origin, tuple(self.args)))
 
 
 class UnionType:
@@ -45,6 +51,12 @@ class UnionType:
 
     def substitute(self, env: Dict[TypeVar, 'VarType']) -> "UnionType":
         return UnionType([subst_type(ty, env) for ty in self.types])
+    
+    def __eq__(self, other):
+        return isinstance(other, UnionType) and self.types == other.types
+    
+    def __hash__(self):
+        return hash(tuple(self.types))
 
 
 class AnyType:
@@ -53,6 +65,7 @@ class AnyType:
 
     def __eq__(self, other):
         return isinstance(other, AnyType)
+        
 
 
 class SelfType:
@@ -74,6 +87,9 @@ class LiteralType:
 
     def __eq__(self, other):
         return isinstance(other, LiteralType) and self.value == other.value
+    
+    def __hash__(self):
+        return hash(self.value)
 
 
 class AnnotatedType:
@@ -89,6 +105,12 @@ class AnnotatedType:
 
     def substitute(self, env: Dict[TypeVar, 'VarType']) -> "AnnotatedType":
         return AnnotatedType(subst_type(self.origin, env), self.annotations)
+    
+    def __eq__(self, other):
+        return isinstance(other, AnnotatedType) and self.origin == other.origin and self.annotations == other.annotations
+    
+    def __hash__(self):
+        return hash((self.origin, tuple(self.annotations)))
 
 
 type VarType = Union[TypeVar, Type, GenericInstance,
@@ -165,7 +187,7 @@ class ClassType:
         if len(type_args) != len(self.type_vars):
             raise RuntimeError(
                 f"Expected {len(self.type_vars)}" +
-                f"type arguments but got {len(type_args)}"
+                f" type arguments but got {len(type_args)}"
             )
         env = dict(zip(self.type_vars, type_args))
         return ClassType(

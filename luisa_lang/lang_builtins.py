@@ -3,6 +3,7 @@
 import types
 from luisa_lang.math_types import *
 import luisa_lang.hir as hir
+from luisa_lang.lang_runtime import assign, current_span, intrinsic, Var, push_to_current_bb
 import typing
 from typing import (
     Callable,
@@ -347,26 +348,46 @@ from typing import (
 # def ray_query_pipeline(ray: RtxRay, on_surface_hit, on_procedural_hit) -> RtxHit:
 #     return intrinsic("ray_query_pipeline", RtxHit, ray, on_surface_hit, on_procedural_hit)
 
+class Ref[T:Var](Var):
+    value_type: type[T]
 
-# __all__: List[str] = [
-#     # 'Pointer',
-#     'Buffer',
-#     'Array',
-#     'range',
-#     'comptime',
-#     'address_of',
-#     'unroll',
-#     'static_assert',
-#     'type_of_opt',
-#     'typeof',
-#     "dispatch_id",
-#     "thread_id",
-#     "block_id",
-#     "intrinsic",
-#     'cast',
-#     'bitcast',
-#     'device_assert',
-#     'trap',
-#     'sizeof',
-#     'Ref'
-# ]
+    def __init__(self, value: T):
+        self.value_type = type(value)
+        value_node = value.symbolic().node
+        if not isinstance(value_node, hir.Var):
+            raise hir.TypeCheckError(
+                current_span(), "cannot create a reference to a non-variable expression")
+        self.symbolic().node = hir.VarRef(value_node, current_span())
+
+    @property
+    def value(self) -> T:
+        return self.value_type.from_hir_node(intrinsic("ref.read",  self.value_type, self.symbolic().node))
+
+    @value.setter
+    def value(self, value: T) -> None:
+        assign(self.value, value)
+
+
+__all__: List[str] = [
+    "Ref",
+    # 'Pointer',
+    # 'Buffer',
+    # 'Array',
+    # 'range',
+    # 'comptime',
+    # 'address_of',
+    # 'unroll',
+    # 'static_assert',
+    # 'type_of_opt',
+    # 'typeof',
+    # "dispatch_id",
+    # "thread_id",
+    # "block_id",
+    # "intrinsic",
+    # 'cast',
+    # 'bitcast',
+    # 'device_assert',
+    # 'trap',
+    # 'sizeof',
+    # 'Ref'
+]

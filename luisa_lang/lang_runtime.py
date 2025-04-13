@@ -3,7 +3,7 @@ Runtime support for DSL
 """
 
 import luisa_lang.hir as hir
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, cast
 
 
 class Scope:
@@ -25,7 +25,15 @@ class Scope:
 
 class FuncTracer:
     locals: Dict[str, hir.Var]
+    params: List[hir.Var]
     scopes: List[Scope]
+    ret_type: hir.Type | None
+
+    def __init__(self):
+        self.locals = {}
+        self.params = []
+        self.scopes = []
+        self.ret_type = None
 
     def push_scope(self) -> Scope:
         self.scopes.append(Scope(self.scopes[-1]))
@@ -34,20 +42,34 @@ class FuncTracer:
     def pop_scope(self) -> Scope:
         return self.scopes.pop()
 
+    def add_param(self, name: str, ty: hir.Type) -> hir.Value:
+        return self._create_var(name, ty, True)
+
     def create_var(self, name: str, ty: hir.Type | None) -> hir.Value:
+        return self._create_var(name, ty, False)
+
+    def _create_var(self, name: str, ty: hir.Type | None, is_param: bool) -> hir.Value:
         if name != '':
             if self.scopes[-1].is_local_ref_defined(name):
                 raise ValueError(
-                    f'Variable {name} already defined in current scope')
+                    f'Local reference {name} already defined in current scope')
             if name in self.locals:
                 raise ValueError(
                     f'Variable {name} already defined in current function')
         var = hir.Var(name, ty, None, hir.ParameterSemantic.BYVAL)
         self.locals[name] = var
+        if is_param:
+            self.params.append(var)
         return hir.VarRef(var, None)
 
     def cur_bb(self) -> hir.BasicBlock:
         return self.scopes[-1].bb
+
+    def finalize(self) -> hir.Function:
+        assert len(self.scopes) == 1
+        entry_bb = self.scopes[0].bb
+        assert self.ret_type is not None
+        return hir.Function(self.params, list(self.locals.values()), entry_bb, self.ret_type)
 
 
 FUNC_STACK: List[FuncTracer] = []
@@ -115,7 +137,18 @@ class Var:
         return self.__symbolic__ is not None
 
 
-def intrinsic[T:Var](name: str, ret_type: type[T] | None, *args) -> hir.Value:
+def create_constant_node(value: Any, dtype: hir.Type) -> hir.Constant:
+    """
+    Create a constant node given a python value
+    """
+    return push_to_current_bb(hir.Constant(value, dtype))
+
+
+def type_of(value: type) -> hir.Type:
+    return hir.get_dsl_type(value).default()
+
+
+def create_intrinsic_node[T:Var](name: str, ret_type: type[T] | None, *args) -> hir.Value:
     """
     Call an intrinsic function
     """
@@ -136,6 +169,13 @@ def intrinsic[T:Var](name: str, ret_type: type[T] | None, *args) -> hir.Value:
         ret_dsl_type = hir.UnitType()
     return push_to_current_bb(
         hir.Intrinsic(name, nodes, ret_dsl_type))
+
+
+def intrinsic[T: Var](name: str, ret_type: type[T], *args) -> T:
+    """
+    Call an intrinsic function
+    """
+    return ret_type.from_hir_node(create_intrinsic_node(name, ret_type, *args))
 
 
 def assign(dst: Var, src: Var) -> None:
@@ -162,7 +202,6 @@ def is_dsl_var(obj: Any) -> bool:
 
 def current_span() -> hir.Span | None:
     return None
-
 
 
 class TraceContext:
@@ -192,10 +231,41 @@ class TraceContext:
 # def redirect_aug_assign(dst: Any, method: str, src: Any) -> Any:
 #     pass
 
+def _invoke_function_tracer(mode: Literal['trace', 'func'], f: Callable[..., Any], args: List[Var | object], kwargs: Dict[str, Var | object]) -> Any:
+    trace_ctx = TraceContext()
+    if mode == 'func':
+        func_tracer = FuncTracer()
+        FUNC_STACK.append(func_tracer)
+        try:
+            ret = f(trace_ctx, *args, **kwargs)
+            assert isinstance(ret, (Var, tuple))
+            # TODO:
+        finally:
+            FUNC_STACK.pop()
+    else:
+        ret = f(trace_ctx, *args, **kwargs)
+    return ret
+
+
+class KernelTracer:
+    top_level_tracer: FuncTracer
+
+    def __init__(self):
+        self.top_level_tracer = FuncTracer()
+
+    def __enter__(self) -> FuncTracer:
+        FUNC_STACK.append(self.top_level_tracer)
+        return self.top_level_tracer
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        assert FUNC_STACK.pop() is self.top_level_tracer
+        assert len(FUNC_STACK) == 0
+
 
 __all__: List[str] = [
     'Var',
     'is_jit',
     'TraceContext',
     'intrinsic',
+    'KernelTracer'
 ]

@@ -63,7 +63,8 @@ else:
 
 
 class FuncRewriter(NodeTransformer):
-    def __init__(self):
+    def __init__(self, decorator_name: str):
+        self.decorator_name = decorator_name
         self.id_cnt = 0
 
     def new_id(self) -> str:
@@ -86,8 +87,20 @@ class FuncRewriter(NodeTransformer):
         return cast(List[ast.stmt], res)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        # Filter out decorators matching our decorator_name
+        # Remove the decorator we're interested in
+        node.decorator_list = [
+            d for d in node.decorator_list
+            if not (isinstance(d, ast.Name) and d.id == self.decorator_name) and
+            not (isinstance(d, ast.Attribute) and d.attr == self.decorator_name)
+        ]
+
+        # Add __lc_ctx__ to the function arguments
+        node.args.args.insert(0, ast.arg(arg='__lc_ctx__', annotation=None))
+
         body = self.visit_list_stmt(node.body)
         node.body = body
+
         return node
 
     def visit_Name(self, node: ast.Name) -> Any:
@@ -256,17 +269,14 @@ class FuncRewriter(NodeTransformer):
         )
 
 
-def rewrite_function[F: Callable[..., Any]](f: F) -> F:
+def rewrite_function[F: Callable[..., Any]](f: F, decorator_name: str) -> F:
     tree, _filename = retrieve_ast_and_filename(f)
-    tree = FuncRewriter().visit(tree)
+    tree = FuncRewriter(decorator_name).visit(tree)
     ast.fix_missing_locations(tree)
-    print(ast.unparse(tree))
+    # print(ast.unparse(tree))
     code = compile(tree, filename="<ast>", mode="exec")
     local_dict = {}
     exec(code, f.__globals__, local_dict)
     rewrote_f = local_dict[f.__name__]
 
-    def wrapper(*args, **kwargs):
-        return rewrote_f(*args, **kwargs)
-
-    return cast(F, wrapper)
+    return cast(F, rewrote_f)

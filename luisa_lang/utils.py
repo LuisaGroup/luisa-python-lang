@@ -1,7 +1,7 @@
 import ast
 import textwrap
 import types
-from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypeVar, overload
+from typing import Any, Callable, Dict, List, NoReturn, Optional, Tuple, TypeVar, cast, overload
 import sourceinspect
 from hashlib import sha256
 
@@ -177,9 +177,29 @@ class NestedHashMap[K, V]:
         if self.parent is not None:
             return self.parent.get(key)
         return None
-    
+
     def contains(self, key: K) -> bool:
         return self.get(key) is not None
 
     def push(self) -> "NestedHashMap[K, V]":
         return NestedHashMap(parent=self)
+
+
+class Lazy[T]:
+    _instance: Optional[T]
+    _factory: Callable[[], T]
+    _initialized: bool
+
+    def __init__(self, factory: Callable[[], T]) -> None:
+        self._factory = factory
+        self._initialized = False
+        self._instance = None
+
+    def _init_instance(self):
+        if not self._initialized:
+            self._instance = self._factory()
+            self._initialized = True
+
+    def get(self) -> T:
+        self._init_instance()
+        return cast(T, self._instance)

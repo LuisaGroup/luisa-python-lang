@@ -9,10 +9,12 @@ from typing import (
     List,
     Literal,
     Optional,
+    Protocol,
     Set,
     Tuple,
     Dict,
     Union,
+    ClassVar
 )
 import typing
 from typing_extensions import override
@@ -458,17 +460,21 @@ class OpaqueType(Type):
         return False
 
 
+class TemplateArgs(Protocol):
+    pass
 
 
-class Template[T, Arg]:
-    cache: Dict[Tuple[Arg,...], T]
-    instantiation_func: Callable[[Tuple[Arg,...]], T]
+class Template[T, Args:TemplateArgs]:
+    cache: Dict[Args, T]
+    instantiation_func: Callable[[Args], T]
+    arg_type: type[Args]
 
-    def __init__(self, instantiation_func: Callable[[Tuple[Arg,...]], T]) -> None:
+    def __init__(self, arg_type: type[Args], instantiation_func: Callable[[Args], T]) -> None:
         self.cache = {}
         self.instantiation_func = instantiation_func
+        self.arg_type = arg_type
 
-    def instantiate(self, args: Tuple[Arg,...]) -> T:
+    def instantiate(self, args: Args) -> T:
         if args in self.cache:
             return self.cache[args]
         func = self.instantiation_func(args)
@@ -476,18 +482,79 @@ class Template[T, Arg]:
         return func
 
     def default(self) -> T:
-        return self.instantiate(tuple())
+        return self.instantiate(self.arg_type())
 
     def clear_instantiations(self) -> None:
         self.cache = {}
 
-type TypeTemplateArg = classinfo.VarType
-class TypeTemplate(Template[Type, TypeTemplateArg]):
+
+type TypeTemplateArgs = Tuple[classinfo.VarType, ...]
+
+
+class TypeTemplate(Template[Type, TypeTemplateArgs]):
     pass
 
-type FunctionTemplateArg = type
-class FunctionTemplate(Template['Function', FunctionTemplateArg]):
+
+class FunctionTemplateArgs:
+    __args: List[Union['Var', object]]
+    __kwargs: Dict[str, Union['Var', object]]
+
+    def __init__(self, args: List[Union['Var', object]] | None = None, kwargs: Dict[str, Union['Var', object]] | None = None) -> None:
+        self.__args = args or []
+        self.__kwargs = kwargs or {}
+
+    @property
+    def args(self) -> List[Union['Var', object]]:
+        return self.__args
+
+    @property
+    def kwargs(self) -> Dict[str, Union['Var', object]]:
+        return self.__kwargs
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, FunctionTemplateArgs):
+            return False
+        other_args = other.args
+        other_kwargs = other.kwargs
+
+        def check(a: Union['Var', object], b: Union['Var', object]) -> bool:
+            if isinstance(a, Var) and isinstance(b, Var):
+                return a.type == b.type
+            return a == b
+        if len(self.__args) != len(other_args) or len(self.__kwargs) != len(other_kwargs):
+            return False
+        for a, b in zip(self.__args, other_args):
+            if not check(a, b):
+                return False
+        for k, v in self.__kwargs.items():
+            if k not in other_kwargs or not check(v, other_kwargs[k]):
+                return False
+        for k, v in other_kwargs.items():
+            if k not in self.__kwargs or not check(v, self.__kwargs[k]):
+                return False
+        return True
+
+    def __hash__(self) -> int:
+        h = hash(FunctionTemplateArgs)
+        h ^= hash(len(self.__args))
+        for a in self.__args:
+            if isinstance(a, Var):
+                h ^= hash(a.type)
+            else:
+                h ^= hash(a)
+        h ^= hash(len(self.__kwargs))
+        for k, v in self.__kwargs.items():
+            h ^= hash(k)
+            if isinstance(v, Var):
+                h ^= hash(v.type)
+            else:
+                h ^= hash(v)
+        return h
+
+
+class FunctionTemplate(Template['Function', FunctionTemplateArgs]):
     pass
+
 
 class Function:
     params: List['Var']
@@ -917,28 +984,32 @@ class Range(Value):
 class GlobalContext:
     types: Dict[type, TypeTemplate]
     functions: Dict[Callable[..., Any], FunctionTemplate]
+    _instance: ClassVar['GlobalContext']
 
     def __init__(self) -> None:
         pass
 
-    def __new__(cls) -> 'GlobalContext':
-        if not hasattr(cls, "_instance"):
-            cls._instance = super(GlobalContext, cls).__new__(cls)
-            cls._instance.__init__()
-        return cls._instance
+    @staticmethod
+    def get() -> 'GlobalContext':
+        if not hasattr(GlobalContext, "_instance"):
+            GlobalContext._instance = GlobalContext.__new__(GlobalContext)
+            GlobalContext._instance.__init__()
+            GlobalContext._instance.types = {}
+            GlobalContext._instance.functions = {}
+        return GlobalContext._instance
 
     def clear_all_instantiations(self) -> None:
         for ty in self.types.values():
             ty.clear_instantiations()
         for func in self.functions.values():
             func.clear_instantiations()
-
+    
 
 def get_dsl_type(target: type) -> TypeTemplate:
     """
     Get the inner DSL type representation of a type
     """
-    ctx = GlobalContext()
+    ctx = GlobalContext.get()
     ty = ctx.types.get(target)
     assert ty, f"no DSL type for {target}"
     return ty

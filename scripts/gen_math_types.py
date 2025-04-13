@@ -52,32 +52,34 @@ def main() -> None:
         print("# fmt: off")
         print("import typing as tp")
         print(
-            "from luisa_lang._builtin_decor import intrinsic, func, builtin_type, byref",
+            "from luisa_lang._builtin_decor import func, builtin_type, trace",
+        )
+        print(
+            "from luisa_lang.lang_runtime import intrinsic, Var, assign, type_of, is_jit",
+        )
+        print(
+            "from luisa_lang.core_types import Ref",
         )
         print(
             "from luisa_lang.classinfo import register_class",
         )
         print("import luisa_lang.hir as _hir")
+        print('IntLiteral = int')
+        print('FloatLiteral = float')
         print("_ctx = _hir.GlobalContext.get()")
-        print('''
-i32 = int
-f32 = float
-@builtin_type(_hir.GenericIntType())
-class IntLiteral:
-    pass
-
-@builtin_type(_hir.GenericFloatType())
-class FloatLiteral: 
-    pass
-''')
-
+        print(r"""
+def _literal_to_value(literal, dtype):
+    if isinstance(literal, Var):
+        return literal
+    return _hir.Constant(literal, dtype)
+""")
         def gen_float_builtins():
         #     print("class FloatBuiltin(tp.Generic[_F]):")
         #     for builtin in FLOAT_BULTINS_1:
-        #         print("    @func(inline='always')")
+        #         print("    @trace")
         #         print(f"    def {builtin}(self: _F) -> _F: return intrinsic('math.{builtin}', _F, self) # type: ignore")
         #     for builtin in FLOAT_BULTINS_2:
-        #         print("    @func(inline='always')")
+        #         print("    @trace")
         #         print(
         #             f"    def {builtin}(self: _F, _other: _F) -> _F: return intrinsic('math.{builtin}', _F, self, other) # type: ignore"
         #         )
@@ -95,15 +97,15 @@ class FloatLiteral:
         def gen_binop(op: str, ty: str, operand_ty: str, inplace=False):
             print(
                 f"""
-    @func(inline='always')
-    def {op}(self, _other: {operand_ty}) -> '{ty}': return intrinsic("binop.{op}.{ty}",  {ty},  {'self' if not inplace else 'byref(self)'}, _other)
+    @trace
+    def {op}(self, _other: {operand_ty}) -> '{ty}': return intrinsic("binop.{op}.{ty}",  {ty},  {'self' if not inplace else 'Ref(self)'}, _other)
 """
             )
 
         def gen_cmpop(op: str, ty: str, operand_ty: str,retrun_ty:str):
             print(
                 f"""
-    @func(inline='always')
+    @trace
     def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return intrinsic("cmp.{op}.{ty}",  {retrun_ty},  self, _other) # type: ignore
 """
             )
@@ -144,33 +146,34 @@ class FloatLiteral:
         def gen_unaryop(op: str, ty: str):
             print(
                 f"""
-    @func(inline='always')
+    @trace
     def __{op}__(self) -> '{ty}': return intrinsic("unary.__{op}__.{ty}",  {ty}, self)
 """)
 
         def gen_scalar_type(ty: str, literal_ty: str, kind: Kind):
             nonlocal exports
             exports.append(ty)
-            inherits:List[str] = []
+            inherits:List[str] = ['Var']
             # if kind == Kind.FLOAT:
             #     inherits.append(f"FloatBuiltin['{ty}']")
             inherits_str = "" if len(inherits) == 0 else f"({', '.join(inherits)})"
             if kind == Kind.FLOAT:
-                bits = 32 if ty == "_f32" else 64
+                bits = 32 if ty == "f32" else 64
                 hir_ty = f"_hir.FloatType({bits})"
+            elif kind == Kind.INT:
+                signed = ty[0] == "i"
+                hir_ty = f"_hir.IntType({int(ty[1:])}, {signed})"
             else:
-                if ty == "_i32":
-                    signed = True
-                    hir_ty = f"_hir.IntType(32, {signed})"
-                else:
-                    signed = ty[0] == "i"
-                    hir_ty = f"_hir.IntType({int(ty[1:])}, {signed})"
+                hir_ty = "_hir.BoolType()"
             print(
                 f"""@builtin_type({hir_ty})
 class {ty}{inherits_str}:
-    @func(inline='always')
+    @trace
     def __init__(self, _value: tp.Union['{ty}', {literal_ty}]) -> None:
-        self = intrinsic("init.{ty}",  {ty},  _value)
+        if is_jit():
+            assign(self, intrinsic("init.{ty}",  {ty},  _literal_to_value(_value, type_of({ty}))))
+        else:
+            pass # TODO
 """
             )
             gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", 'bool', kind)
@@ -186,12 +189,12 @@ class {ty}{inherits_str}:
             exports.append(ty)
             comps = "xyzw"[:size]
             fields_def = "".join([f"    {comp}: {scalar_ty}\n" for comp in comps])
-            inherits:List[str] = []
+            inherits:List[str] = ['Var']
             # if kind == Kind.FLOAT:
             #     inherits.append(f"FloatBuiltin['{ty}']")
             inherits_str = "" if len(inherits) == 0 else f"({', '.join(inherits)})"
             print(
-                f"""@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[{scalar_ty}]), {size}))
+                f"""@builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[{scalar_ty}].default()), {size}))
 class {ty}{inherits_str}:
 {fields_def}
 """)        
@@ -241,19 +244,19 @@ class {ty}{inherits_str}:
         print(f'_F = tp.TypeVar("_F")')
         print(f'_F1 = tp.TypeVar("_F1", {", ".join(float_types_quoted)})')
         gen_float_builtins()
-        gen_scalar_type("_f32", "float", Kind.FLOAT)
+        gen_scalar_type(f"boolean", f"bool", Kind.BOOL)
+        gen_scalar_type("f32", "float", Kind.FLOAT)
         gen_scalar_type("f64", "float", Kind.FLOAT)
 
         for bits in [8, 16, 64]:
             gen_scalar_type(f"i{bits}", f"IntLiteral", Kind.INT)
             gen_scalar_type(f"u{bits}", f"IntLiteral", Kind.INT)
-        gen_scalar_type(f"_i32", f"IntLiteral", Kind.INT)
+        gen_scalar_type(f"i32", f"IntLiteral", Kind.INT)
         gen_scalar_type(f"u32", f"IntLiteral", Kind.INT)
-        print('_hir.register_dsl_type_alias(int, _i32)')
-        print('_hir.register_dsl_type_alias(float, _f32)')
+
 
         for size in [2, 3, 4]:
-            gen_vector_type(f"bool{size}", "bool", "bool",Kind.BOOL, f"bool{size}",size)
+            gen_vector_type(f"bool{size}", "boolean", "bool",Kind.BOOL, f"bool{size}",size)
             gen_vector_type(f"float{size}", "f32", "FloatLiteral",Kind.FLOAT,f"bool{size}",size)
             gen_vector_type(f"double{size}", "f64", "FloatLiteral",Kind.FLOAT,f"bool{size}", size)
             names = {8: "byte", 16: "short", 32: "int", 64: "long"}

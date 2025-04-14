@@ -203,3 +203,25 @@ class Lazy[T]:
     def get(self) -> T:
         self._init_instance()
         return cast(T, self._instance)
+
+
+def inherit[T](cls: type[T], parent: Any, init_fn: Callable[..., None]) -> type[T]:
+    """
+    Dynamically inherit from `parent` class and ensure the parent's
+    __init__ is called when instantiating the new class.
+    """
+    original_init = cls.__dict__.get('__init__', None)
+
+    def new_init(self, *args, **kwargs):
+        init_fn(self, *args, **kwargs)
+
+        # Call original class (child) initializer
+        if original_init:
+            original_init(self, *args, **kwargs)
+
+    # Copy attributes and override __init__
+    attrs = dict(cls.__dict__)
+    attrs['__init__'] = new_init
+
+    # Construct new type with parent + original bases
+    return type(cls.__name__, (parent,) + cls.__bases__, attrs)

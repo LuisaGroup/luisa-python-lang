@@ -98,24 +98,38 @@ class Symbolic:
             self.scope = scope
 
 
-class Var:
+class JitVar:
     """
     The base class for all dsl types. Each dsl variable can either store a symbolic representation or the actual value
     """
     __symbolic__: Optional[Symbolic]
+    dtype: type[Any]
 
     def __init__(self, dtype=type[Any]):
         """
         Zero-initialize a variable with given data type
         """
-        dsl_type = hir.get_dsl_type(dtype)
+        self.dtype = dtype
+        if is_jit():
+            self._init_symbolic()
+        else:
+            self.__symbolic__ = None
+
+    def _init_symbolic(self):
+        dsl_type = hir.get_dsl_type(self.dtype)
         if dsl_type is None:
-            raise ValueError(f'{dtype} is not a valid DSL type')
+            raise ValueError(f'{self.dtype} is not a valid DSL type')
         self.__symbolic__ = Symbolic(
             current_func().create_var('', dsl_type.default()))
 
+    def _destroy_symbolic(self):
+        self.__symbolic__ = None
+
+    def _symbolic_type(self) -> hir.Type:
+        return hir.get_dsl_type(self.dtype).default()
+
     @classmethod
-    def from_hir_node[T:Var](cls: type[T], node: hir.Value) -> T:
+    def from_hir_node[T:JitVar](cls: type[T], node: hir.Value) -> T:
         """
         Create a variable directly from a typed HIR node
         """
@@ -148,13 +162,13 @@ def type_of(value: type) -> hir.Type:
     return hir.get_dsl_type(value).default()
 
 
-def create_intrinsic_node[T:Var](name: str, ret_type: type[T] | None, *args) -> hir.Value:
+def create_intrinsic_node[T:JitVar](name: str, ret_type: type[T] | None, *args) -> hir.Value:
     """
     Call an intrinsic function
     """
     nodes: List[hir.Value] = []
     for i, a in enumerate(args):
-        if isinstance(a, Var):
+        if isinstance(a, JitVar):
             nodes.append(a.symbolic().node)
         elif isinstance(a, hir.Value):
             nodes.append(a)
@@ -171,17 +185,22 @@ def create_intrinsic_node[T:Var](name: str, ret_type: type[T] | None, *args) -> 
         hir.Intrinsic(name, nodes, ret_dsl_type))
 
 
-def intrinsic[T: Var](name: str, ret_type: type[T], *args) -> T:
+def intrinsic[T](name: str, ret_type: type[T], *args) -> T:
     """
     Call an intrinsic function
     """
-    return ret_type.from_hir_node(create_intrinsic_node(name, ret_type, *args))
+    assert issubclass(
+        ret_type, JitVar), f"Return type {ret_type} is not a valid DSL type"
+    return cast(T, ret_type.from_hir_node(create_intrinsic_node(name, ret_type, *args)))
 
 
-def assign(dst: Var, src: Var) -> None:
+def assign(dst: Any, src: Any) -> None:
     """
     Assign the value of `src` to `dst`
     """
+    assert isinstance(dst, JitVar), "dst is not a DSL variable"
+    assert isinstance(
+        src, JitVar), "Attempting to assign normal python value to DSL variable"
     push_to_current_bb(hir.Assign(
         dst.symbolic().node, src.symbolic().node))
 
@@ -197,15 +216,104 @@ def is_dsl_var(obj: Any) -> bool:
     """
     Check if the object is a DSL variable
     """
-    return isinstance(obj, Var)
+    return isinstance(obj, JitVar)
 
 
 def current_span() -> hir.Span | None:
     return None
 
 
+class ControlFlowFrame:
+    parent: Optional['ControlFlowFrame']
+    is_static: bool
+
+    def __init__(self, parent: Optional['ControlFlowFrame']):
+        self.parent = parent
+        self.is_static = False
+
+
+class IfFrame(ControlFlowFrame):
+    static_cond: Optional[bool]
+
+    def __init__(self, parent: ControlFlowFrame, cond: Any):
+        super().__init__(parent)
+        self.cond = cond
+        self.is_static = not isinstance(cond, JitVar)
+        self.static_cond = bool(cond) if self.is_static else None
+
+    def true_active(self) -> bool:
+        if self.is_static:
+            assert self.static_cond is not None
+            return self.static_cond
+        return True
+
+    def false_active(self) -> bool:
+        if self.is_static:
+            assert self.static_cond is not None
+            return not self.static_cond
+        return True
+
+
+class ControlFrameGuard[T:ControlFlowFrame]:
+    cf_type: type[T]
+    args: Tuple[Any, ...]
+    kwargs: Dict[str, Any]
+    cf_frame: T
+    ctx: 'TraceContext'
+
+    def __init__(self, ctx: 'TraceContext', cf_type: type[T], *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.cf_type = cf_type
+        self.cf_frame = self.cf_type(
+            *self.args, **self.kwargs, parent=ctx.cf_frame)
+        self.ctx = ctx
+
+    def __enter__(self) -> T:
+        self.ctx.cf_frame = self.cf_frame
+        return self.cf_frame
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        parent = self.ctx.cf_frame.parent
+        assert parent is not None
+        self.ctx.cf_frame = parent
+
+
 class TraceContext:
-    pass
+    cf_frame: ControlFlowFrame
+
+    def __init__(self):
+        self.cf_frame = ControlFlowFrame(None)
+
+    def is_parent_static(self) -> bool:
+        return self.cf_frame.is_static
+
+    def if_(self, cond: Any) -> ControlFrameGuard[IfFrame]:
+        return ControlFrameGuard(self, IfFrame, cond)
+
+    def return_(self, expr: JitVar) -> None:
+        """
+        Return a value from the current function
+        """
+        push_to_current_bb(hir.Return(expr.symbolic().node))
+
+    def redirect_binary(self, op, x, y):
+        print(op, x, y)
+        raise NotImplementedError('TODO')
+    
+    def __setitem__(self, key: str, value: Any) -> None:
+        """
+        Assign a value to a local variable
+        """
+        func = current_func()
+        raise NotImplementedError('TODO')
+    
+    def __getitem__(self, key: str) -> Any:
+        """
+        Retrieve a value from a local variable
+        """
+        raise NotImplementedError('TODO')
+
 
 # def redirect_name_lookup(name: str) -> Any:
 #     """
@@ -231,14 +339,14 @@ class TraceContext:
 # def redirect_aug_assign(dst: Any, method: str, src: Any) -> Any:
 #     pass
 
-def _invoke_function_tracer(mode: Literal['trace', 'func'], f: Callable[..., Any], args: List[Var | object], kwargs: Dict[str, Var | object]) -> Any:
+def _invoke_function_tracer(mode: Literal['trace', 'func'], f: Callable[..., Any], args: List[JitVar | object], kwargs: Dict[str, JitVar | object]) -> Any:
     trace_ctx = TraceContext()
     if mode == 'func':
         func_tracer = FuncTracer()
         FUNC_STACK.append(func_tracer)
         try:
             ret = f(trace_ctx, *args, **kwargs)
-            assert isinstance(ret, (Var, tuple))
+            assert isinstance(ret, (JitVar, tuple))
             # TODO:
         finally:
             FUNC_STACK.pop()
@@ -263,7 +371,7 @@ class KernelTracer:
 
 
 __all__: List[str] = [
-    'Var',
+    'JitVar',
     'is_jit',
     'TraceContext',
     'intrinsic',

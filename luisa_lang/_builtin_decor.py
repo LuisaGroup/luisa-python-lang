@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import Any, Callable, List, Optional, Set, TypeVar, cast
 import typing
 
-from lang_runtime import TraceContext, _invoke_function_tracer, is_jit
-from utils import Lazy, get_full_name, unique_hash
+from lang_runtime import JitVar, TraceContext, _invoke_function_tracer, is_jit
+from utils import Lazy, get_full_name, inherit, unique_hash
 from luisa_lang import hir
 from luisa_lang import classinfo
 from luisa_lang import ast_rewrite
@@ -29,7 +29,7 @@ from typing import (
 
 def _parse_type(ty: classinfo.VarType) -> hir.Type:
     match ty:
-        case Type() as t:
+        case type() as t:
             return hir.get_dsl_type(t).default()
         case classinfo.GenericInstance() as gi:
             template = hir.get_dsl_type(gi.origin)
@@ -92,6 +92,7 @@ def _dsl_struct_impl[T](cls: type[T], ir_ty_override: hir.Type | None = None) ->
 
     # Register the type template in the global context
     ctx.types[cls] = hir.TypeTemplate(tuple, instantiation_func)
+    # print(f'Registered class {cls} (id: {id(cls)} with type {ctx.types[cls]}')
     return cls
 
 
@@ -122,9 +123,20 @@ def _make_func_template(decorator_name: str, f: Callable[..., Any], globalns: Di
     return hir.FunctionTemplate(hir.FunctionTemplateArgs, instantiation_func)
 
 
+def __inherit_jitvar(cls: type) -> type:
+    new_cls: None | type = None
+
+    def init_fn(self, *args, **kwargs):
+        assert new_cls is not None
+        JitVar.__init__(self, dtype=new_cls)
+
+    new_cls = inherit(cls, JitVar, init_fn)
+    return cast(type, new_cls)
+
+
 def struct[T](cls: type[T]) -> type[T]:
     """
-    Mark a class as a DSL struct.
+    Mark a class as a DSL struct. The class will automatically inherit from JitVar.
 
     Example:
     ```python
@@ -138,6 +150,7 @@ def struct[T](cls: type[T]) -> type[T]:
             return 4.0 / 3.0 * math.pi * self.radius ** 3
     ```
     """
+    cls = __inherit_jitvar(cls)
     return _dsl_struct_impl(cls)
 
 
@@ -153,36 +166,17 @@ def builtin_type(ir_type: hir.Type):
     ```
     """
     def decorator(cls: type):
+        cls = __inherit_jitvar(cls)
         return _dsl_struct_impl(cls, ir_type)
     return decorator
 
-
-# class FunctionProxy:
-#     compiled: bool
-#     f: Callable[..., Any]
-#     __doc__: str | None
-#     __annotations__: Dict[str, type]
-#     __name__: str
-
-#     def __init__(self, f: Callable[..., Any], compiled: bool):
-#         self.f = f
-#         self.compiled = compiled
-#         self.__doc__ = f.__doc__
-#         self.__annotations__ = f.__annotations__
-#         self.__name__ = f.__name__
-
-#     def __get__(self, instance, _owner) -> Callable[..., Any]:
-#         return lambda *args, **kwargs: self(instance, *args, **kwargs)
-
-#     def __call__(self, *args, **kwargs) -> Any:
-#         raise NotImplementedError()
 
 def _trace_func_impl[F:Callable[..., Any]](f: F, mode: str) -> F:
     # Get the global namespace for the function
     globalns = classinfo._get_func_globalns(f)
 
-    
     # Create the function template
+
     def template(): return _make_func_template(
         'func', f, globalns, trace_only=False)
 
@@ -226,8 +220,8 @@ def func[F:Callable[..., Any]](f: F) -> F:
     # Get the global namespace for the function
     globalns = classinfo._get_func_globalns(f)
 
-    
     # Create the function template
+
     def template(): return _make_func_template(
         'func', f, globalns, trace_only=False)
 
@@ -241,8 +235,18 @@ def func[F:Callable[..., Any]](f: F) -> F:
 
         template = cast(hir.FunctionTemplate,
                         getattr(f, '__luisa_func__').get())
+
+        def extract_template_args(x: Any) -> Union[hir.TypedNode, object]:
+            if isinstance(x, JitVar):
+                return x._symbolic_type()
+            else:
+                return x
+        template_args = list([extract_template_args(x) for x in args])
+        template_kwargs = {
+            k: extract_template_args(v) for k, v in kwargs.items()
+        }
         instantiated_func = template.instantiate(
-            hir.FunctionTemplateArgs(args=list(args), kwargs=kwargs))
+            hir.FunctionTemplateArgs(args=template_args, kwargs=template_kwargs))
 
     # Copy over important attributes from the original function
     wrapper.__name__ = f.__name__

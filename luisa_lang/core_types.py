@@ -1,5 +1,5 @@
 import luisa_lang.hir as hir
-from luisa_lang.lang_runtime import assign, current_span, intrinsic, Var, push_to_current_bb
+from luisa_lang.lang_runtime import assign, current_span, intrinsic, JitVar, push_to_current_bb
 import typing
 from typing import (
     Callable,
@@ -18,11 +18,14 @@ from typing import (
     Any,
 )
 
-class Ref[T:Var](Var):
+
+class Ref[T](JitVar):
     value_type: type[T]
 
     def __init__(self, value: T):
         self.value_type = type(value)
+        assert isinstance(
+            value, JitVar), f"Ref can only be created from a subclass of JitVar, but got {type(value)}"
         value_node = value.symbolic().node
         if not isinstance(value_node, hir.Var):
             raise hir.TypeCheckError(
@@ -36,4 +39,3 @@ class Ref[T:Var](Var):
     @value.setter
     def value(self, value: T) -> None:
         assign(self.value, value)
-

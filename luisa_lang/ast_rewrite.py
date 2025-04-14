@@ -275,7 +275,7 @@ def rewrite_function[F: Callable[..., Any]](f: F, decorator_name: str) -> F:
     ast.fix_missing_locations(tree)
     # print(ast.unparse(tree))
     code = compile(tree, filename="<ast>", mode="exec")
-    local_dict = {}
+    local_dict: dict[Any, Any] = {}
     exec(code, f.__globals__, local_dict)
     rewrote_f = local_dict[f.__name__]
 

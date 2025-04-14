@@ -1,7 +1,7 @@
 # fmt: off
 import typing as tp
 from luisa_lang._builtin_decor import func, builtin_type, trace
-from luisa_lang.lang_runtime import intrinsic, Var, assign, type_of, is_jit
+from luisa_lang.lang_runtime import intrinsic, assign, type_of, is_jit, JitVar
 from luisa_lang.core_types import Ref
 from luisa_lang.classinfo import register_class
 import luisa_lang.hir as _hir
@@ -9,7 +9,7 @@ IntLiteral = int
 FloatLiteral = float
 _ctx = _hir.GlobalContext.get()
 def _literal_to_value(literal, dtype):
-    if isinstance(literal, Var):
+    if isinstance(literal, JitVar):
         return literal
     return _hir.Constant(literal, dtype)
 FLOAT_TYPES: tp.Final[tp.List[str]] = ["f32", "f64", "float2", "double2", "float3", "double3", "float4", "double4"]
@@ -64,7 +64,7 @@ def atan2(x: _F1, y: _F1) -> _F1: return intrinsic('math.atan2', _F1, x, y) # ty
 @func
 def copysign(x: _F1, y: _F1) -> _F1: return intrinsic('math.copysign', _F1, x, y) # type: ignore
 @builtin_type(_hir.BoolType())
-class boolean(Var):
+class boolean:
     @trace
     def __init__(self, _value: tp.Union['boolean', bool]) -> None:
         if is_jit():
@@ -97,7 +97,7 @@ class boolean(Var):
     def __invert__(self) -> 'boolean': return intrinsic("unary.__invert__.boolean",  boolean, self)
 
 @builtin_type(_hir.FloatType(32))
-class f32(Var):
+class f32:
     @trace
     def __init__(self, _value: tp.Union['f32', float]) -> None:
         if is_jit():
@@ -162,7 +162,7 @@ class f32(Var):
     def __pos__(self) -> 'f32': return intrinsic("unary.__pos__.f32",  f32, self)
 
 @builtin_type(_hir.FloatType(64))
-class f64(Var):
+class f64:
     @trace
     def __init__(self, _value: tp.Union['f64', float]) -> None:
         if is_jit():
@@ -227,7 +227,7 @@ class f64(Var):
     def __pos__(self) -> 'f64': return intrinsic("unary.__pos__.f64",  f64, self)
 
 @builtin_type(_hir.IntType(8, True))
-class i8(Var):
+class i8:
     @trace
     def __init__(self, _value: tp.Union['i8', IntLiteral]) -> None:
         if is_jit():
@@ -314,7 +314,7 @@ class i8(Var):
     def __invert__(self) -> 'i8': return intrinsic("unary.__invert__.i8",  i8, self)
 
 @builtin_type(_hir.IntType(8, False))
-class u8(Var):
+class u8:
     @trace
     def __init__(self, _value: tp.Union['u8', IntLiteral]) -> None:
         if is_jit():
@@ -401,7 +401,7 @@ class u8(Var):
     def __invert__(self) -> 'u8': return intrinsic("unary.__invert__.u8",  u8, self)
 
 @builtin_type(_hir.IntType(16, True))
-class i16(Var):
+class i16:
     @trace
     def __init__(self, _value: tp.Union['i16', IntLiteral]) -> None:
         if is_jit():
@@ -488,7 +488,7 @@ class i16(Var):
     def __invert__(self) -> 'i16': return intrinsic("unary.__invert__.i16",  i16, self)
 
 @builtin_type(_hir.IntType(16, False))
-class u16(Var):
+class u16:
     @trace
     def __init__(self, _value: tp.Union['u16', IntLiteral]) -> None:
         if is_jit():
@@ -575,7 +575,7 @@ class u16(Var):
     def __invert__(self) -> 'u16': return intrinsic("unary.__invert__.u16",  u16, self)
 
 @builtin_type(_hir.IntType(64, True))
-class i64(Var):
+class i64:
     @trace
     def __init__(self, _value: tp.Union['i64', IntLiteral]) -> None:
         if is_jit():
@@ -662,7 +662,7 @@ class i64(Var):
     def __invert__(self) -> 'i64': return intrinsic("unary.__invert__.i64",  i64, self)
 
 @builtin_type(_hir.IntType(64, False))
-class u64(Var):
+class u64:
     @trace
     def __init__(self, _value: tp.Union['u64', IntLiteral]) -> None:
         if is_jit():
@@ -749,7 +749,7 @@ class u64(Var):
     def __invert__(self) -> 'u64': return intrinsic("unary.__invert__.u64",  u64, self)
 
 @builtin_type(_hir.IntType(32, True))
-class i32(Var):
+class i32:
     @trace
     def __init__(self, _value: tp.Union['i32', IntLiteral]) -> None:
         if is_jit():
@@ -836,7 +836,7 @@ class i32(Var):
     def __invert__(self) -> 'i32': return intrinsic("unary.__invert__.i32",  i32, self)
 
 @builtin_type(_hir.IntType(32, False))
-class u32(Var):
+class u32:
     @trace
     def __init__(self, _value: tp.Union['u32', IntLiteral]) -> None:
         if is_jit():
@@ -923,7 +923,7 @@ class u32(Var):
     def __invert__(self) -> 'u32': return intrinsic("unary.__invert__.u32",  u32, self)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[boolean].default()), 2))
-class bool2(Var):
+class bool2:
     x: boolean
     y: boolean
     def __init__(self, x: tp.Union['boolean', bool] = False, y: tp.Union['boolean', bool] = False) -> None: self = intrinsic("init.bool2", bool2, x, y)
@@ -951,7 +951,7 @@ class bool2(Var):
     def __ixor__(self, _other:  tp.Union['bool2', boolean, bool]) -> 'bool2': return intrinsic("binop.__ixor__.bool2",  bool2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32].default()), 2))
-class float2(Var):
+class float2:
     x: f32
     y: f32
     def __init__(self, x: tp.Union['f32', FloatLiteral] = FloatLiteral(), y: tp.Union['f32', FloatLiteral] = FloatLiteral()) -> None: self = intrinsic("init.float2", float2, x, y)
@@ -1009,7 +1009,7 @@ class float2(Var):
     def __rfloordiv__(self, _other:  tp.Union['float2', f32, FloatLiteral]) -> 'float2': return intrinsic("binop.__rfloordiv__.float2",  float2,  self, _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64].default()), 2))
-class double2(Var):
+class double2:
     x: f64
     y: f64
     def __init__(self, x: tp.Union['f64', FloatLiteral] = FloatLiteral(), y: tp.Union['f64', FloatLiteral] = FloatLiteral()) -> None: self = intrinsic("init.double2", double2, x, y)
@@ -1067,7 +1067,7 @@ class double2(Var):
     def __rfloordiv__(self, _other:  tp.Union['double2', f64, FloatLiteral]) -> 'double2': return intrinsic("binop.__rfloordiv__.double2",  double2,  self, _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8].default()), 2))
-class byte2(Var):
+class byte2:
     x: i8
     y: i8
     def __init__(self, x: tp.Union['i8', IntLiteral] = IntLiteral(), y: tp.Union['i8', IntLiteral] = IntLiteral()) -> None: self = intrinsic("init.byte2", byte2, x, y)
@@ -1145,7 +1145,7 @@ class byte2(Var):
     def __ixor__(self, _other:  tp.Union['byte2', i8, IntLiteral]) -> 'byte2': return intrinsic("binop.__ixor__.byte2",  byte2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8].default()), 2))
-class ubyte2(Var):
+class ubyte2:
     x: u8
     y: u8
     def __init__(self, x: tp.Union['u8', IntLiteral] = IntLiteral(), y: tp.Union['u8', IntLiteral] = IntLiteral()) -> None: self = intrinsic("init.ubyte2", ubyte2, x, y)
@@ -1223,7 +1223,7 @@ class ubyte2(Var):
     def __ixor__(self, _other:  tp.Union['ubyte2', u8, IntLiteral]) -> 'ubyte2': return intrinsic("binop.__ixor__.ubyte2",  ubyte2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16].default()), 2))
-class short2(Var):
+class short2:
     x: i16
     y: i16
     def __init__(self, x: tp.Union['i16', IntLiteral] = IntLiteral(), y: tp.Union['i16', IntLiteral] = IntLiteral()) -> None: self = intrinsic("init.short2", short2, x, y)
@@ -1301,7 +1301,7 @@ class short2(Var):
     def __ixor__(self, _other:  tp.Union['short2', i16, IntLiteral]) -> 'short2': return intrinsic("binop.__ixor__.short2",  short2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16].default()), 2))
-class ushort2(Var):
+class ushort2:
     x: u16
     y: u16
     def __init__(self, x: tp.Union['u16', IntLiteral] = IntLiteral(), y: tp.Union['u16', IntLiteral] = IntLiteral()) -> None: self = intrinsic("init.ushort2", ushort2, x, y)
@@ -1379,7 +1379,7 @@ class ushort2(Var):
     def __ixor__(self, _other:  tp.Union['ushort2', u16, IntLiteral]) -> 'ushort2': return intrinsic("binop.__ixor__.ushort2",  ushort2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32].default()), 2))
-class int2(Var):
+class int2:
     x: i32
     y: i32
     def __init__(self, x: tp.Union['i32', IntLiteral] = IntLiteral(), y: tp.Union['i32', IntLiteral] = IntLiteral()) -> None: self = intrinsic("init.int2", int2, x, y)
@@ -1457,7 +1457,7 @@ class int2(Var):
     def __ixor__(self, _other:  tp.Union['int2', i32, IntLiteral]) -> 'int2': return intrinsic("binop.__ixor__.int2",  int2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32].default()), 2))
-class uint2(Var):
+class uint2:
     x: u32
     y: u32
     def __init__(self, x: tp.Union['u32', IntLiteral] = IntLiteral(), y: tp.Union['u32', IntLiteral] = IntLiteral()) -> None: self = intrinsic("init.uint2", uint2, x, y)
@@ -1535,7 +1535,7 @@ class uint2(Var):
     def __ixor__(self, _other:  tp.Union['uint2', u32, IntLiteral]) -> 'uint2': return intrinsic("binop.__ixor__.uint2",  uint2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64].default()), 2))
-class long2(Var):
+class long2:
     x: i64
     y: i64
     def __init__(self, x: tp.Union['i64', IntLiteral] = IntLiteral(), y: tp.Union['i64', IntLiteral] = IntLiteral()) -> None: self = intrinsic("init.long2", long2, x, y)
@@ -1613,7 +1613,7 @@ class long2(Var):
     def __ixor__(self, _other:  tp.Union['long2', i64, IntLiteral]) -> 'long2': return intrinsic("binop.__ixor__.long2",  long2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64].default()), 2))
-class ulong2(Var):
+class ulong2:
     x: u64
     y: u64
     def __init__(self, x: tp.Union['u64', IntLiteral] = IntLiteral(), y: tp.Union['u64', IntLiteral] = IntLiteral()) -> None: self = intrinsic("init.ulong2", ulong2, x, y)
@@ -1691,7 +1691,7 @@ class ulong2(Var):
     def __ixor__(self, _other:  tp.Union['ulong2', u64, IntLiteral]) -> 'ulong2': return intrinsic("binop.__ixor__.ulong2",  ulong2,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[boolean].default()), 3))
-class bool3(Var):
+class bool3:
     x: boolean
     y: boolean
     z: boolean
@@ -1720,7 +1720,7 @@ class bool3(Var):
     def __ixor__(self, _other:  tp.Union['bool3', boolean, bool]) -> 'bool3': return intrinsic("binop.__ixor__.bool3",  bool3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32].default()), 3))
-class float3(Var):
+class float3:
     x: f32
     y: f32
     z: f32
@@ -1779,7 +1779,7 @@ class float3(Var):
     def __rfloordiv__(self, _other:  tp.Union['float3', f32, FloatLiteral]) -> 'float3': return intrinsic("binop.__rfloordiv__.float3",  float3,  self, _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64].default()), 3))
-class double3(Var):
+class double3:
     x: f64
     y: f64
     z: f64
@@ -1838,7 +1838,7 @@ class double3(Var):
     def __rfloordiv__(self, _other:  tp.Union['double3', f64, FloatLiteral]) -> 'double3': return intrinsic("binop.__rfloordiv__.double3",  double3,  self, _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8].default()), 3))
-class byte3(Var):
+class byte3:
     x: i8
     y: i8
     z: i8
@@ -1917,7 +1917,7 @@ class byte3(Var):
     def __ixor__(self, _other:  tp.Union['byte3', i8, IntLiteral]) -> 'byte3': return intrinsic("binop.__ixor__.byte3",  byte3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8].default()), 3))
-class ubyte3(Var):
+class ubyte3:
     x: u8
     y: u8
     z: u8
@@ -1996,7 +1996,7 @@ class ubyte3(Var):
     def __ixor__(self, _other:  tp.Union['ubyte3', u8, IntLiteral]) -> 'ubyte3': return intrinsic("binop.__ixor__.ubyte3",  ubyte3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16].default()), 3))
-class short3(Var):
+class short3:
     x: i16
     y: i16
     z: i16
@@ -2075,7 +2075,7 @@ class short3(Var):
     def __ixor__(self, _other:  tp.Union['short3', i16, IntLiteral]) -> 'short3': return intrinsic("binop.__ixor__.short3",  short3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16].default()), 3))
-class ushort3(Var):
+class ushort3:
     x: u16
     y: u16
     z: u16
@@ -2154,7 +2154,7 @@ class ushort3(Var):
     def __ixor__(self, _other:  tp.Union['ushort3', u16, IntLiteral]) -> 'ushort3': return intrinsic("binop.__ixor__.ushort3",  ushort3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32].default()), 3))
-class int3(Var):
+class int3:
     x: i32
     y: i32
     z: i32
@@ -2233,7 +2233,7 @@ class int3(Var):
     def __ixor__(self, _other:  tp.Union['int3', i32, IntLiteral]) -> 'int3': return intrinsic("binop.__ixor__.int3",  int3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32].default()), 3))
-class uint3(Var):
+class uint3:
     x: u32
     y: u32
     z: u32
@@ -2312,7 +2312,7 @@ class uint3(Var):
     def __ixor__(self, _other:  tp.Union['uint3', u32, IntLiteral]) -> 'uint3': return intrinsic("binop.__ixor__.uint3",  uint3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64].default()), 3))
-class long3(Var):
+class long3:
     x: i64
     y: i64
     z: i64
@@ -2391,7 +2391,7 @@ class long3(Var):
     def __ixor__(self, _other:  tp.Union['long3', i64, IntLiteral]) -> 'long3': return intrinsic("binop.__ixor__.long3",  long3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64].default()), 3))
-class ulong3(Var):
+class ulong3:
     x: u64
     y: u64
     z: u64
@@ -2470,7 +2470,7 @@ class ulong3(Var):
     def __ixor__(self, _other:  tp.Union['ulong3', u64, IntLiteral]) -> 'ulong3': return intrinsic("binop.__ixor__.ulong3",  ulong3,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[boolean].default()), 4))
-class bool4(Var):
+class bool4:
     x: boolean
     y: boolean
     z: boolean
@@ -2500,7 +2500,7 @@ class bool4(Var):
     def __ixor__(self, _other:  tp.Union['bool4', boolean, bool]) -> 'bool4': return intrinsic("binop.__ixor__.bool4",  bool4,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f32].default()), 4))
-class float4(Var):
+class float4:
     x: f32
     y: f32
     z: f32
@@ -2560,7 +2560,7 @@ class float4(Var):
     def __rfloordiv__(self, _other:  tp.Union['float4', f32, FloatLiteral]) -> 'float4': return intrinsic("binop.__rfloordiv__.float4",  float4,  self, _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[f64].default()), 4))
-class double4(Var):
+class double4:
     x: f64
     y: f64
     z: f64
@@ -2620,7 +2620,7 @@ class double4(Var):
     def __rfloordiv__(self, _other:  tp.Union['double4', f64, FloatLiteral]) -> 'double4': return intrinsic("binop.__rfloordiv__.double4",  double4,  self, _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i8].default()), 4))
-class byte4(Var):
+class byte4:
     x: i8
     y: i8
     z: i8
@@ -2700,7 +2700,7 @@ class byte4(Var):
     def __ixor__(self, _other:  tp.Union['byte4', i8, IntLiteral]) -> 'byte4': return intrinsic("binop.__ixor__.byte4",  byte4,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u8].default()), 4))
-class ubyte4(Var):
+class ubyte4:
     x: u8
     y: u8
     z: u8
@@ -2780,7 +2780,7 @@ class ubyte4(Var):
     def __ixor__(self, _other:  tp.Union['ubyte4', u8, IntLiteral]) -> 'ubyte4': return intrinsic("binop.__ixor__.ubyte4",  ubyte4,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i16].default()), 4))
-class short4(Var):
+class short4:
     x: i16
     y: i16
     z: i16
@@ -2860,7 +2860,7 @@ class short4(Var):
     def __ixor__(self, _other:  tp.Union['short4', i16, IntLiteral]) -> 'short4': return intrinsic("binop.__ixor__.short4",  short4,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u16].default()), 4))
-class ushort4(Var):
+class ushort4:
     x: u16
     y: u16
     z: u16
@@ -2940,7 +2940,7 @@ class ushort4(Var):
     def __ixor__(self, _other:  tp.Union['ushort4', u16, IntLiteral]) -> 'ushort4': return intrinsic("binop.__ixor__.ushort4",  ushort4,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i32].default()), 4))
-class int4(Var):
+class int4:
     x: i32
     y: i32
     z: i32
@@ -3020,7 +3020,7 @@ class int4(Var):
     def __ixor__(self, _other:  tp.Union['int4', i32, IntLiteral]) -> 'int4': return intrinsic("binop.__ixor__.int4",  int4,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u32].default()), 4))
-class uint4(Var):
+class uint4:
     x: u32
     y: u32
     z: u32
@@ -3100,7 +3100,7 @@ class uint4(Var):
     def __ixor__(self, _other:  tp.Union['uint4', u32, IntLiteral]) -> 'uint4': return intrinsic("binop.__ixor__.uint4",  uint4,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[i64].default()), 4))
-class long4(Var):
+class long4:
     x: i64
     y: i64
     z: i64
@@ -3180,7 +3180,7 @@ class long4(Var):
     def __ixor__(self, _other:  tp.Union['long4', i64, IntLiteral]) -> 'long4': return intrinsic("binop.__ixor__.long4",  long4,  Ref(self), _other)
 
 @builtin_type(_hir.VectorType(tp.cast(_hir.ScalarType, _ctx.types[u64].default()), 4))
-class ulong4(Var):
+class ulong4:
     x: u64
     y: u64
     z: u64

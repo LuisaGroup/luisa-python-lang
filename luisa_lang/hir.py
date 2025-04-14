@@ -496,19 +496,19 @@ class TypeTemplate(Template[Type, TypeTemplateArgs]):
 
 
 class FunctionTemplateArgs:
-    __args: List[Union['Var', object]]
-    __kwargs: Dict[str, Union['Var', object]]
+    __args: List[Union['TypedNode', object]]
+    __kwargs: Dict[str, Union['TypedNode', object]]
 
-    def __init__(self, args: List[Union['Var', object]] | None = None, kwargs: Dict[str, Union['Var', object]] | None = None) -> None:
+    def __init__(self, args: List[Union['TypedNode', object]] | None = None, kwargs: Dict[str, Union['TypedNode', object]] | None = None) -> None:
         self.__args = args or []
         self.__kwargs = kwargs or {}
 
     @property
-    def args(self) -> List[Union['Var', object]]:
+    def args(self) -> List[Union['TypedNode', object]]:
         return self.__args
 
     @property
-    def kwargs(self) -> Dict[str, Union['Var', object]]:
+    def kwargs(self) -> Dict[str, Union['TypedNode', object]]:
         return self.__kwargs
 
     def __eq__(self, other) -> bool:
@@ -517,7 +517,7 @@ class FunctionTemplateArgs:
         other_args = other.args
         other_kwargs = other.kwargs
 
-        def check(a: Union['Var', object], b: Union['Var', object]) -> bool:
+        def check(a: Any, b: Any) -> bool:
             if isinstance(a, Var) and isinstance(b, Var):
                 return a.type == b.type
             return a == b
@@ -986,14 +986,10 @@ class GlobalContext:
     functions: Dict[Callable[..., Any], FunctionTemplate]
     _instance: ClassVar['GlobalContext']
 
-    def __init__(self) -> None:
-        pass
-
     @staticmethod
     def get() -> 'GlobalContext':
         if not hasattr(GlobalContext, "_instance"):
             GlobalContext._instance = GlobalContext.__new__(GlobalContext)
-            GlobalContext._instance.__init__()
             GlobalContext._instance.types = {}
             GlobalContext._instance.functions = {}
         return GlobalContext._instance
@@ -1011,7 +1007,7 @@ def get_dsl_type(target: type) -> TypeTemplate:
     """
     ctx = GlobalContext.get()
     ty = ctx.types.get(target)
-    assert ty, f"no DSL type for {target}"
+    assert ty, f"no DSL type for {target} (id: {id(target)})"
     return ty
 
 

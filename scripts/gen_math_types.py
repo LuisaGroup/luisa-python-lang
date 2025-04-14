@@ -55,7 +55,7 @@ def main() -> None:
             "from luisa_lang._builtin_decor import func, builtin_type, trace",
         )
         print(
-            "from luisa_lang.lang_runtime import intrinsic, Var, assign, type_of, is_jit",
+            "from luisa_lang.lang_runtime import intrinsic, assign, type_of, is_jit, JitVar",
         )
         print(
             "from luisa_lang.core_types import Ref",
@@ -69,7 +69,7 @@ def main() -> None:
         print("_ctx = _hir.GlobalContext.get()")
         print(r"""
 def _literal_to_value(literal, dtype):
-    if isinstance(literal, Var):
+    if isinstance(literal, JitVar):
         return literal
     return _hir.Constant(literal, dtype)
 """)
@@ -153,7 +153,7 @@ def _literal_to_value(literal, dtype):
         def gen_scalar_type(ty: str, literal_ty: str, kind: Kind):
             nonlocal exports
             exports.append(ty)
-            inherits:List[str] = ['Var']
+            inherits:List[str] = []
             # if kind == Kind.FLOAT:
             #     inherits.append(f"FloatBuiltin['{ty}']")
             inherits_str = "" if len(inherits) == 0 else f"({', '.join(inherits)})"
@@ -189,7 +189,7 @@ class {ty}{inherits_str}:
             exports.append(ty)
             comps = "xyzw"[:size]
             fields_def = "".join([f"    {comp}: {scalar_ty}\n" for comp in comps])
-            inherits:List[str] = ['Var']
+            inherits:List[str] = []
             # if kind == Kind.FLOAT:
             #     inherits.append(f"FloatBuiltin['{ty}']")
             inherits_str = "" if len(inherits) == 0 else f"({', '.join(inherits)})"

@@ -2,7 +2,7 @@ import ast
 from ast import NodeTransformer
 import copy
 from typing import Callable, Any, List, Set, cast
-from utils import checked_cast, retrieve_ast_and_filename, NestedHashMap
+from luisa_lang.utils import checked_cast, retrieve_ast_and_filename, NestedHashMap
 
 """
 Rewrite rules:
@@ -15,6 +15,7 @@ each name lookup `name` is rewritten to `__lc_ctx__[`name`]`
 `x op= y` is rewritten to `x = __lc_ctx__.redirect_unary(op, x, y)`
 `x[y]` is rewritten to `__lc_ctx__.redirect_subscript(x)[y]`
 `x.y` is rewritten to `__lc_ctx__.redirect_attr(x).y`
+`x(args...)` is rewritten to `__lc_ctx__.redirect_call(x, args...)`
 
 Control flow:
 if cond:
@@ -69,7 +70,7 @@ class FuncRewriter(NodeTransformer):
 
     def new_id(self) -> str:
         self.id_cnt += 1
-        return f'__lc_id{self.id_cnt}'
+        return f"__lc_id{self.id_cnt}"
 
     # def handle_assign(self, targets: List[ast.expr], value: ast.expr) -> List[ast.stmt]:
     #     pass
@@ -90,22 +91,45 @@ class FuncRewriter(NodeTransformer):
         # Filter out decorators matching our decorator_name
         # Remove the decorator we're interested in
         node.decorator_list = [
-            d for d in node.decorator_list
-            if not (isinstance(d, ast.Name) and d.id == self.decorator_name) and
-            not (isinstance(d, ast.Attribute) and d.attr == self.decorator_name)
+            d
+            for d in node.decorator_list
+            if not (isinstance(d, ast.Name) and d.id == self.decorator_name)
+            and not (isinstance(d, ast.Attribute) and d.attr == self.decorator_name)
         ]
 
         # Add __lc_ctx__ to the function arguments
-        node.args.args.insert(0, ast.arg(arg='__lc_ctx__', annotation=None))
-
-        body = self.visit_list_stmt(node.body)
+        node.args.args.insert(0, ast.arg(arg="__lc_ctx__", annotation=None))
+        body: List[ast.stmt] = []
+        for arg in node.args.args:
+            # __lc_ctx__.decl_arg(name, arg)
+            body.append(
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                            attr="decl_arg",
+                            ctx=ast.Load(),
+                        ),
+                        args=[
+                            ast.Constant(value=arg.arg),
+                            ast.Name(id=arg.arg, ctx=ast.Load()),
+                        ],
+                        keywords=[],
+                    )
+                )
+            )
+        body.extend(self.visit_list_stmt(node.body))
         node.body = body
 
         return node
 
     def visit_Name(self, node: ast.Name) -> Any:
         # rewrite to __lc_ctx__.name
-        return ast.Subscript(value=ast.Name(id='__lc_ctx__', ctx=ast.Load()), slice=ast.Constant(value=node.id), ctx=node.ctx)
+        return ast.Subscript(
+            value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+            slice=ast.Constant(value=node.id),
+            ctx=node.ctx,
+        )
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         return self.generic_visit(node)
@@ -114,102 +138,139 @@ class FuncRewriter(NodeTransformer):
         target = checked_cast(ast.expr, self.visit(node.target))
         assert isinstance(target, (ast.Name, ast.Subscript, ast.Attribute))
         target.ctx = ast.Load()
-        anno = ast.Expr(value=ast.Call(
-            func=ast.Attribute(value=ast.Name(
-                id='__lc_ctx__', ctx=ast.Load()), attr='anno_ty', ctx=ast.Load()),
-            args=[target],
-            keywords=[]
-        ))
+        anno = ast.Expr(
+            value=ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                    attr="anno_ty",
+                    ctx=ast.Load(),
+                ),
+                args=[target],
+                keywords=[],
+            )
+        )
         if node.value is None:
             return anno
         target = copy.deepcopy(target)
         target.ctx = ast.Store()
-        assign = ast.Assign(targets=[target], value=self.visit(
-            node.value))
+        assign = ast.Assign(targets=[target], value=self.visit(node.value))
         return [anno, assign]
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        # rewrite to __lc_ctx__.redirect_call(func, args...)
+        func = self.visit(node.func)
+        args = [self.visit(arg) for arg in node.args]
+        keywords = [self.visit(kw) for kw in node.keywords]
+        return ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                attr="redirect_call",
+                ctx=ast.Load(),
+            ),
+            args=[func] + args,
+            keywords=keywords,
+        )
 
     def visit_BinOp(self, node: ast.BinOp) -> Any:
         lhs = self.visit(node.left)
         rhs = self.visit(node.right)
         return ast.Call(
-            func=ast.Attribute(value=ast.Name(
-                id='__lc_ctx__', ctx=ast.Load()), attr='redirect_binary', ctx=ast.Load()),
+            func=ast.Attribute(
+                value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                attr="redirect_binary",
+                ctx=ast.Load(),
+            ),
             args=[ast.Constant(value=type(node.op).__name__), lhs, rhs],
-            keywords=[]
+            keywords=[],
         )
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Any:
         operand = self.visit(node.operand)
         return ast.Call(
-            func=ast.Attribute(value=ast.Name(
-                id='__lc_ctx__', ctx=ast.Load()), attr='redirect_unary', ctx=ast.Load()),
+            func=ast.Attribute(
+                value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                attr="redirect_unary",
+                ctx=ast.Load(),
+            ),
             args=[ast.Constant(value=type(node.op).__name__), operand],
-            keywords=[]
+            keywords=[],
         )
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         value = self.visit(node.value)
         return ast.Subscript(
             value=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='redirect_subscript', ctx=ast.Load()),
+                func=ast.Attribute(
+                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                    attr="redirect_subscript",
+                    ctx=ast.Load(),
+                ),
                 args=[value],
-                keywords=[]
+                keywords=[],
             ),
             slice=node.slice,
-            ctx=node.ctx
+            ctx=node.ctx,
         )
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
         value = self.visit(node.value)
         return ast.Attribute(
             value=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='redirect_attr', ctx=ast.Load()),
+                func=ast.Attribute(
+                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                    attr="redirect_attr",
+                    ctx=ast.Load(),
+                ),
                 args=[value],
-                keywords=[]
+                keywords=[],
             ),
             attr=node.attr,
-            ctx=node.ctx
+            ctx=node.ctx,
         )
 
     def visit_If(self, node: ast.If) -> Any:
-        if_id = self.new_id() + '_if'
+        if_id = self.new_id() + "_if"
         with_item = ast.withitem(
             context_expr=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='if_', ctx=ast.Load()),
+                func=ast.Attribute(
+                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                    attr="if_",
+                    ctx=ast.Load(),
+                ),
                 args=[node.test],
-                keywords=[]
+                keywords=[],
             ),
-            optional_vars=ast.Name(id=if_id, ctx=ast.Store())
+            optional_vars=ast.Name(id=if_id, ctx=ast.Store()),
         )
         true_branch = ast.If(
             test=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id=if_id, ctx=ast.Load()), attr='true_active', ctx=ast.Load()),
+                func=ast.Attribute(
+                    value=ast.Name(id=if_id, ctx=ast.Load()),
+                    attr="true_active",
+                    ctx=ast.Load(),
+                ),
                 args=[],
-                keywords=[]
+                keywords=[],
             ),
             body=self.visit_list_stmt(node.body),
-            orelse=[]
+            orelse=[],
         )
         false_branch = ast.If(
             test=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id=if_id, ctx=ast.Load()), attr='false_active', ctx=ast.Load()),
+                func=ast.Attribute(
+                    value=ast.Name(id=if_id, ctx=ast.Load()),
+                    attr="false_active",
+                    ctx=ast.Load(),
+                ),
                 args=[],
-                keywords=[]
+                keywords=[],
             ),
             body=self.visit_list_stmt(node.orelse),
-            orelse=[]
+            orelse=[],
         )
         for stmt in node.orelse:
             false_branch.body.append(checked_cast(ast.stmt, self.visit(stmt)))
-        with_stmt = ast.With(
-            items=[with_item],
-            body=[true_branch, false_branch]
-        )
+        with_stmt = ast.With(items=[with_item], body=[true_branch, false_branch])
         return with_stmt
 
     def visit_Return(self, node: ast.Return) -> Any:
@@ -220,52 +281,91 @@ class FuncRewriter(NodeTransformer):
             ret_value = tmp
         return ast.If(
             test=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='is_parent_static', ctx=ast.Load()),
+                func=ast.Attribute(
+                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                    attr="is_parent_static",
+                    ctx=ast.Load(),
+                ),
                 args=[],
-                keywords=[]
+                keywords=[],
             ),
             body=cast(List[ast.stmt], [ast.Return(value=ret_value)]),
-            orelse=cast(List[ast.stmt], [ast.Expr(value=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='return_', ctx=ast.Load()),
-                args=[ret_value] if ret_value is not None else [],
-                keywords=[]
-            ))])
+            orelse=cast(
+                List[ast.stmt],
+                [
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                                attr="return_",
+                                ctx=ast.Load(),
+                            ),
+                            args=[ret_value] if ret_value is not None else [],
+                            keywords=[],
+                        )
+                    )
+                ],
+            ),
         )
 
     def visit_Break(self, node: ast.Break) -> Any:
         return ast.If(
             test=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='is_parent_static', ctx=ast.Load()),
+                func=ast.Attribute(
+                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                    attr="is_parent_static",
+                    ctx=ast.Load(),
+                ),
                 args=[],
-                keywords=[]
+                keywords=[],
             ),
             body=cast(List[ast.stmt], [ast.Break()]),
-            orelse=cast(List[ast.stmt], [ast.Expr(value=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='break_', ctx=ast.Load()),
-                args=[],
-                keywords=[]
-            ))])
+            orelse=cast(
+                List[ast.stmt],
+                [
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                                attr="break_",
+                                ctx=ast.Load(),
+                            ),
+                            args=[],
+                            keywords=[],
+                        )
+                    )
+                ],
+            ),
         )
 
     def visit_Continue(self, node: ast.Continue) -> Any:
         return ast.If(
             test=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='is_parent_static', ctx=ast.Load()),
+                func=ast.Attribute(
+                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                    attr="is_parent_static",
+                    ctx=ast.Load(),
+                ),
                 args=[],
-                keywords=[]
+                keywords=[],
             ),
             body=cast(List[ast.stmt], [ast.Continue()]),
-            orelse=cast(List[ast.stmt], [ast.Expr(value=ast.Call(
-                func=ast.Attribute(value=ast.Name(
-                    id='__lc_ctx__', ctx=ast.Load()), attr='continue_', ctx=ast.Load()),
-                args=[],
-                keywords=[]
-            ))])
+            orelse=cast(
+                List[ast.stmt],
+                [
+                    ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                                attr="continue_",
+                                ctx=ast.Load(),
+                            ),
+                            args=[],
+                            keywords=[],
+                        )
+                    )
+                ],
+            ),
         )
 
 

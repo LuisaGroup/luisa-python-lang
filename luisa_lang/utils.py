@@ -1,7 +1,8 @@
 import ast
+from functools import cache
 import textwrap
 import types
-from typing import Any, Callable, Dict, List, NoReturn, Optional, Tuple, TypeVar, cast, overload
+from typing import Any, Callable, Dict, List, NoReturn, Optional, Sequence, Tuple, TypeVar, cast, overload
 import sourceinspect
 from hashlib import sha256
 
@@ -225,3 +226,20 @@ def inherit[T](cls: type[T], parent: Any, init_fn: Callable[..., None]) -> type[
 
     # Construct new type with parent + original bases
     return type(cls.__name__, (parent,) + cls.__bases__, attrs)
+
+
+def is_generic_class(typ:type) -> bool:
+    """
+    Check if a class is generic.
+    """
+    return hasattr(typ, "__parameters__") and len(typ.__parameters__) > 0
+
+@cache
+def instantiate_generic_expand(typ: type, args: Sequence[Any]) -> type:
+    if len(args) == 0:
+        return typ
+    # the reason we use eval instead of typ[*args] is that the latter actually creates new type instances
+    # s = typ[args[0], ...]
+    s: str = 'typ[' + ', '.join([f'args[{i}]' for i in range(len(args))]) + ']'
+    t = eval(s, globals(), locals())
+    return t

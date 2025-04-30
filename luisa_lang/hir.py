@@ -14,7 +14,7 @@ from typing import (
     Tuple,
     Dict,
     Union,
-    ClassVar
+    ClassVar,
 )
 import typing
 from typing_extensions import override
@@ -26,7 +26,7 @@ PATH_PREFIX = "luisa_lang"
 
 
 class Type(ABC):
-    methods: Dict[str, 'FunctionTemplate']
+    methods: Dict[str, "FunctionTemplate"]
 
     def __init__(self):
         self.methods = {}
@@ -47,7 +47,7 @@ class Type(ABC):
     def __hash__(self) -> int:
         pass
 
-    def member(self, field: Any) -> Optional['Type']:
+    def member(self, field: Any) -> Optional["Type"]:
         return None
 
     def is_concrete(self) -> bool:
@@ -59,7 +59,7 @@ class Type(ABC):
     def __len__(self) -> int:
         return 1
 
-    def remove_ref(self) -> 'Type':
+    def remove_ref(self) -> "Type":
         if isinstance(self, RefType):
             return self.element
         return self
@@ -69,22 +69,23 @@ class RefType(Type):
     """
     A logical reference type. Cannot be returned from functions/stored in aggregates.
     """
+
     element: Type
 
     def __init__(self, element: Type) -> None:
         super().__init__()
-        assert element.is_addressable(), f"RefType element {
+        assert (
+            element.is_addressable()
+        ), f"RefType element {
             element} is not addressable"
-        assert not isinstance(
-            element, (OpaqueType, RefType))
+        assert not isinstance(element, (OpaqueType, RefType))
         self.element = element
 
     def size(self) -> int:
         raise RuntimeError("RefTypes are logical and thus do not have a size")
 
     def align(self) -> int:
-        raise RuntimeError(
-            "RefTypes are logical and thus do not have an align")
+        raise RuntimeError("RefTypes are logical and thus do not have an align")
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, RefType) and value.element == self.element
@@ -96,7 +97,7 @@ class RefType(Type):
         return f"Ref[{self.element}]"
 
     @override
-    def member(self, field: Any) -> Optional['Type']:
+    def member(self, field: Any) -> Optional["Type"]:
         ty = self.element.member(field)
         if ty is None:
             return None
@@ -245,8 +246,7 @@ class VectorType(Type):
         self.count = count
         self._align = align
         assert (self.element.size() * self.count) % self._align == 0
-        self._size = round_to_align(
-            self.element.size() * self.count, self._align)
+        self._size = round_to_align(self.element.size() * self.count, self._align)
 
     def size(self) -> int:
         return self._size
@@ -271,8 +271,8 @@ class VectorType(Type):
         return f"<{self.count} x {self.element}>"
 
     @override
-    def member(self, field: Any) -> Optional['Type']:
-        comps = 'xyzw'[:self.count]
+    def member(self, field: Any) -> Optional["Type"]:
+        comps = "xyzw"[: self.count]
         if isinstance(field, str) and field in comps:
             return self.element
         return Type.member(self, field)
@@ -357,7 +357,9 @@ class TupleType(Type):
         return max(element.align() for element in self.elements)
 
     def __eq__(self, value: object) -> bool:
-        return self is value or (isinstance(value, TupleType) and value.elements == self.elements)
+        return self is value or (
+            isinstance(value, TupleType) and value.elements == self.elements
+        )
 
     def __repr__(self) -> str:
         return f"TupleType({self.elements})"
@@ -369,7 +371,7 @@ class TupleType(Type):
         return f"({', '.join(str(e) for e in self.elements)})"
 
     @override
-    def member(self, field: Any) -> Optional['Type']:
+    def member(self, field: Any) -> Optional["Type"]:
         if isinstance(field, int):
             if field < len(self.elements):
                 return self.elements[field]
@@ -383,7 +385,9 @@ class StructType(Type):
     _field_dict: Dict[str, Type]
     # _monomorphification_cache: Dict[Tuple['GenericParameter', Type | 'Value'], Type]
 
-    def __init__(self, name: str, display_name: str, fields: List[Tuple[str, Type]]) -> None:
+    def __init__(
+        self, name: str, display_name: str, fields: List[Tuple[str, Type]]
+    ) -> None:
         super().__init__()
         self.name = name
         self._fields = fields
@@ -411,12 +415,13 @@ class StructType(Type):
     @override
     def __eq__(self, value: object) -> bool:
         return value is self or (
-            isinstance(
-                value, StructType) and value.fields == self.fields and value.name == self.name
+            isinstance(value, StructType)
+            and value.fields == self.fields
+            and value.name == self.name
         )
 
     @override
-    def member(self, field: Any) -> Optional['Type']:
+    def member(self, field: Any) -> Optional["Type"]:
         if isinstance(field, str):
             if field in self._field_dict:
                 return self._field_dict[field]
@@ -443,7 +448,11 @@ class OpaqueType(Type):
         raise RuntimeError("OpaqueType has no align")
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, OpaqueType) and value.name == self.name and value.extra_args == self.extra_args
+        return (
+            isinstance(value, OpaqueType)
+            and value.name == self.name
+            and value.extra_args == self.extra_args
+        )
 
     def __hash__(self) -> int:
         return hash((OpaqueType, self.name, tuple(self.extra_args)))
@@ -464,12 +473,14 @@ class TemplateArgs(Protocol):
     pass
 
 
-class Template[T, Args:TemplateArgs]:
+class Template[T, Args: TemplateArgs]:
     cache: Dict[Args, T]
     instantiation_func: Callable[[Args], T]
     arg_type: type[Args]
 
-    def __init__(self, arg_type: type[Args], instantiation_func: Callable[[Args], T]) -> None:
+    def __init__(
+        self, arg_type: type[Args], instantiation_func: Callable[[Args], T]
+    ) -> None:
         self.cache = {}
         self.instantiation_func = instantiation_func
         self.arg_type = arg_type
@@ -495,20 +506,65 @@ class TypeTemplate(Template[Type, TypeTemplateArgs]):
     pass
 
 
-class FunctionTemplateArgs:
-    __args: List[Union['TypedNode', object]]
-    __kwargs: Dict[str, Union['TypedNode', object]]
+class PyTreeStructure: # TODO: refactor this into another file
+    metadata: (
+        Tuple[type, Tuple[Any], Any] | None
+    )  # for JitVars, this is (type, type_args, None), for other types, this is (type, (), Any)
+    children: List["PyTreeStructure"]
 
-    def __init__(self, args: List[Union['TypedNode', object]] | None = None, kwargs: Dict[str, Union['TypedNode', object]] | None = None) -> None:
+    def __init__(
+        self,
+        metadata: Tuple[type, Tuple[Any], Any] | None = None,
+        children: List["PyTreeStructure"] | None = None,
+    ) -> None:
+        self.metadata = metadata
+        self.children = children or []
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, PyTreeStructure):
+            return False
+        if self.metadata != value.metadata:
+            return False
+        if len(self.children) != len(value.children):
+            return False
+        for a, b in zip(self.children, value.children):
+            if a != b:
+                return False
+        return True
+
+    def __hash__(self) -> int:
+        h = hash(PyTreeStructure)
+        if self.metadata is not None:
+            h ^= hash(self.metadata[0])
+            for arg in self.metadata[1]:
+                h ^= hash(arg)
+            h ^= hash(self.metadata[2])
+        for child in self.children:
+            h ^= hash(child)
+        return h
+
+
+type FunctionTemplateArg = PyTreeStructure
+
+
+class FunctionTemplateArgs:
+    __args: List[FunctionTemplateArg]
+    __kwargs: Dict[str, FunctionTemplateArg]
+
+    def __init__(
+        self,
+        args: List[FunctionTemplateArg] | None = None,
+        kwargs: Dict[str, FunctionTemplateArg] | None = None,
+    ) -> None:
         self.__args = args or []
         self.__kwargs = kwargs or {}
 
     @property
-    def args(self) -> List[Union['TypedNode', object]]:
+    def args(self) -> List[FunctionTemplateArg]:
         return self.__args
 
     @property
-    def kwargs(self) -> Dict[str, Union['TypedNode', object]]:
+    def kwargs(self) -> Dict[str, FunctionTemplateArg]:
         return self.__kwargs
 
     def __eq__(self, other) -> bool:
@@ -517,52 +573,45 @@ class FunctionTemplateArgs:
         other_args = other.args
         other_kwargs = other.kwargs
 
-        def check(a: Any, b: Any) -> bool:
-            if isinstance(a, Var) and isinstance(b, Var):
-                return a.type == b.type
-            return a == b
-        if len(self.__args) != len(other_args) or len(self.__kwargs) != len(other_kwargs):
-            return False
-        for a, b in zip(self.__args, other_args):
-            if not check(a, b):
-                return False
-        for k, v in self.__kwargs.items():
-            if k not in other_kwargs or not check(v, other_kwargs[k]):
-                return False
-        for k, v in other_kwargs.items():
-            if k not in self.__kwargs or not check(v, self.__kwargs[k]):
-                return False
-        return True
+        return (
+            len(self.__args) == len(other_args)
+            and all(a == b for a, b in zip(self.__args, other_args))
+            and len(self.__kwargs) == len(other_kwargs)
+            and all(
+                k in self.__kwargs and self.__kwargs[k] == v
+                for k, v in other_kwargs.items()
+            )
+        )
 
     def __hash__(self) -> int:
         h = hash(FunctionTemplateArgs)
         h ^= hash(len(self.__args))
         for a in self.__args:
-            if isinstance(a, Var):
-                h ^= hash(a.type)
-            else:
-                h ^= hash(a)
+            h ^= hash(a)
         h ^= hash(len(self.__kwargs))
         for k, v in self.__kwargs.items():
             h ^= hash(k)
-            if isinstance(v, Var):
-                h ^= hash(v.type)
-            else:
-                h ^= hash(v)
+            h ^= hash(v)
         return h
 
 
-class FunctionTemplate(Template['Function', FunctionTemplateArgs]):
+class FunctionTemplate(Template["Function", FunctionTemplateArgs]):
     pass
 
 
 class Function:
-    params: List['Var']
-    locals: List['Var']
-    body: 'BasicBlock'
+    params: List["Var"]
+    locals: List["Var"]
+    body: "BasicBlock"
     return_type: Type
 
-    def __init__(self, params: List['Var'], locals: List['Var'], body: 'BasicBlock', return_type: Type) -> None:
+    def __init__(
+        self,
+        params: List["Var"],
+        locals: List["Var"],
+        body: "BasicBlock",
+        return_type: Type,
+    ) -> None:
         self.params = params
         self.locals = locals
         self.body = body
@@ -574,10 +623,11 @@ class Node:
     Base class for all nodes in the HIR. A node could be a value, a reference, or a statement.
     Nodes equality is based on their identity.
     """
+
     span: Optional[Span]
-    prev: Optional['Node']
-    next: Optional['Node']
-    block: Optional['BasicBlock']
+    prev: Optional["Node"]
+    next: Optional["Node"]
+    block: Optional["BasicBlock"]
     func: Optional[Function]
 
     def __init__(self, span: Optional[Span] = None) -> None:
@@ -593,7 +643,7 @@ class Node:
     def __hash__(self) -> int:
         return id(self)
 
-    def append(self, node: 'Node') -> 'Node':
+    def append(self, node: "Node") -> "Node":
         assert node.next is None
         assert node.prev is None
         if node.block is not None:
@@ -610,7 +660,7 @@ class Node:
                 self.block.tail = node
         return node
 
-    def prepend(self, node: 'Node') -> 'Node':
+    def prepend(self, node: "Node") -> "Node":
         assert node.next is None
         assert node.prev is None
         if node.block is not None:
@@ -671,7 +721,7 @@ class BasicBlock(Node):
         self.terminated = False
         self.span = span
 
-    def append[T:Node](self, node: T) -> T:
+    def append[T: Node](self, node: T) -> T:
         assert node.block is None
         node.block = self
         if isinstance(node, Terminator):
@@ -697,6 +747,7 @@ class TypedNode(Node):
     """
     A node with a type, which can either be values or references.
     """
+
     type: Optional[Type]
 
     def __init__(
@@ -728,7 +779,11 @@ class Var(TypedNode):
     semantic: ParameterSemantic
 
     def __init__(
-        self, name: str, type: Optional[Type], span: Optional[Span], semantic: ParameterSemantic = ParameterSemantic.BYVAL
+        self,
+        name: str,
+        type: Optional[Type],
+        span: Optional[Span],
+        semantic: ParameterSemantic = ParameterSemantic.BYVAL,
     ) -> None:
         assert not isinstance(type, RefType)
         super().__init__(type, span)
@@ -747,9 +802,7 @@ class VarValue(Value):
 class VarRef(Value):
     var: Var
 
-    def __init__(
-        self, var: Var, span: Optional[Span]
-    ) -> None:
+    def __init__(self, var: Var, span: Optional[Span] = None) -> None:
         # assert var.type is not None
         if var.type is not None:
             super().__init__(RefType(var.type), span)
@@ -762,7 +815,9 @@ class Member(Value):
     base: Value
     field: str
 
-    def __init__(self, base: Value, field: str, type: Type, span: Optional[Span]) -> None:
+    def __init__(
+        self, base: Value, field: str, type: Type, span: Optional[Span]
+    ) -> None:
         super().__init__(type, span)
         self.base = base
         self.field = field
@@ -772,7 +827,9 @@ class Index(Value):
     base: Value
     index: Value
 
-    def __init__(self, base: Value, index: Value, type: Type, span: Optional[Span]) -> None:
+    def __init__(
+        self, base: Value, index: Value, type: Type, span: Optional[Span]
+    ) -> None:
         super().__init__(type, span)
         self.base = base
         self.index = index
@@ -790,12 +847,18 @@ class Load(Value):
 class Constant(Value):
     value: Any
 
-    def __init__(self, value: Any, type: Type | None = None, span: Optional[Span] = None) -> None:
+    def __init__(
+        self, value: Any, type: Type | None = None, span: Optional[Span] = None
+    ) -> None:
         super().__init__(type, span)
         self.value = value
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, Constant) and type(value.value) == type(self.value) and value.value == self.value
+        return (
+            isinstance(value, Constant)
+            and type(value.value) == type(self.value)
+            and value.value == self.value
+        )
 
     def __hash__(self) -> int:
         return hash((Constant, self.value))
@@ -818,10 +881,13 @@ class Alloca(Value):
 #         super().__init__(ty, span)
 #         self.init_call = init_call
 
+
 class AggregateInit(Value):
     args: List[Value]
 
-    def __init__(self, args: List[Value], type: Type, span: Optional[Span] = None) -> None:
+    def __init__(
+        self, args: List[Value], type: Type, span: Optional[Span] = None
+    ) -> None:
         super().__init__(type, span)
         self.args = args
 
@@ -830,16 +896,18 @@ class Intrinsic(Value):
     name: str
     args: List[Value]
 
-    def __init__(self, name: str, args: List[Value], type: Type, span: Optional[Span] = None) -> None:
+    def __init__(
+        self, name: str, args: List[Value], type: Type, span: Optional[Span] = None
+    ) -> None:
         super().__init__(type, span)
         self.name = name
         self.args = args
 
     def __str__(self) -> str:
-        return f'Intrinsic({self.name}, {self.args})'
+        return f"Intrinsic({self.name}, {self.args})"
 
     def __repr__(self) -> str:
-        return f'Intrinsic({self.name}, {self.args})'
+        return f"Intrinsic({self.name}, {self.args})"
 
 
 class Call(Value):
@@ -864,11 +932,9 @@ class Assign(Node):
     value: Value
 
     def __init__(self, ref: Value, value: Value, span: Optional[Span] = None) -> None:
-        assert not isinstance(
-            value.type, (RefType))
+        assert not isinstance(value.type, (RefType))
         if not isinstance(ref.type, RefType):
-            raise TypeCheckError(
-                ref, f"cannot assign to a non-reference variable")
+            raise TypeCheckError(ref, f"cannot assign to a non-reference variable")
         super().__init__(span)
         self.ref = ref
         self.value = value
@@ -878,7 +944,9 @@ class Assert(Node):
     cond: Value
     msg: List[Union[Value, str]]
 
-    def __init__(self, cond: Value, msg: List[Union[Value, str]], span: Optional[Span] = None) -> None:
+    def __init__(
+        self, cond: Value, msg: List[Union[Value, str]], span: Optional[Span] = None
+    ) -> None:
         super().__init__(span)
         self.cond = cond
         self.msg = msg
@@ -887,7 +955,9 @@ class Assert(Node):
 class Print(Node):
     args: List[Union[Value, str]]
 
-    def __init__(self, args: List[Union[Value, str]], span: Optional[Span] = None) -> None:
+    def __init__(
+        self, args: List[Union[Value, str]], span: Optional[Span] = None
+    ) -> None:
         super().__init__(span)
         self.args = args
 
@@ -970,7 +1040,9 @@ class Range(Value):
     step: Value
     stop: Value
 
-    def __init__(self, start: Value, stop: Value, step: Value, span: Optional[Span] = None) -> None:
+    def __init__(
+        self, start: Value, stop: Value, step: Value, span: Optional[Span] = None
+    ) -> None:
         super().__init__(None, span)
         self.start = start
         self.stop = stop
@@ -984,10 +1056,10 @@ class Range(Value):
 class GlobalContext:
     types: Dict[type, TypeTemplate]
     functions: Dict[Callable[..., Any], FunctionTemplate]
-    _instance: ClassVar['GlobalContext']
+    _instance: ClassVar["GlobalContext"]
 
     @staticmethod
-    def get() -> 'GlobalContext':
+    def get() -> "GlobalContext":
         if not hasattr(GlobalContext, "_instance"):
             GlobalContext._instance = GlobalContext.__new__(GlobalContext)
             GlobalContext._instance.types = {}
@@ -999,7 +1071,7 @@ class GlobalContext:
             ty.clear_instantiations()
         for func in self.functions.values():
             func.clear_instantiations()
-    
+
 
 def get_dsl_type(target: type) -> TypeTemplate:
     """
@@ -1009,35 +1081,3 @@ def get_dsl_type(target: type) -> TypeTemplate:
     ty = ctx.types.get(target)
     assert ty, f"no DSL type for {target} (id: {id(target)})"
     return ty
-
-
-# def register_dsl_type_alias(target: type, alias: type):
-#     """
-#     Allow a type to be remapped to another type within DSL code.
-#     Parameters:
-#     target (type): The type to be remapped.
-#     alias (type): The type to which the target type will be remapped.
-#     Example:
-
-#     For example,
-#     ```python
-#     @lc.struct
-#     class Foo:
-#         x: int
-#         y: int
-
-#     class SomeOtherFoo:
-#         components: List[int]
-
-#     register_dsl_type_alias(SomeOtherFoo, Foo)
-
-#     @lc.func
-#     def foo(f: SomeOtherFoo): # SomeOtherFoo is interpreted as Foo
-#         ...
-
-#     ```
-#     """
-#     ctx = GlobalContext()
-#     alias_ty = ctx.types.get(alias)
-#     assert alias_ty, f"alias type {alias} is not a DSL type"
-#     ctx.types[target] = alias_ty

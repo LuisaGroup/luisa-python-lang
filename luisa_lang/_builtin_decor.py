@@ -2,8 +2,16 @@ from dataclasses import dataclass
 from typing import Any, Callable, List, Optional, Set, TypeVar, cast
 import typing
 
-from lang_runtime import JitVar, TraceContext, _invoke_function_tracer, is_jit
-from utils import Lazy, get_full_name, inherit, unique_hash
+from luisa_lang.lang_runtime import (
+    FlattenedTree,
+    JitVar,
+    TraceContext,
+    _invoke_function_tracer,
+    current_func,
+    is_jit,
+    tree_flatten,
+)
+from luisa_lang.utils import Lazy, get_full_name, inherit, unique_hash
 from luisa_lang import hir
 from luisa_lang import classinfo
 from luisa_lang import ast_rewrite
@@ -38,9 +46,13 @@ def _parse_type(ty: classinfo.VarType) -> hir.Type:
             raise NotImplementedError()
 
 
-def _dsl_struct_impl[T](cls: type[T], ir_ty_override: hir.Type | None = None) -> type[T]:
+def _dsl_struct_impl[T](
+    cls: type[T], ir_ty_override: hir.Type | None = None
+) -> type[T]:
     ctx = hir.GlobalContext.get()
-    assert cls not in ctx.types, f"Class {cls} is already registered in the global context"
+    assert (
+        cls not in ctx.types
+    ), f"Class {cls} is already registered in the global context"
 
     # Register the class and get its type info
     classinfo.register_class(cls)
@@ -55,8 +67,7 @@ def _dsl_struct_impl[T](cls: type[T], ir_ty_override: hir.Type | None = None) ->
     def instantiation_func(args: hir.TypeTemplateArgs) -> hir.Type:
         # For non-generic classes, ensure no type args are provided
         if not is_generic:
-            assert len(
-                args) == 0, f"Expected 0 type arguments but got {len(args)}"
+            assert len(args) == 0, f"Expected 0 type arguments but got {len(args)}"
 
         # Instantiate the class with the provided type arguments
         instantiated_cls = cls_info.instantiate(list(args))
@@ -70,14 +81,16 @@ def _dsl_struct_impl[T](cls: type[T], ir_ty_override: hir.Type | None = None) ->
                 field_ty = _parse_type(field)
                 if field_ty is None:
                     raise hir.TypeCheckError(
-                        None, f"Cannot infer type for field {name} of {cls.__name__}")
+                        None, f"Cannot infer type for field {name} of {cls.__name__}"
+                    )
                 fields.append((name, field_ty))
 
             # Create unique name for the struct type
             ir_ty = hir.StructType(
-                f'{cls.__name__}_{unique_hash(cls.__qualname__)}',
+                f"{cls.__name__}_{unique_hash(cls.__qualname__)}",
                 cls.__qualname__,
-                fields)
+                fields,
+            )
         else:
             ir_ty = ir_ty_override
 
@@ -97,30 +110,18 @@ def _dsl_struct_impl[T](cls: type[T], ir_ty_override: hir.Type | None = None) ->
 
 
 def _get_func_template(f: Callable[..., Any]) -> Optional[hir.FunctionTemplate]:
-    if not hasattr(f, '__luisa_func__'):
+    if not hasattr(f, "__luisa_func__"):
         return None
-    template = getattr(f, '__luisa_func__').get()
+    template = getattr(f, "__luisa_func__").get()
     assert isinstance(
-        template, hir.FunctionTemplate), f"Function {f} is not a Luisa function"
+        template, hir.FunctionTemplate
+    ), f"Function {f} is not a Luisa function"
     return template
 
 
 def _rewrite_func(decorator_name: str, f: Callable[..., Any]) -> Callable[..., Any]:
     rewritten = ast_rewrite.rewrite_function(f, decorator_name)
     return rewritten
-
-
-def _make_func_template(decorator_name: str, f: Callable[..., Any], globalns: Dict[str, Any], trace_only: bool) -> hir.FunctionTemplate:
-    sig = classinfo.parse_func_signature(f, globalns, [], False)
-    rewritten = _rewrite_func('func', f)
-
-    def instantiation_func(args: hir.FunctionTemplateArgs) -> hir.Function:
-        func = _invoke_function_tracer(
-            'func', rewritten, args.args, args.kwargs)
-        assert isinstance(func, hir.Function)
-        return func
-
-    return hir.FunctionTemplate(hir.FunctionTemplateArgs, instantiation_func)
 
 
 def __inherit_jitvar(cls: type) -> type:
@@ -165,33 +166,29 @@ def builtin_type(ir_type: hir.Type):
         pass
     ```
     """
+
     def decorator(cls: type):
         cls = __inherit_jitvar(cls)
         return _dsl_struct_impl(cls, ir_type)
+
     return decorator
 
 
-def _trace_func_impl[F:Callable[..., Any]](f: F, mode: str) -> F:
-    # Get the global namespace for the function
-    globalns = classinfo._get_func_globalns(f)
-
-    # Create the function template
-
-    def template(): return _make_func_template(
-        'func', f, globalns, trace_only=False)
-
-    # Store the template on the function object
-    setattr(f, '__luisa_func__', Lazy[hir.FunctionTemplate](template))
+def trace[F: Callable[..., Any]](f: F) -> F:
+    rewritten = _rewrite_func("trace", f)
 
     def wrapper(*args, **kwargs):
+        """
+        Under jit context:,  the first argument is __lc_ctx__
+        """
         if not is_jit():
             # In non-JIT context, just call the original function
             return f(*args, **kwargs)
-
-        template = cast(hir.FunctionTemplate,
-                        getattr(f, '__luisa_func__').get())
-        instantiated_func = template.instantiate(
-            hir.FunctionTemplateArgs(args=list(args), kwargs=kwargs))
+        else:
+            __lc_ctx__ = args[0]
+            assert isinstance(__lc_ctx__, TraceContext)
+            # Call the rewritten function with the trace context
+            return rewritten(*args, **kwargs)
 
     # Copy over important attributes from the original function
     wrapper.__name__ = f.__name__
@@ -201,11 +198,21 @@ def _trace_func_impl[F:Callable[..., Any]](f: F, mode: str) -> F:
     return cast(F, wrapper)
 
 
-def trace[F:Callable[..., Any]](f: F) -> F:
-    return _trace_func_impl(f, 'trace')
+def _make_func_template(
+    f: Callable[..., Any], globalns: Dict[str, Any]
+) -> hir.FunctionTemplate:
+    sig = classinfo.parse_func_signature(f, globalns, [], False)
+    rewritten = _rewrite_func("func", f)
+
+    def instantiation_func(args: hir.FunctionTemplateArgs) -> hir.Function:
+        func = _invoke_function_tracer(rewritten, args)
+        assert isinstance(func, hir.Function)
+        return func
+
+    return hir.FunctionTemplate(hir.FunctionTemplateArgs, instantiation_func)
 
 
-def func[F:Callable[..., Any]](f: F) -> F:
+def func[F: Callable[..., Any]](f: F) -> F:
     """
     Decorator for Luisa functions that are compiled once and reused.
     Different from @trace, this avoids code duplication by compiling the function body only once.
@@ -222,31 +229,33 @@ def func[F:Callable[..., Any]](f: F) -> F:
 
     # Create the function template
 
-    def template(): return _make_func_template(
-        'func', f, globalns, trace_only=False)
+    def template():
+        return _make_func_template(f, globalns)
 
     # Store the template on the function object
-    setattr(f, '__luisa_func__', Lazy[hir.FunctionTemplate](template))
+    setattr(f, "__luisa_func__", Lazy[hir.FunctionTemplate](template))
 
     def wrapper(*args, **kwargs):
         if not is_jit():
             # In non-JIT context, just call the original function
             return f(*args, **kwargs)
+        __lc_ctx__ = args[0]
+        assert isinstance(__lc_ctx__, TraceContext)
 
-        template = cast(hir.FunctionTemplate,
-                        getattr(f, '__luisa_func__').get())
+        template = cast(hir.FunctionTemplate, getattr(f, "__luisa_func__").get())
 
-        def extract_template_args(x: Any) -> Union[hir.TypedNode, object]:
-            if isinstance(x, JitVar):
-                return x._symbolic_type()
-            else:
-                return x
-        template_args = list([extract_template_args(x) for x in args])
-        template_kwargs = {
-            k: extract_template_args(v) for k, v in kwargs.items()
+        pytree_args = list([tree_flatten(x) for x in args])
+        pytree_kwargs: Dict[str, FlattenedTree] = {
+            k: tree_flatten(v) for k, v in kwargs.items()
         }
+        pytree_structure_args = [x.structure() for x in pytree_args]
+        pytree_structure_kwargs = {k: v.structure() for k, v in pytree_kwargs.items()}
         instantiated_func = template.instantiate(
-            hir.FunctionTemplateArgs(args=template_args, kwargs=template_kwargs))
+            hir.FunctionTemplateArgs(
+                args=pytree_structure_args, kwargs=pytree_structure_kwargs
+            )
+        )
+        func_tracer = current_func()
 
     # Copy over important attributes from the original function
     wrapper.__name__ = f.__name__

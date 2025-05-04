@@ -112,9 +112,15 @@ class AnnotatedType:
     def __hash__(self):
         return hash((self.origin, tuple(self.annotations)))
 
+class TypeEllipsis:
+    def __repr__(self):
+        return "..."
+
+    def __eq__(self, other):
+        return isinstance(other, TypeEllipsis)
 
 type VarType = Union[TypeVar, Type, GenericInstance,
-                     UnionType, SelfType, AnyType, LiteralType, AnnotatedType]
+                     UnionType, SelfType, AnyType, LiteralType, AnnotatedType, TypeEllipsis]
 
 
 def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
@@ -311,6 +317,8 @@ def parse_type_hint(hint: Any) -> VarType:
         return hint
     if hint == typing.Self:
         return SelfType()
+    if hint == ...:
+        return TypeEllipsis()
     raise UnsupportedTypeHintError(f"{hint}")
 
 
@@ -425,8 +433,12 @@ def register_class(cls: type) -> None:
     for name, member in inspect.getmembers(cls):
         if name in local_methods:
             # print(f'Found local method: {name} in {cls}')
-            cls_ty.methods[name] = parse_func_signature(
-                member, globalns, cls_ty.type_vars, is_static=is_static(cls, name))
+            try:
+                cls_ty.methods[name] = parse_func_signature(
+                    member, globalns, cls_ty.type_vars, is_static=is_static(cls, name))
+            except UnsupportedTypeHintError as e:
+                raise RuntimeError(
+                    f"Unsupported type hint for method {name} in {cls}: {e}") from e
     for name in local_fields:
         cls_ty.fields[name] = parse_type_hint(type_hints[name])
     _CLS_TYPE_INFO[cls] = cls_ty

@@ -2,7 +2,19 @@ import ast
 from functools import cache
 import textwrap
 import types
-from typing import Any, Callable, Dict, List, NoReturn, Optional, Sequence, Tuple, TypeVar, cast, overload
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    NoReturn,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    cast,
+    overload,
+)
 import sourceinspect
 from hashlib import sha256
 
@@ -32,8 +44,7 @@ def increment_lineno_and_col_offset(
         ):
             setattr(child, "end_lineno", end_lineno + lineno)
         if "col_offset" in child._attributes:
-            setattr(child, "col_offset", getattr(
-                child, "col_offset", 0) + col_offset)
+            setattr(child, "col_offset", getattr(child, "col_offset", 0) + col_offset)
         if (
             "end_col_offset" in child._attributes
             and (end_col_offset := getattr(child, "end_col_offset", 0)) is not None
@@ -57,8 +68,7 @@ def retrieve_ast_and_filename(f: object) -> Tuple[ast.AST, str]:
         source_file = "<unknown>"
     source_lines, lineno = sourceinspect.getsourcelines(f)
     src, indent = dedent_and_retrieve_indentation(source_lines)
-    tree = increment_lineno_and_col_offset(
-        ast.parse(src), lineno - 1, indent + 1)
+    tree = increment_lineno_and_col_offset(ast.parse(src), lineno - 1, indent + 1)
     for child in ast.walk(tree):
         setattr(child, "source_file", source_file)
     return tree, source_file
@@ -86,10 +96,8 @@ class Span:
     def __str__(self) -> str:
         if self.file is None:
             return f"{self.start[0]}:{self.start[1]}-{self.end[0]}:{self.end[1]}"
-        return (
-            f"{self.file}:{self.start[0]}:{
+        return f"{self.file}:{self.start[0]}:{
                 self.start[1]}-{self.end[0]}:{self.end[1]}"
-        )
 
     @staticmethod
     def from_ast(ast: ast.AST) -> Optional["Span"]:
@@ -107,8 +115,7 @@ class Span:
         return Span(
             file=file,
             start=(getattr(ast, "lineno", 0), getattr(ast, "col_offset", 0)),
-            end=(getattr(ast, "end_lineno", 0),
-                 getattr(ast, "end_col_offset", 0)),
+            end=(getattr(ast, "end_lineno", 0), getattr(ast, "end_col_offset", 0)),
         )
 
 
@@ -211,7 +218,7 @@ def inherit[T](cls: type[T], parent: Any, init_fn: Callable[..., None]) -> type[
     Dynamically inherit from `parent` class and ensure the parent's
     __init__ is called when instantiating the new class.
     """
-    original_init = cls.__dict__.get('__init__', None)
+    original_init = cls.__dict__.get("__init__", None)
 
     def new_init(self, *args, **kwargs):
         init_fn(self, *args, **kwargs)
@@ -222,17 +229,18 @@ def inherit[T](cls: type[T], parent: Any, init_fn: Callable[..., None]) -> type[
 
     # Copy attributes and override __init__
     attrs = dict(cls.__dict__)
-    attrs['__init__'] = new_init
+    attrs["__init__"] = new_init
 
     # Construct new type with parent + original bases
     return type(cls.__name__, (parent,) + cls.__bases__, attrs)
 
 
-def is_generic_class(typ:type) -> bool:
+def is_generic_class(typ: type) -> bool:
     """
     Check if a class is generic.
     """
     return hasattr(typ, "__parameters__") and len(typ.__parameters__) > 0
+
 
 @cache
 def instantiate_generic_expand(typ: type, args: Sequence[Any]) -> type:
@@ -240,6 +248,25 @@ def instantiate_generic_expand(typ: type, args: Sequence[Any]) -> type:
         return typ
     # the reason we use eval instead of typ[*args] is that the latter actually creates new type instances
     # s = typ[args[0], ...]
-    s: str = 'typ[' + ', '.join([f'args[{i}]' for i in range(len(args))]) + ']'
+    s: str = "typ[" + ", ".join([f"args[{i}]" for i in range(len(args))]) + "]"
     t = eval(s, globals(), locals())
     return t
+
+
+class IdentityDict[K, V]:
+    """
+    A dictionary that uses the identity of the keys as the hash.
+    """
+    _mapping: Dict[int, V]
+
+    def __init__(self) -> None:
+        self._mapping: Dict[int, V] = {}
+
+    def __setitem__(self, key: K, value: V) -> None:
+        self._mapping[id(key)] = value
+
+    def __getitem__(self, key: K) -> V:
+        return self._mapping[id(key)]
+    
+    def __contains__(self, key: K) -> bool:
+        return id(key) in self._mapping

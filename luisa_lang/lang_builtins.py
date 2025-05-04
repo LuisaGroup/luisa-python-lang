@@ -4,7 +4,7 @@ import types
 from luisa_lang.math_types import *
 from luisa_lang.core_types import Ref
 import luisa_lang.hir as hir
-from luisa_lang.lang_runtime import assign, current_span, intrinsic, JitVar, push_to_current_bb
+from luisa_lang.lang_runtime import assign, current_span, __intrinsic__, JitVar, push_to_current_bb
 import typing
 from typing import (
     Callable,

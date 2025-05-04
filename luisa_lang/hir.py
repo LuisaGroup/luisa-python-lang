@@ -509,7 +509,7 @@ class TypeTemplate(Template[Type, TypeTemplateArgs]):
 class PyTreeStructure: # TODO: refactor this into another file
     metadata: (
         Tuple[type, Tuple[Any], Any] | None
-    )  # for JitVars, this is (type, type_args, None), for other types, this is (type, (), Any)
+    )  # for JitVars, this is (type, type_args, hir.Type), for other types, this is (type, (), Any)
     children: List["PyTreeStructure"]
 
     def __init__(

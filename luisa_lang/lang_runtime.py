@@ -5,10 +5,10 @@ Runtime support for DSL
 from abc import abstractmethod
 import typing
 
-from utils import is_generic_class
+from utils import IdentityDict, is_generic_class
 import luisa_lang.hir as hir
 from hir import PyTreeStructure
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, cast
 
 
 class Scope:
@@ -19,6 +19,7 @@ class Scope:
     def __init__(self, parent: Optional["Scope"], span: Optional[hir.Span] = None):
         self.parent = parent
         self.bb = hir.BasicBlock(span)
+        self.local_refs = {}
 
     def is_local_ref_defined(self, name: str) -> bool:
         if name in self.local_refs:
@@ -43,13 +44,15 @@ class FuncTracer:
     params: List[hir.Var]
     scopes: List[Scope]
     ret_type: hir.Type | None
+    func_globals: Dict[str, Any]
 
-    def __init__(self):
+    def __init__(self, func_globals: Dict[str, Any]):
         self.locals = []
         self.py_locals = {}
         self.params = []
-        self.scopes = []
+        self.scopes = [Scope(None)]
         self.ret_type = None
+        self.func_globals = func_globals
 
     def push_scope(self) -> Scope:
         self.scopes.append(Scope(self.scopes[-1]))
@@ -69,11 +72,57 @@ class FuncTracer:
             self.params.append(var)
         return var
 
+
     def add_py_var(self, name: str, obj: object):
         assert not isinstance(obj, JitVar)
         if name in self.py_locals:
             raise ValueError(f"Variable {name} already defined in current function")
         self.py_locals[name] = obj
+
+    def get_var(self, key: str) -> Any:
+        if key in self.py_locals:
+            return self.py_locals[key]
+        else:
+            if key in self.func_globals:
+                # TODO: validate return values
+                return self.func_globals[key]
+            else:
+                raise ValueError(f"Variable {key} not found in current function")
+
+    def set_var(self, key: str, value: Any) -> None:
+        if key not in self.py_locals:
+            if key in self.func_globals:
+                assert not isinstance(
+                    value, JitVar
+                ), "attempting to assign DSL variable to global variable"
+                self.func_globals[key] = value
+                return
+            if not isinstance(value, JitVar):
+                self.py_locals[key] = value
+                return
+            else:
+                ty = type(value)
+                ir_ty = value._symbolic_type()
+                ir_var = self.create_var(key, ir_ty, False)
+                var = ty.from_hir_node(hir.VarRef(ir_var))
+                self.py_locals[key] = var
+        local = self.py_locals[key]
+        if isinstance(local, JitVar):
+            assert isinstance(
+                value, JitVar
+            ), "Attempting to assign normal python value to DSL variable"
+            assign(local, value)
+        else:
+            self.py_locals[key] = value
+
+    def check_return_type(self, ty:hir.Type):
+        if self.ret_type is None:
+            self.ret_type = ty
+        else:
+            if not self.ret_type != ty:
+                raise ValueError(
+                    f"Return type mismatch: expected {self.ret_type}, got {ty}"
+                )
 
     def cur_bb(self) -> hir.BasicBlock:
         return self.scopes[-1].bb
@@ -144,10 +193,30 @@ class FlattenedTree:
         typ = self.metadata[0]
         if issubclass(typ, JitVar):
             assert len(self.children) == 0
-            return hir.PyTreeStructure((typ, self.metadata[1], None))
+            node = self.metadata[2]
+            assert isinstance(node, JitVar)
+            return hir.PyTreeStructure((typ, self.metadata[1], node._symbolic_type()))
         else:
             children = [c.structure() for c in self.children]
-            return hir.PyTreeStructure((typ, self.metadata[1], None), children)
+            return hir.PyTreeStructure(
+                (typ, self.metadata[1], self.metadata[2]), children
+            )
+
+    @staticmethod
+    def unstructure(
+        s: PyTreeStructure, mapping: IdentityDict[hir.PyTreeStructure, "JitVar"]
+    ) -> "FlattenedTree":
+        assert s.metadata is not None
+        if s in mapping:
+            v = mapping[s]
+
+            typ, type_args, _ = s.metadata
+            return FlattenedTree((typ, type_args, v), [])
+        else:
+            typ, type_args, other = s.metadata
+            assert not issubclass(typ, JitVar)
+            children = [FlattenedTree.unstructure(c, mapping) for c in s.children]
+            return FlattenedTree((typ, type_args, other), children)
 
 
 class PyTree:
@@ -180,7 +249,7 @@ class JitVar:
     __symbolic__: Optional[Symbolic]
     dtype: type[Any]
 
-    def __init__(self, dtype=type[Any]):
+    def __init__(self, dtype:type[Any]):
         """
         Zero-initialize a variable with given data type
         """
@@ -208,6 +277,7 @@ class JitVar:
         self.__symbolic__ = None
 
     def _symbolic_type(self) -> hir.Type:
+        # TODO: check _type_args
         return hir.get_dsl_type(self.dtype).default()
 
     @classmethod
@@ -239,9 +309,9 @@ type PyTreeFlattenFunc = Callable[[Any], FlattenedTree]
 type PyTreeUnflattenFunc = Callable[[FlattenedTree], Any]
 
 
-def tree_flatten(obj: Any, allow_non_pytree_objects: bool = False) -> FlattenedTree:
+def tree_flatten(obj: Any, allow_non_pytree_objects: bool) -> FlattenedTree:
     if isinstance(obj, JitVar):
-        return FlattenedTree((JitVar, obj._type_args(), obj.symbolic().node), [])
+        return FlattenedTree((type(obj), obj._type_args(), obj), [])
     if isinstance(obj, PyTree):
         return obj._flatten()
     if allow_non_pytree_objects and not PyTreeRegistry.is_registered(type(obj)):
@@ -250,20 +320,19 @@ def tree_flatten(obj: Any, allow_non_pytree_objects: bool = False) -> FlattenedT
     return flatten_func(obj)
 
 
-def tree_unflatten(obj: FlattenedTree, allow_non_pytree_objects: bool = False) -> Any:
+def tree_unflatten(obj: FlattenedTree, allow_non_pytree_objects: bool) -> Any:
     typ = obj.metadata[0]
     if issubclass(typ, JitVar):
-        type_args, node = obj.metadata[1:]
-        assert isinstance(node, hir.Value)
-        if is_generic_class(typ):
-            return typ[*type_args].from_hir_node(node)  # type: ignore
-        return typ.from_hir_node(node)
+        _type_args, v = obj.metadata[1:]
+        assert isinstance(v, JitVar)
+        return v
     if issubclass(typ, PyTree):
         return typ._unflatten(obj)
     if allow_non_pytree_objects and not PyTreeRegistry.is_registered(typ):
         return typ(obj.metadata[1])
     _, unflatten_func = PyTreeRegistry.get(typ)
     return unflatten_func(obj)
+
 
 class PyTreeRegistry:
     """
@@ -353,7 +422,7 @@ class PyTreeRegistry:
             return FlattenedTree(
                 (dict, tuple(), (len(obj.keys()))),
                 [tree_flatten(k, True) for k in obj.keys()]
-                + [tree_flatten(v) for v in obj.values()],
+                + [tree_flatten(v, True) for v in obj.values()],
             )
 
         def unflatten_dict(tree: FlattenedTree) -> Dict[Any, Any]:
@@ -404,7 +473,7 @@ def create_intrinsic_node[T: JitVar](
     return push_to_current_bb(hir.Intrinsic(name, nodes, ret_dsl_type))
 
 
-def intrinsic[T](name: str, ret_type: type[T], *args) -> T:
+def __intrinsic__[T](name: str, ret_type: type[T], *args) -> T:
     """
     Call an intrinsic function
     """
@@ -558,19 +627,27 @@ class TraceContext:
         """
         Return a value from the current function
         """
+        ty = expr._symbolic_type()
+        current_func().check_return_type(ty)
         push_to_current_bb(hir.Return(expr.symbolic().node))
 
     def redirect_binary(self, op, x, y):
         print(op, x, y)
         op, rop = BINOP_TO_METHOD_NAMES[op]
         if hasattr(x, op):
-            return getattr(x, op)(y)
+            return getattr(x, op)(y, __lc_ctx__=self)
         elif hasattr(y, rop):
-            return getattr(y, rop)(x)
+            return getattr(y, rop)(x, __lc_ctx__=self)
         else:
             raise ValueError(
                 f"Binary operation {op} not supported for {type(x)} and {type(y)}"
             )
+
+    def redirect_call(self, f, *args, **kwargs):
+        return f(*args, **kwargs, __lc_ctx__=self)
+
+    def intrinsic(self, f, *args, **kwargs):
+        return __intrinsic__(f, *args, **kwargs)
 
     def decl_arg(self, name: str, arg: Any):
         func = current_func()
@@ -590,85 +667,64 @@ class TraceContext:
         Assign a value to a local variable
         """
         func = current_func()
-        if key not in func.py_locals:
-            if not isinstance(value, JitVar):
-                func.py_locals[key] = value
-                return
-            else:
-                ty = type(value)
-                ir_ty = value._symbolic_type()
-                ir_var = func.create_var(key, ir_ty, False)
-                var = ty.from_hir_node(hir.VarRef(ir_var))
-                func.py_locals[key] = var
-        local = func.py_locals[key]
-        if isinstance(local, JitVar):
-            assert isinstance(
-                value, JitVar
-            ), "Attempting to assign normal python value to DSL variable"
-            assign(local, value)
-        else:
-            func.py_locals[key] = value
+        func.set_var(key, value)
 
     def __getitem__(self, key: str) -> Union["JitVar", object]:
         """
         Retrieve a value from a local variable
         """
-        return current_func().py_locals[key]
+        return current_func().get_var(key)
 
 
-# def redirect_name_lookup(name: str) -> Any:
-#     """
-#     In DSL code, `name` is rewritten to `redirect_name_lookup(name)`
-#     """
-#     raise NotImplementedError('TODO')
+def _encode_func_args(
+    args: hir.FunctionTemplateArgs,
+) -> Tuple[List[Any], Dict[str, Any], List[JitVar]]:
+    jit_vars: List[JitVar] = []
+    args_list: List[Any] = []
+    kwargs_dict: Dict[str, Any] = {}
+    mapping: IdentityDict[hir.PyTreeStructure, JitVar] = IdentityDict()
 
+    def create_var(name: str, v: hir.PyTreeStructure):
+        assert v.metadata
+        typ = v.metadata[0]
+        if issubclass(typ, JitVar):
+            assert len(v.children) == 0
+            ir_type = v.metadata[2]
+            assert isinstance(ir_type, hir.Type)
+            ir_var = current_func().create_var(name, ir_type, True)
+            jit_v = typ.from_hir_node(hir.VarRef(ir_var))
+            jit_vars.append(jit_v)
+            mapping[v] = jit_v
+        else:
+            for i, c in enumerate(v.children):
+                create_var(f"name_{i}", c)
 
-# def redirect_assign(dst: Any, src: Any, expected_type: type | None = None) -> Any:
-#     """
-#     In DSL code, `dst = src` is rewritten to `dst = redirect_assign(dst, src)`
-#     """
-#     if isinstance(dst, Var):
-#         assert isinstance(
-#             src, Var), "Attempting to assign normal python value to DSL variable"
-#         push_to_current_bb(hir.Assign(
-#             dst.get_internal().node, src.get_internal().node))
-#         return dst
-#     else:
-#         return src
+    for i, a in enumerate(args.args):
+        create_var(f"__arg_{i}", a)
 
+    for k, v in args.kwargs.items():
+        create_var(k, v)
 
-# def redirect_aug_assign(dst: Any, method: str, src: Any) -> Any:
-#     pass
+    for a in args.args:
+        args_list.append(tree_unflatten(FlattenedTree.unstructure(a, mapping), False))
+
+    for k, v in args.kwargs.items():
+        kwargs_dict[k] = tree_unflatten(FlattenedTree.unstructure(v, mapping), False)
+
+    return args_list, kwargs_dict, jit_vars
 
 
 def _invoke_function_tracer(
-    f: Callable[..., Any], args: hir.FunctionTemplateArgs
+    f: Callable[..., Any], args: hir.FunctionTemplateArgs, globalns: Dict[str, Any]
 ) -> hir.Function:
     trace_ctx = TraceContext()
 
     # args is Type | object
-    func_tracer = FuncTracer()
+    func_tracer = FuncTracer(globalns)
     FUNC_STACK.append(func_tracer)
     try:
-
-        def create_var(
-            name: str, v: hir.PyTreeStructure
-        ) -> JitVar | object:
-            if isinstance(v, hir.PyTreeStructure):
-                ir_var = func_tracer.create_var(name, v.ir_type, True)
-                assert issubclass(
-                    v.py_type, JitVar
-                ), f"Argument {name} is not a valid DSL type"
-                return v.py_type.from_hir_node(hir.VarRef(ir_var))
-
-        args_vars: List[JitVar | object] = []
-        for i, a in enumerate(args.args):
-            args_vars.append(create_var(f"__arg{i}", a))
-        kwargs_vars: Dict[str, JitVar | object] = {}
-        for k, v in args.kwargs.items():
-            kwargs_vars[k] = create_var(k, v)
-
-        ret = f(trace_ctx, args_vars, kwargs_vars)
+        args_vars, kwargs_vars, jit_vars = _encode_func_args(args)
+        ret = f(*args_vars, **kwargs_vars, __lc_ctx__=trace_ctx)
         assert ret is None
         return func_tracer.finalize()
     finally:
@@ -678,8 +734,8 @@ def _invoke_function_tracer(
 class KernelTracer:
     top_level_tracer: FuncTracer
 
-    def __init__(self):
-        self.top_level_tracer = FuncTracer()
+    def __init__(self, func_globals: Dict[str, Any]):
+        self.top_level_tracer = FuncTracer(func_globals)
 
     def __enter__(self) -> FuncTracer:
         FUNC_STACK.append(self.top_level_tracer)
@@ -696,5 +752,5 @@ __all__: List[str] = [
     "TraceContext",
     "intrinsic",
     "KernelTracer",
-    'PyTreeStructure'
+    "PyTreeStructure",
 ]

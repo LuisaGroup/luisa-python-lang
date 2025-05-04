@@ -6,7 +6,7 @@ from luisa_lang.utils import checked_cast, retrieve_ast_and_filename, NestedHash
 
 """
 Rewrite rules:
-a function `f(args...)` is rewritten to `f(__lc_ctx__, args...)`
+a function `f(*args,**kwargs)` is rewritten to `f(*args, **kwargs, __lc_ctx__)`
 each name lookup `name` is rewritten to `__lc_ctx__[`name`]`
 
 `a: expr = b` is rewritten to `__lc_ctx__.anno_ty(a, expr); __lc_ctx__[a] = b`
@@ -15,7 +15,7 @@ each name lookup `name` is rewritten to `__lc_ctx__[`name`]`
 `x op= y` is rewritten to `x = __lc_ctx__.redirect_unary(op, x, y)`
 `x[y]` is rewritten to `__lc_ctx__.redirect_subscript(x)[y]`
 `x.y` is rewritten to `__lc_ctx__.redirect_attr(x).y`
-`x(args...)` is rewritten to `__lc_ctx__.redirect_call(x, args...)`
+`x(args...)` is rewritten to `__lc_ctx__.redirect_call(x, args...,__lc_ctx__=__lc_ctx__)`
 
 Control flow:
 if cond:
@@ -64,9 +64,12 @@ else:
 
 
 class FuncRewriter(NodeTransformer):
-    def __init__(self, decorator_name: str):
+    def __init__(self, decorator_name: str,filename:str):
         self.decorator_name = decorator_name
         self.id_cnt = 0
+        self.is_tracing = decorator_name == "trace"
+        self.return_cnt = 0
+        self.filename = filename
 
     def new_id(self) -> str:
         self.id_cnt += 1
@@ -97,8 +100,6 @@ class FuncRewriter(NodeTransformer):
             and not (isinstance(d, ast.Attribute) and d.attr == self.decorator_name)
         ]
 
-        # Add __lc_ctx__ to the function arguments
-        node.args.args.insert(0, ast.arg(arg="__lc_ctx__", annotation=None))
         body: List[ast.stmt] = []
         for arg in node.args.args:
             # __lc_ctx__.decl_arg(name, arg)
@@ -118,6 +119,14 @@ class FuncRewriter(NodeTransformer):
                     )
                 )
             )
+
+        # Add __lc_ctx__ as the last keyword argument
+        if node.args.kwarg is None:
+            node.args.args.append(ast.arg(arg="__lc_ctx__", annotation=None))
+        else:
+            # If there is already a kwarg, we need to insert __lc_ctx__as keyword-only args
+            node.args.kwonlyargs.append(ast.arg(arg="__lc_ctx__", annotation=None))
+
         body.extend(self.visit_list_stmt(node.body))
         node.body = body
 
@@ -157,6 +166,18 @@ class FuncRewriter(NodeTransformer):
         return [anno, assign]
 
     def visit_Call(self, node: ast.Call) -> Any:
+        # first check if it is of form `__intrinsic__(...)`
+        if isinstance(node.func, ast.Name) and node.func.id == "__intrinsic__":
+            # rewrite to __lc_ctx__.intrinsic(...)
+            return ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                    attr="intrinsic",
+                    ctx=ast.Load(),
+                ),
+                args=[self.visit(arg) for arg in node.args],
+                keywords=[self.visit(kw) for kw in node.keywords],
+            )
         # rewrite to __lc_ctx__.redirect_call(func, args...)
         func = self.visit(node.func)
         args = [self.visit(arg) for arg in node.args]
@@ -274,6 +295,16 @@ class FuncRewriter(NodeTransformer):
         return with_stmt
 
     def visit_Return(self, node: ast.Return) -> Any:
+        self.return_cnt += 1
+        if self.is_tracing:
+            if self.return_cnt > 1:
+                print(
+                    f"Warning {self.filename}:{node.lineno}:{node.col_offset}: multiple return statements in a function decorated with @trace. Only the first one traced will be used."
+                )
+            if node.value is not None:
+                return ast.Return(value=self.visit(node.value))
+            else:
+                return ast.Return(value=None)
         ret_value: ast.expr | None = None
         if node.value is not None:
             tmp = self.visit(node.value)
@@ -370,8 +401,8 @@ class FuncRewriter(NodeTransformer):
 
 
 def rewrite_function[F: Callable[..., Any]](f: F, decorator_name: str) -> F:
-    tree, _filename = retrieve_ast_and_filename(f)
-    tree = FuncRewriter(decorator_name).visit(tree)
+    tree, filename = retrieve_ast_and_filename(f)
+    tree = FuncRewriter(decorator_name, filename).visit(tree)
     ast.fix_missing_locations(tree)
     # print(ast.unparse(tree))
     code = compile(tree, filename="<ast>", mode="exec")

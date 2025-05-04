@@ -176,19 +176,31 @@ def builtin_type(ir_type: hir.Type):
 
 def trace[F: Callable[..., Any]](f: F) -> F:
     rewritten = _rewrite_func("trace", f)
+    globalns = classinfo._get_func_globalns(f)
 
-    def wrapper(*args, **kwargs):
+    def wrapper(
+        *args,
+        __lc_ctx__: Optional[TraceContext] = None,
+        **kwargs,
+    ):
         """
         Under jit context:,  the first argument is __lc_ctx__
         """
+        # print(is_jit())
         if not is_jit():
+            assert __lc_ctx__ is None
             # In non-JIT context, just call the original function
             return f(*args, **kwargs)
         else:
-            __lc_ctx__ = args[0]
+            func_tracer = current_func()
+            old_globals = func_tracer.func_globals
+            func_tracer.func_globals = globalns
             assert isinstance(__lc_ctx__, TraceContext)
             # Call the rewritten function with the trace context
-            return rewritten(*args, **kwargs)
+            ret = rewritten(*args, **kwargs, __lc_ctx__=__lc_ctx__)
+            # Restore the original globals
+            func_tracer.func_globals = old_globals
+            return ret
 
     # Copy over important attributes from the original function
     wrapper.__name__ = f.__name__
@@ -205,7 +217,7 @@ def _make_func_template(
     rewritten = _rewrite_func("func", f)
 
     def instantiation_func(args: hir.FunctionTemplateArgs) -> hir.Function:
-        func = _invoke_function_tracer(rewritten, args)
+        func = _invoke_function_tracer(rewritten, args, globalns)
         assert isinstance(func, hir.Function)
         return func
 
@@ -235,18 +247,18 @@ def func[F: Callable[..., Any]](f: F) -> F:
     # Store the template on the function object
     setattr(f, "__luisa_func__", Lazy[hir.FunctionTemplate](template))
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, __lc_ctx__: Optional[TraceContext] = None, **kwargs):
         if not is_jit():
             # In non-JIT context, just call the original function
+            assert __lc_ctx__ is None
             return f(*args, **kwargs)
-        __lc_ctx__ = args[0]
         assert isinstance(__lc_ctx__, TraceContext)
 
         template = cast(hir.FunctionTemplate, getattr(f, "__luisa_func__").get())
 
-        pytree_args = list([tree_flatten(x) for x in args])
+        pytree_args = list([tree_flatten(x, False) for x in args])
         pytree_kwargs: Dict[str, FlattenedTree] = {
-            k: tree_flatten(v) for k, v in kwargs.items()
+            k: tree_flatten(v, False) for k, v in kwargs.items()
         }
         pytree_structure_args = [x.structure() for x in pytree_args]
         pytree_structure_kwargs = {k: v.structure() for k, v in pytree_kwargs.items()}

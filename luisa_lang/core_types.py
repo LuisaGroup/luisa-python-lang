@@ -1,5 +1,5 @@
 import luisa_lang.hir as hir
-from luisa_lang.lang_runtime import assign, current_span, intrinsic, JitVar, push_to_current_bb
+from luisa_lang.lang_runtime import assign, current_span, __intrinsic__, JitVar, push_to_current_bb
 import typing
 from typing import (
     Callable,
@@ -34,7 +34,7 @@ class Ref[T](JitVar):
 
     @property
     def value(self) -> T:
-        return intrinsic("ref.read",  self.value_type, self.symbolic().node)
+        return __intrinsic__("ref.read",  self.value_type, self.symbolic().node)
 
     @value.setter
     def value(self, value: T) -> None:

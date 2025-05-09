@@ -130,6 +130,7 @@ def __inherit_jitvar(cls: type) -> type:
     def init_fn(self, *args, **kwargs):
         assert new_cls is not None
         JitVar.__init__(self, dtype=new_cls)
+        assert self.dtype is not None
 
     new_cls = inherit(cls, JitVar, init_fn)
     return cast(type, new_cls)

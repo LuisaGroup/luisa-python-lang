@@ -5,7 +5,7 @@ Runtime support for DSL
 from abc import abstractmethod
 import typing
 
-from utils import IdentityDict, is_generic_class
+from luisa_lang.utils import IdentityDict, is_generic_class
 import luisa_lang.hir as hir
 from hir import PyTreeStructure
 from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, cast
@@ -287,6 +287,7 @@ class JitVar:
         """
         instance = cls.__new__(cls)
         instance.__symbolic__ = Symbolic(node)
+        instance.dtype = cls
         return instance
 
     def symbolic(self) -> Symbolic:

@@ -201,6 +201,19 @@ class FlattenedTree:
             return hir.PyTreeStructure(
                 (typ, self.metadata[1], self.metadata[2]), children
             )
+        
+    def collect_jitvars(self) -> List['JitVar']:
+        """
+        Collect all JitVar instances from the flattened tree
+        """
+        jit_vars = []
+        if issubclass(self.metadata[0], JitVar):
+            assert len(self.children) == 0
+            jit_vars.append(self.metadata[2])
+        else:
+            for child in self.children:
+                jit_vars.extend(child.collect_jitvars())
+        return jit_vars
 
     @staticmethod
     def unstructure(
@@ -751,7 +764,6 @@ __all__: List[str] = [
     "JitVar",
     "is_jit",
     "TraceContext",
-    "intrinsic",
     "KernelTracer",
     "PyTreeStructure",
 ]

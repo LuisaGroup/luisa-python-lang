@@ -9,6 +9,7 @@ from luisa_lang.lang_runtime import (
     _invoke_function_tracer,
     current_func,
     is_jit,
+    push_to_current_bb,
     tree_flatten,
 )
 from luisa_lang.utils import Lazy, get_full_name, inherit, unique_hash
@@ -268,7 +269,22 @@ def func[F: Callable[..., Any]](f: F) -> F:
                 args=pytree_structure_args, kwargs=pytree_structure_kwargs
             )
         )
-        func_tracer = current_func()
+        # print(instantiated_func.return_type)
+        # func_tracer = current_func()
+        rt = instantiated_func.return_type
+        jitvar_args: List[JitVar] = []
+        for arg in pytree_args:
+            jitvar_args.extend(arg.collect_jitvars())
+        for k, v in pytree_kwargs.items():
+            jitvar_args.extend(v.collect_jitvars())
+        # TODO: handle kwargs properly
+        push_to_current_bb(
+            hir.Call(
+                op=instantiated_func,
+                args=[x.symbolic().node for x in jitvar_args],
+                type=rt,
+            )
+        )
 
     # Copy over important attributes from the original function
     wrapper.__name__ = f.__name__

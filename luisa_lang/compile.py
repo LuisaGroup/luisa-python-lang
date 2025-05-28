@@ -33,22 +33,8 @@ class Compiler:
                 fn_args = fn_args or ()
                 fn_kwargs = fn_kwargs or {}
                 trace_ctx = TraceContext()
-                # for a in fn_args:
-                #     if isinstance(a, JitVar):
-                #         assert not a.is_symbolic()
-                #         a._init_symbolic()
-                # for _, v in fn_kwargs.items():
-                #     if isinstance(v, JitVar):
-                #         assert not v.is_symbolic()
-                #         v._init_symbolic()
                 assert is_jit()
                 f(*fn_args, **fn_kwargs, __lc_ctx__=trace_ctx)
-                # for a in fn_args:
-                #     if isinstance(a, JitVar):
-                #         a._destroy_symbolic()
-                # for _, v in fn_kwargs.items():
-                #     if isinstance(v, JitVar):
-                #         v._destroy_symbolic()
 
         except Exception as e:
             print(f"Error during function execution: {e}")

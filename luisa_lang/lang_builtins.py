@@ -1,10 +1,16 @@
-
-
 import types
+
+from _builtin_decor import func
 from luisa_lang.math_types import *
 from luisa_lang.core_types import Ref
 import luisa_lang.hir as hir
-from luisa_lang.lang_runtime import assign, current_span, __intrinsic__, JitVar, push_to_current_bb
+from luisa_lang.lang_runtime import (
+    assign,
+    current_span,
+    __intrinsic__,
+    JitVar,
+    push_to_current_bb,
+)
 import typing
 from typing import (
     Callable,
@@ -21,8 +27,9 @@ from typing import (
     Literal,
     overload,
     Any,
-    Annotated
+    Annotated,
 )
+
 # from luisa_lang._builtin_decor import func, intrinsic, opaque, builtin_generic_type, byref, struct
 # from luisa_lang import parse
 
@@ -350,8 +357,17 @@ from typing import (
 #     return intrinsic("ray_query_pipeline", RtxHit, ray, on_surface_hit, on_procedural_hit)
 
 
+@func
+def copy[T: JitVar](v: T) -> T:
+    """
+    Copy a value of type T.
+    """
+    return __intrinsic__("copy", type(v), v)
+
+
 __all__: List[str] = [
     "Ref",
+    "copy",
     # 'Pointer',
     # 'Buffer',
     # 'Array',

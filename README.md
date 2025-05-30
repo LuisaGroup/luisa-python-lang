@@ -26,7 +26,23 @@ aabb = AABB(lc.float3(0.0, 0.0, 0.0), lc.float3(1.0, 1.0, 1.0))
 # you can call the method on the host
 size = aabb.size()
 
+device = = lc.Device('cuda')  # or 'cpu', 'metal', etc.
+buf_aabb = device.create_buffer(AABB, 1)  # create a buffer to hold the struct on the device
+buf_aabb[0] = aabb  # copy the struct to the device buffer
+buf_size = device.create_buffer(lc.float3, 1)  # create a buffer to hold the size on the device
 
+@lc.kernel
+def compute_aabb_size(aabb_buf: lc.Buffer[AABB], size_buf: lc.Buffer[lc.float3]):
+    i = lc.dispatch_id().x
+    aabb = aabb_buf[i]
+    size_buf[i] = aabb.size()  # call the method on the device
+
+stream = device.create_stream()  # create a stream to execute the kernel
+stream.submit([
+    compute_aabb_size(buf_aabb, buf_size).dispatch(1)
+]).synchronize()  # submit the kernel to the stream and wait for it to finish
+
+print(f"AABB size: {buf_size[0]}")  # print the size of the AABB on the host
 ```
 
 
@@ -119,9 +135,9 @@ def kernel_example():
     s = MyStruct(10, lc.float3(1.0, 2.0, 3.0))
     i = lc.int(5)
     new_a = inc_a(s, i)  # This will modify 's.a' in the original struct
-    print(new_a)  # Should print 11
-    print(s.a)  # Should also print 11, as 's' is modified by reference
-    print(i) # should print 5 since scalars are passed by value and immutable
+    lc.print(new_a)  # Should print 11
+    lc.print(s.a)  # Should also print 11, as 's' is modified by reference
+    lc.print(i) # should print 5 since scalars are passed by value and immutable
 
 ```
 
@@ -137,11 +153,11 @@ def kernel_example():
     t = s # t is a reference to s as in Python
     t.b = v # v is copied into t.b.
     v.x += 1.0
-    print(t.b, s.b) # should print (4.0, 5.0, 6.0) twice
-    print(v) # should print (5.0, 5.0, 6.0)
+    lc.print(t.b, s.b) # should print (4.0, 5.0, 6.0) twice
+    lc.print(v) # should print (5.0, 5.0, 6.0)
     t2 = lc.copy(s) # t2 is a copy of s, not a reference
     t2.a += 1
-    print(t2.a, s.a) # should print 11, 10
+    lc.print(t2.a, s.a) # should print 11, 10
 
     # the following code is not allowed since such dynamically created reference cannot be implemented on GPU:
     if dynamic_cond:
@@ -209,8 +225,99 @@ add(lc.int32(1), lc.int32(2))  # This will instantiate the function with int32 t
 ## Meta-Programming: Building Dynamic Computation Graph 
 LuisaCompute has an excellent support for meta-programming, allowing you dynamically build your GPU program and computation graph in a natural and Pythonic way.
 
-#### PyTrees
+### Kernel Lifecycle
+```python
 
+### Stage 1: Define the kernel
+### At this strage, the kernel is just a normal Python function. Nothing has compiled yet. The `lc.kernel` decorator injects some code to aid compliation later.
+
+type Op = Literal['+', '-', '*', '/']
+
+@lc.kernel
+def  vecop(a: lc.Buffer[lc.float3], b: lc.Buffer[lc.float3], c: lc.Buffer[lc.float3], op: Op):
+    i = lc.dispatch_id().x
+    va = a[i]
+    vb = b[i]
+    if lc.comptime(op == '+'):
+        print('Adding vectors') # this line wil be executed during stage 2
+        c[i] = va + vb
+    elif lc.comptime(op == '-'):
+        c[i] = va - vb
+    elif lc.comptime(op == '*'):
+        c[i] = va * vb
+    elif lc.comptime(op == '/'):
+        c[i] = va / vb
+    else:
+        raise ValueError(f"Unsupported operation: {op}")
+
+### Stage 2: Kernel Instantiation and Symbolic Tracing
+### When you call the kernel, the compiler first replace all DSL variables in the argument with symolic variables (in this case, `a`, `b`, `c` are replaced with symbolic buffers), while normal Python variables are passed as is (in this case, `op` is a Python variable). The compiler then traces the kernel body and generates a computation graph that is specific to the provided arguments. 
+
+compiled_kernel = vecop(buf_a, buf_b, buf_c, op='+')
+# prints: Adding vectors
+
+### In this case, the generate kernel looks like this:
+@lc.kernel
+def vecop_add(a: lc.Buffer[lc.float3], b: lc.Buffer[lc.float3], c: lc.Buffer[lc.float3]):
+    i = lc.dispatch_id().x
+    va = a[i]
+    vb = b[i]
+    c[i] = va + vb
+### Note the other operations are removed since they are not used in this instantiation.
+
+### Stage 3: Kernel Compilation
+### After the specialized kernel is generated, it is sent to the backend for code generation. The resulting artifact can be then dispatched to the device for execution.
+stream.submit([
+    compiled_kernel.dispatch(1024) 
+]).synchronize()
+
+```
+
+### Comptime Expressions
+Compile time expression are directives to instruct the compiler to specialize the code based on the provided values duriung Stage 2 of the kernel lifecycle. 
+
+```python
+v: lc.bool = ...
+if v:
+    print("Since v is symbolic during Stage 2 compilation, this code will be included in the compiled kernel.")
+else:
+    print("This code will be included in the kernel as well since at this stage we are not sure if v is True or False.")
+
+if lc.comptime(True):
+    print("This code will be included in the compiled kernel.")
+else:
+    print("This code will be excluded from the compiled kernel.")
+
+```
+### PyTrees
+PyTrees are containers that have a tree-like structure, where each leaf node can either be DSL type or a Python object. PyTrees are used to pass complex data structure to functions and kernels. The compiler will inspect the contents of the PyTree and generate specialized code according to the provided tree structure.
+
+Let's take a look at an example of using PyTrees to pass a tree-like structure to a function:
+
+```python
+@lc.pytree
+class MyTree:
+    v: lc.float3
+    arr: List[lc.int32]
+
+# Mytree.arr is not a valid DSL type since normally you cannot use Python lists on GPU.
+# However, you can still pass it to a function or kernel, as long as the length of the list remains constant inside the kernel.
+
+@lc.func
+def foo(tree: MyTree) -> lc.float3:
+    s = lc.float3(0.0, 0.0, 0.0)
+    # use lc.comptime to hint that len(tree.arr) is known at kernel compile time
+    for i in lc.comptime(range(len(tree.arr))):
+        s += tree.v * lc.float32(tree.arr[i])
+    return s
+
+tree1 = MyTree(lc.float3(1.0, 2.0, 3.0), [lc.int32(1), lc.int32(2), lc.int32(3)])
+tree2 = MyTree(lc.float3(4.0, 5.0, 6.0), [lc.int32(4), lc.int32(5)])
+
+# These two calls will generate two versions of the `foo` function internally, based on the length of the `arr` field in each tree.
+foo(tree1)
+foo(tree2)
+```
 
 ## Exporting Functions to IR or C++ (AOT Compilation)
 

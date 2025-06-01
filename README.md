@@ -141,9 +141,22 @@ def kernel_example():
 
 ```
 
+#### Dynamic and Static Control Flow
+
 #### Assignment Behavior ####
 The semantics of assignment operator `=` is the same as in Python: when assinging to immutable types (scalars), the value is copied into the variable, while for mutable types (vectors, matrices, structs), the reference is copied. The only difference is that when assigning to a field of a struct, the value is copied into the struct.
-However, not all references can be implemented on GPU. LuisaCompute would detect such case and ask to to rewrite such assignment by explicitly copying the value using `lc.copy()` function. For example:
+However, not all references can be implemented on GPU. LuisaCompute would detect such case and ask to to rewrite such assignment by explicitly copying the value using `lc.copy()` function. 
+
+The behavior can be summarize in the following table:
+
+| Type        | Assignment | Field/Index Assignment | Function Argument Passing | Function Return |
+|-------------|------------|------------------------|---------------------------|-----------------|
+| Python Object | Reference   | Reference              | Reference                 | Reference       |
+| Scalar (e.g. lc.int) | Value       | Value                  | Value                     | Value           |
+| Compound Type (e.g. lc.float3, lc.float4x4) | Reference   | Copy              | Reference                 | Reference |
+
+
+Let's take a look at an example:
 
 ```python
 @lc.kernel
@@ -183,7 +196,16 @@ def kernel_example():
 ### Functions and Methods
 Functions and methods in LuisaCompute are defined using the `@lc.func` or `@lc.trace` decorators. Both decorator transforms the python function into a LuisaCompute function that can be executed on both host (native Python) and device (LuisaCompute backend). The difference is that `@lc.trace` **inline**s the function body into the caller each time it is called, while `@lc.func` creates a separate function on the device.
 
-In terms of usage, `@lc.trace` has a minor restriction on dynamic control flow while `@lc.func` has no restrictions. However, `@lc.trace` on small functions is more efficient on the compiler side and would likely result in fast compilation time and better performance. Therefore, it is recommended to use `@lc.trace` for small functions and `@lc.func` for larger functions.
+In terms of usage, `@lc.trace` has a minor restriction on dynamic control flow (only a single dynamic return statement is allowed) while `@lc.func` has no restrictions. However, `@lc.trace` allows you to return references to variables, while `@lc.func` does not (since it is not possible to return reference to a local variable on device).
+
+| Decorator   | Inline Function Body | Dynamic Control Flow Restrictions | Multiple Return Statement | Return Refences| Example Usage |
+|-------------|----------------------|-----------------------------------|---------------------------|----------------|--------------|
+| `@lc.func`  | No                   | Any control flow is allowed                                | Multiple returns allowed | No|Use for larger functions or when dynamic control flow is needed |
+| `@lc.trace` | Yes                  | Cannot have dynamic return statement within dynamic loops                               | Single dynamic return statement only. Multiple static return statements allowed (statements guarded under `if lc.comptime(...)`| Yes |Use for small functions or when performance is critical |
+| `@lc.kernel` | No                  | No                               | Multiple returns allowed. Cannot return values | No | Entry point for compute kernels |
+
+
+
 
 ```python
 # lc.func has no restrictions on dynamic control flow, so you can use it like this:

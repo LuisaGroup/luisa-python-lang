@@ -17,11 +17,11 @@ class Compiler:
             case "custom":
                 raise NotImplementedError()
 
-    def compile_with_inputs(
+    def compile(
         self,
         f: Callable[..., Any],
-        fn_args: Tuple[Any, ...] | None = None,
-        fn_kwargs: Dict[str, Any] | None = None,
+        example_inputs: Tuple[Any, ...] | None = None,
+        example_kwargs: Dict[str, Any] | None = None,
         name: str | None = None,
     ) -> None:
         """
@@ -30,16 +30,25 @@ class Compiler:
         try:
             globalns = classinfo._get_func_globalns(f)
             with KernelTracer(globalns) as tracer:
-                fn_args = fn_args or ()
-                fn_kwargs = fn_kwargs or {}
-                trace_ctx = TraceContext()
+                example_inputs = example_inputs or ()
+                example_kwargs = example_kwargs or {}
+                trace_ctx = TraceContext(True)
                 assert is_jit()
-                f(*fn_args, **fn_kwargs, __lc_ctx__=trace_ctx)
+                f(*example_inputs, **example_kwargs, __lc_ctx__=trace_ctx)
+                func_ir = trace_ctx.top_level_func
+                assert func_ir is not None
+            self.codegen.gen_function(func_ir)
 
         except Exception as e:
             print(f"Error during function execution: {e}")
             traceback.print_exc()
             return
+    
+    def output(self) -> str:
+        """
+        Get the output code from the code generator.
+        """
+        return self.codegen.finalize_code()
 
 
 __all__ = ["Compiler"]

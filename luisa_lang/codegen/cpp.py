@@ -182,7 +182,7 @@ class Mangling:
             case hir.RefType():
                 return f'R{self.mangle(obj.element)}'
             case _:
-                raise NotImplementedError(f"unsupported object: {obj}")
+                raise NotImplementedError(f"unsupported object: {obj} {isinstance(obj, hir.Function)}")
 
 
 class CppCodeGen(CodeGen):

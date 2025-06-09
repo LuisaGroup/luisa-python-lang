@@ -278,13 +278,16 @@ def func[F: Callable[..., Any]](f: F) -> F:
         for k, v in pytree_kwargs.items():
             jitvar_args.extend(v.collect_jitvars())
         # TODO: handle kwargs properly
-        push_to_current_bb(
-            hir.Call(
-                op=instantiated_func,
-                args=[x.symbolic().node for x in jitvar_args],
-                type=rt,
+        if not __lc_ctx__.is_top_level:
+            push_to_current_bb(
+                hir.Call(
+                    op=instantiated_func,
+                    args=[x.symbolic().node for x in jitvar_args],
+                    type=rt,
+                )
             )
-        )
+        else:
+            __lc_ctx__.top_level_func = instantiated_func
 
     # Copy over important attributes from the original function
     wrapper.__name__ = f.__name__

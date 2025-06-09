@@ -600,6 +600,7 @@ class FunctionTemplate(Template["Function", FunctionTemplateArgs]):
 
 
 class Function:
+    name: str
     params: List["Var"]
     locals: List["Var"]
     body: "BasicBlock"
@@ -607,11 +608,13 @@ class Function:
 
     def __init__(
         self,
+        name: str,
         params: List["Var"],
         locals: List["Var"],
         body: "BasicBlock",
         return_type: Type,
     ) -> None:
+        self.name = name
         self.params = params
         self.locals = locals
         self.body = body

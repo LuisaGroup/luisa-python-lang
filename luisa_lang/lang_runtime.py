@@ -45,14 +45,16 @@ class FuncTracer:
     scopes: List[Scope]
     ret_type: hir.Type | None
     func_globals: Dict[str, Any]
+    name: str
 
-    def __init__(self, func_globals: Dict[str, Any]):
+    def __init__(self, name:str, func_globals: Dict[str, Any]):
         self.locals = []
         self.py_locals = {}
         self.params = []
         self.scopes = [Scope(None)]
         self.ret_type = None
         self.func_globals = func_globals
+        self.name = name
 
     def push_scope(self) -> Scope:
         self.scopes.append(Scope(self.scopes[-1]))
@@ -131,7 +133,7 @@ class FuncTracer:
         assert len(self.scopes) == 1
         entry_bb = self.scopes[0].bb
         assert self.ret_type is not None
-        return hir.Function(self.params, self.locals, entry_bb, self.ret_type)
+        return hir.Function(self.name, self.params, self.locals, entry_bb, self.ret_type)
 
 
 FUNC_STACK: List[FuncTracer] = []
@@ -627,9 +629,13 @@ BINOP_TO_METHOD_NAMES: Dict[str, List[str]] = {
 
 class TraceContext:
     cf_frame: ControlFlowFrame
+    is_top_level: bool
+    top_level_func: Optional[hir.Function]
 
-    def __init__(self):
+    def __init__(self, is_top_level):
         self.cf_frame = ControlFlowFrame(None)
+        self.is_top_level = is_top_level
+        self.top_level_func = None
 
     def is_parent_static(self) -> bool:
         return self.cf_frame.is_static
@@ -658,7 +664,7 @@ class TraceContext:
             )
 
     def redirect_call(self, f, *args, **kwargs):
-        return f(*args, **kwargs, __lc_ctx__=self)
+        return f(*args, **kwargs, __lc_ctx__=self) # TODO: shoould not always pass self
 
     def intrinsic(self, f, *args, **kwargs):
         return __intrinsic__(f, *args, **kwargs)
@@ -731,10 +737,10 @@ def _encode_func_args(
 def _invoke_function_tracer(
     f: Callable[..., Any], args: hir.FunctionTemplateArgs, globalns: Dict[str, Any]
 ) -> hir.Function:
-    trace_ctx = TraceContext()
+    trace_ctx = TraceContext(False)
 
     # args is Type | object
-    func_tracer = FuncTracer(globalns)
+    func_tracer = FuncTracer(f.__name__.replace('.','_'), globalns)
     FUNC_STACK.append(func_tracer)
     try:
         args_vars, kwargs_vars, jit_vars = _encode_func_args(args)
@@ -749,7 +755,7 @@ class KernelTracer:
     top_level_tracer: FuncTracer
 
     def __init__(self, func_globals: Dict[str, Any]):
-        self.top_level_tracer = FuncTracer(func_globals)
+        self.top_level_tracer = FuncTracer('__kernel__', func_globals)
 
     def __enter__(self) -> FuncTracer:
         FUNC_STACK.append(self.top_level_tracer)

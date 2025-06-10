@@ -55,7 +55,7 @@ def main() -> None:
             "from luisa_lang._builtin_decor import func, builtin_type, trace",
         )
         print(
-            "from luisa_lang.lang_runtime import intrinsic, assign, type_of, is_jit, JitVar",
+            "from luisa_lang.lang_runtime import __intrinsic__, assign, type_of, is_jit, JitVar",
         )
         print(
             "from luisa_lang.core_types import Ref",
@@ -77,20 +77,20 @@ def _literal_to_value(literal, dtype):
         #     print("class FloatBuiltin(tp.Generic[_F]):")
         #     for builtin in FLOAT_BULTINS_1:
         #         print("    @trace")
-        #         print(f"    def {builtin}(self: _F) -> _F: return intrinsic('math.{builtin}', _F, self) # type: ignore")
+        #         print(f"    def {builtin}(self: _F) -> _F: return __intrinsic__('math.{builtin}', _F, self) # type: ignore")
         #     for builtin in FLOAT_BULTINS_2:
         #         print("    @trace")
         #         print(
-        #             f"    def {builtin}(self: _F, _other: _F) -> _F: return intrinsic('math.{builtin}', _F, self, other) # type: ignore"
+        #             f"    def {builtin}(self: _F, _other: _F) -> _F: return __intrinsic__('math.{builtin}', _F, self, other) # type: ignore"
         #         )
             print("")
             for builtin in FLOAT_BULTINS_1:
                 print(
-                    f"@func\ndef {builtin}(x: _F1) -> _F1: return intrinsic('math.{builtin}', _F1, x) # type: ignore"
+                    f"@func\ndef {builtin}(x: _F1) -> _F1: return __intrinsic__('math.{builtin}', _F1, x) # type: ignore"
                 )
             for builtin in FLOAT_BULTINS_2:
                 print(
-                    f"@func\ndef {builtin}(x: _F1, y: _F1) -> _F1: return intrinsic('math.{builtin}', _F1, x, y) # type: ignore"
+                    f"@func\ndef {builtin}(x: _F1, y: _F1) -> _F1: return __intrinsic__('math.{builtin}', _F1, x, y) # type: ignore"
                 )
         #     print("register_class(FloatBuiltin)")
 
@@ -98,7 +98,7 @@ def _literal_to_value(literal, dtype):
             print(
                 f"""
     @trace
-    def {op}(self, _other: {operand_ty}) -> '{ty}': return intrinsic("binop.{op}.{ty}",  {ty},  {'self' if not inplace else 'Ref(self)'}, _other)
+    def {op}(self, _other: {operand_ty}) -> '{ty}': return __intrinsic__("binop.{op}.{ty}",  {ty},  {'self' if not inplace else 'Ref(self)'}, _other)
 """
             )
 
@@ -106,7 +106,7 @@ def _literal_to_value(literal, dtype):
             print(
                 f"""
     @trace
-    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return intrinsic("cmp.{op}.{ty}",  {retrun_ty},  self, _other) # type: ignore
+    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return __intrinsic__("cmp.{op}.{ty}",  {retrun_ty},  self, _other) # type: ignore
 """
             )
 
@@ -147,7 +147,7 @@ def _literal_to_value(literal, dtype):
             print(
                 f"""
     @trace
-    def __{op}__(self) -> '{ty}': return intrinsic("unary.__{op}__.{ty}",  {ty}, self)
+    def __{op}__(self) -> '{ty}': return __intrinsic__("unary.__{op}__.{ty}",  {ty}, self)
 """)
 
         def gen_scalar_type(ty: str, literal_ty: str, kind: Kind):
@@ -171,7 +171,7 @@ class {ty}{inherits_str}:
     @trace
     def __init__(self, _value: tp.Union['{ty}', {literal_ty}]) -> None:
         if is_jit():
-            assign(self, intrinsic("init.{ty}",  {ty},  _literal_to_value(_value, type_of({ty}))))
+            assign(self, __intrinsic__("init.{ty}",  {ty},  _literal_to_value(_value, type_of({ty}))))
         else:
             pass # TODO
 """
@@ -206,9 +206,15 @@ class {ty}{inherits_str}:
                 literal_scalar_default = 'FloatLiteral()'
             else:
                 literal_scalar_default = 'False'
+            print('    @trace')
             print('    def __init__(self, '+\
                   ", ".join([f"{comp}: tp.Union[\'{scalar_ty}\', {literal_scalar_ty}] = {literal_scalar_default}" for comp in comps]) + \
-                      ') -> None: self = intrinsic("init.'+ty+'", '+ty+', '+", ".join(comps)+')')
+                      ') -> None:')
+            print('        if is_jit():')
+            print('            assign(self, __intrinsic__("init.'+ty+'", '+ty+', '+", ".join([f'_literal_to_value({c}, type_of({ty}))' for c in comps])+'))')
+            print('        else:')
+            print('            pass # TODO')
+            print("")
 
             gen_common_binop(
                 ty, f" tp.Union['{ty}', {scalar_ty}, {literal_scalar_ty}]",mask_ty, kind
@@ -228,7 +234,7 @@ class {ty}{inherits_str}:
                 f"""@builtin_type(_hir.MatrixType({dim}))
 class {ty}{inherits_str}:
 {fields_def}
-    def __init__(self) -> None: self = intrinsic("init.{ty}", {ty})
+    def __init__(self) -> None: self = __intrinsic__("init.{ty}", {ty})
 """)
 
         float_types = ["f32", "f64"]

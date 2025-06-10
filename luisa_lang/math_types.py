@@ -926,7 +926,13 @@ class u32:
 class bool2:
     x: boolean
     y: boolean
-    def __init__(self, x: tp.Union['boolean', bool] = False, y: tp.Union['boolean', bool] = False) -> None: self = __intrinsic__("init.bool2", bool2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['boolean', bool] = False, y: tp.Union['boolean', bool] = False) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.bool2", bool2, _literal_to_value(x, type_of(bool2)), _literal_to_value(y, type_of(bool2))))
+        else:
+            pass # TODO
+
     @trace
     def __eq__(self, _other:  tp.Union['bool2', boolean, bool]) -> 'bool2': return __intrinsic__("cmp.__eq__.bool2",  bool2,  self, _other) # type: ignore
     @trace
@@ -954,7 +960,13 @@ class bool2:
 class float2:
     x: f32
     y: f32
-    def __init__(self, x: tp.Union['f32', FloatLiteral] = FloatLiteral(), y: tp.Union['f32', FloatLiteral] = FloatLiteral()) -> None: self = __intrinsic__("init.float2", float2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['f32', FloatLiteral] = FloatLiteral(), y: tp.Union['f32', FloatLiteral] = FloatLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.float2", float2, _literal_to_value(x, type_of(float2)), _literal_to_value(y, type_of(float2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['float2', f32, FloatLiteral]) -> 'float2': return __intrinsic__("binop.__add__.float2",  float2,  self, _other)
     @trace
@@ -1012,7 +1024,13 @@ class float2:
 class double2:
     x: f64
     y: f64
-    def __init__(self, x: tp.Union['f64', FloatLiteral] = FloatLiteral(), y: tp.Union['f64', FloatLiteral] = FloatLiteral()) -> None: self = __intrinsic__("init.double2", double2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['f64', FloatLiteral] = FloatLiteral(), y: tp.Union['f64', FloatLiteral] = FloatLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.double2", double2, _literal_to_value(x, type_of(double2)), _literal_to_value(y, type_of(double2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['double2', f64, FloatLiteral]) -> 'double2': return __intrinsic__("binop.__add__.double2",  double2,  self, _other)
     @trace
@@ -1070,7 +1088,13 @@ class double2:
 class byte2:
     x: i8
     y: i8
-    def __init__(self, x: tp.Union['i8', IntLiteral] = IntLiteral(), y: tp.Union['i8', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.byte2", byte2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['i8', IntLiteral] = IntLiteral(), y: tp.Union['i8', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.byte2", byte2, _literal_to_value(x, type_of(byte2)), _literal_to_value(y, type_of(byte2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['byte2', i8, IntLiteral]) -> 'byte2': return __intrinsic__("binop.__add__.byte2",  byte2,  self, _other)
     @trace
@@ -1148,7 +1172,13 @@ class byte2:
 class ubyte2:
     x: u8
     y: u8
-    def __init__(self, x: tp.Union['u8', IntLiteral] = IntLiteral(), y: tp.Union['u8', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ubyte2", ubyte2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['u8', IntLiteral] = IntLiteral(), y: tp.Union['u8', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ubyte2", ubyte2, _literal_to_value(x, type_of(ubyte2)), _literal_to_value(y, type_of(ubyte2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ubyte2', u8, IntLiteral]) -> 'ubyte2': return __intrinsic__("binop.__add__.ubyte2",  ubyte2,  self, _other)
     @trace
@@ -1226,7 +1256,13 @@ class ubyte2:
 class short2:
     x: i16
     y: i16
-    def __init__(self, x: tp.Union['i16', IntLiteral] = IntLiteral(), y: tp.Union['i16', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.short2", short2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['i16', IntLiteral] = IntLiteral(), y: tp.Union['i16', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.short2", short2, _literal_to_value(x, type_of(short2)), _literal_to_value(y, type_of(short2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['short2', i16, IntLiteral]) -> 'short2': return __intrinsic__("binop.__add__.short2",  short2,  self, _other)
     @trace
@@ -1304,7 +1340,13 @@ class short2:
 class ushort2:
     x: u16
     y: u16
-    def __init__(self, x: tp.Union['u16', IntLiteral] = IntLiteral(), y: tp.Union['u16', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ushort2", ushort2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['u16', IntLiteral] = IntLiteral(), y: tp.Union['u16', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ushort2", ushort2, _literal_to_value(x, type_of(ushort2)), _literal_to_value(y, type_of(ushort2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ushort2', u16, IntLiteral]) -> 'ushort2': return __intrinsic__("binop.__add__.ushort2",  ushort2,  self, _other)
     @trace
@@ -1382,7 +1424,13 @@ class ushort2:
 class int2:
     x: i32
     y: i32
-    def __init__(self, x: tp.Union['i32', IntLiteral] = IntLiteral(), y: tp.Union['i32', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.int2", int2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['i32', IntLiteral] = IntLiteral(), y: tp.Union['i32', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.int2", int2, _literal_to_value(x, type_of(int2)), _literal_to_value(y, type_of(int2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['int2', i32, IntLiteral]) -> 'int2': return __intrinsic__("binop.__add__.int2",  int2,  self, _other)
     @trace
@@ -1460,7 +1508,13 @@ class int2:
 class uint2:
     x: u32
     y: u32
-    def __init__(self, x: tp.Union['u32', IntLiteral] = IntLiteral(), y: tp.Union['u32', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.uint2", uint2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['u32', IntLiteral] = IntLiteral(), y: tp.Union['u32', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.uint2", uint2, _literal_to_value(x, type_of(uint2)), _literal_to_value(y, type_of(uint2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['uint2', u32, IntLiteral]) -> 'uint2': return __intrinsic__("binop.__add__.uint2",  uint2,  self, _other)
     @trace
@@ -1538,7 +1592,13 @@ class uint2:
 class long2:
     x: i64
     y: i64
-    def __init__(self, x: tp.Union['i64', IntLiteral] = IntLiteral(), y: tp.Union['i64', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.long2", long2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['i64', IntLiteral] = IntLiteral(), y: tp.Union['i64', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.long2", long2, _literal_to_value(x, type_of(long2)), _literal_to_value(y, type_of(long2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['long2', i64, IntLiteral]) -> 'long2': return __intrinsic__("binop.__add__.long2",  long2,  self, _other)
     @trace
@@ -1616,7 +1676,13 @@ class long2:
 class ulong2:
     x: u64
     y: u64
-    def __init__(self, x: tp.Union['u64', IntLiteral] = IntLiteral(), y: tp.Union['u64', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ulong2", ulong2, x, y)
+    @trace
+    def __init__(self, x: tp.Union['u64', IntLiteral] = IntLiteral(), y: tp.Union['u64', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ulong2", ulong2, _literal_to_value(x, type_of(ulong2)), _literal_to_value(y, type_of(ulong2))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ulong2', u64, IntLiteral]) -> 'ulong2': return __intrinsic__("binop.__add__.ulong2",  ulong2,  self, _other)
     @trace
@@ -1695,7 +1761,13 @@ class bool3:
     x: boolean
     y: boolean
     z: boolean
-    def __init__(self, x: tp.Union['boolean', bool] = False, y: tp.Union['boolean', bool] = False, z: tp.Union['boolean', bool] = False) -> None: self = __intrinsic__("init.bool3", bool3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['boolean', bool] = False, y: tp.Union['boolean', bool] = False, z: tp.Union['boolean', bool] = False) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.bool3", bool3, _literal_to_value(x, type_of(bool3)), _literal_to_value(y, type_of(bool3)), _literal_to_value(z, type_of(bool3))))
+        else:
+            pass # TODO
+
     @trace
     def __eq__(self, _other:  tp.Union['bool3', boolean, bool]) -> 'bool3': return __intrinsic__("cmp.__eq__.bool3",  bool3,  self, _other) # type: ignore
     @trace
@@ -1724,7 +1796,13 @@ class float3:
     x: f32
     y: f32
     z: f32
-    def __init__(self, x: tp.Union['f32', FloatLiteral] = FloatLiteral(), y: tp.Union['f32', FloatLiteral] = FloatLiteral(), z: tp.Union['f32', FloatLiteral] = FloatLiteral()) -> None: self = __intrinsic__("init.float3", float3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['f32', FloatLiteral] = FloatLiteral(), y: tp.Union['f32', FloatLiteral] = FloatLiteral(), z: tp.Union['f32', FloatLiteral] = FloatLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.float3", float3, _literal_to_value(x, type_of(float3)), _literal_to_value(y, type_of(float3)), _literal_to_value(z, type_of(float3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['float3', f32, FloatLiteral]) -> 'float3': return __intrinsic__("binop.__add__.float3",  float3,  self, _other)
     @trace
@@ -1783,7 +1861,13 @@ class double3:
     x: f64
     y: f64
     z: f64
-    def __init__(self, x: tp.Union['f64', FloatLiteral] = FloatLiteral(), y: tp.Union['f64', FloatLiteral] = FloatLiteral(), z: tp.Union['f64', FloatLiteral] = FloatLiteral()) -> None: self = __intrinsic__("init.double3", double3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['f64', FloatLiteral] = FloatLiteral(), y: tp.Union['f64', FloatLiteral] = FloatLiteral(), z: tp.Union['f64', FloatLiteral] = FloatLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.double3", double3, _literal_to_value(x, type_of(double3)), _literal_to_value(y, type_of(double3)), _literal_to_value(z, type_of(double3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['double3', f64, FloatLiteral]) -> 'double3': return __intrinsic__("binop.__add__.double3",  double3,  self, _other)
     @trace
@@ -1842,7 +1926,13 @@ class byte3:
     x: i8
     y: i8
     z: i8
-    def __init__(self, x: tp.Union['i8', IntLiteral] = IntLiteral(), y: tp.Union['i8', IntLiteral] = IntLiteral(), z: tp.Union['i8', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.byte3", byte3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['i8', IntLiteral] = IntLiteral(), y: tp.Union['i8', IntLiteral] = IntLiteral(), z: tp.Union['i8', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.byte3", byte3, _literal_to_value(x, type_of(byte3)), _literal_to_value(y, type_of(byte3)), _literal_to_value(z, type_of(byte3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['byte3', i8, IntLiteral]) -> 'byte3': return __intrinsic__("binop.__add__.byte3",  byte3,  self, _other)
     @trace
@@ -1921,7 +2011,13 @@ class ubyte3:
     x: u8
     y: u8
     z: u8
-    def __init__(self, x: tp.Union['u8', IntLiteral] = IntLiteral(), y: tp.Union['u8', IntLiteral] = IntLiteral(), z: tp.Union['u8', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ubyte3", ubyte3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['u8', IntLiteral] = IntLiteral(), y: tp.Union['u8', IntLiteral] = IntLiteral(), z: tp.Union['u8', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ubyte3", ubyte3, _literal_to_value(x, type_of(ubyte3)), _literal_to_value(y, type_of(ubyte3)), _literal_to_value(z, type_of(ubyte3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ubyte3', u8, IntLiteral]) -> 'ubyte3': return __intrinsic__("binop.__add__.ubyte3",  ubyte3,  self, _other)
     @trace
@@ -2000,7 +2096,13 @@ class short3:
     x: i16
     y: i16
     z: i16
-    def __init__(self, x: tp.Union['i16', IntLiteral] = IntLiteral(), y: tp.Union['i16', IntLiteral] = IntLiteral(), z: tp.Union['i16', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.short3", short3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['i16', IntLiteral] = IntLiteral(), y: tp.Union['i16', IntLiteral] = IntLiteral(), z: tp.Union['i16', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.short3", short3, _literal_to_value(x, type_of(short3)), _literal_to_value(y, type_of(short3)), _literal_to_value(z, type_of(short3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['short3', i16, IntLiteral]) -> 'short3': return __intrinsic__("binop.__add__.short3",  short3,  self, _other)
     @trace
@@ -2079,7 +2181,13 @@ class ushort3:
     x: u16
     y: u16
     z: u16
-    def __init__(self, x: tp.Union['u16', IntLiteral] = IntLiteral(), y: tp.Union['u16', IntLiteral] = IntLiteral(), z: tp.Union['u16', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ushort3", ushort3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['u16', IntLiteral] = IntLiteral(), y: tp.Union['u16', IntLiteral] = IntLiteral(), z: tp.Union['u16', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ushort3", ushort3, _literal_to_value(x, type_of(ushort3)), _literal_to_value(y, type_of(ushort3)), _literal_to_value(z, type_of(ushort3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ushort3', u16, IntLiteral]) -> 'ushort3': return __intrinsic__("binop.__add__.ushort3",  ushort3,  self, _other)
     @trace
@@ -2158,7 +2266,13 @@ class int3:
     x: i32
     y: i32
     z: i32
-    def __init__(self, x: tp.Union['i32', IntLiteral] = IntLiteral(), y: tp.Union['i32', IntLiteral] = IntLiteral(), z: tp.Union['i32', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.int3", int3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['i32', IntLiteral] = IntLiteral(), y: tp.Union['i32', IntLiteral] = IntLiteral(), z: tp.Union['i32', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.int3", int3, _literal_to_value(x, type_of(int3)), _literal_to_value(y, type_of(int3)), _literal_to_value(z, type_of(int3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['int3', i32, IntLiteral]) -> 'int3': return __intrinsic__("binop.__add__.int3",  int3,  self, _other)
     @trace
@@ -2237,7 +2351,13 @@ class uint3:
     x: u32
     y: u32
     z: u32
-    def __init__(self, x: tp.Union['u32', IntLiteral] = IntLiteral(), y: tp.Union['u32', IntLiteral] = IntLiteral(), z: tp.Union['u32', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.uint3", uint3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['u32', IntLiteral] = IntLiteral(), y: tp.Union['u32', IntLiteral] = IntLiteral(), z: tp.Union['u32', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.uint3", uint3, _literal_to_value(x, type_of(uint3)), _literal_to_value(y, type_of(uint3)), _literal_to_value(z, type_of(uint3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['uint3', u32, IntLiteral]) -> 'uint3': return __intrinsic__("binop.__add__.uint3",  uint3,  self, _other)
     @trace
@@ -2316,7 +2436,13 @@ class long3:
     x: i64
     y: i64
     z: i64
-    def __init__(self, x: tp.Union['i64', IntLiteral] = IntLiteral(), y: tp.Union['i64', IntLiteral] = IntLiteral(), z: tp.Union['i64', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.long3", long3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['i64', IntLiteral] = IntLiteral(), y: tp.Union['i64', IntLiteral] = IntLiteral(), z: tp.Union['i64', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.long3", long3, _literal_to_value(x, type_of(long3)), _literal_to_value(y, type_of(long3)), _literal_to_value(z, type_of(long3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['long3', i64, IntLiteral]) -> 'long3': return __intrinsic__("binop.__add__.long3",  long3,  self, _other)
     @trace
@@ -2395,7 +2521,13 @@ class ulong3:
     x: u64
     y: u64
     z: u64
-    def __init__(self, x: tp.Union['u64', IntLiteral] = IntLiteral(), y: tp.Union['u64', IntLiteral] = IntLiteral(), z: tp.Union['u64', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ulong3", ulong3, x, y, z)
+    @trace
+    def __init__(self, x: tp.Union['u64', IntLiteral] = IntLiteral(), y: tp.Union['u64', IntLiteral] = IntLiteral(), z: tp.Union['u64', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ulong3", ulong3, _literal_to_value(x, type_of(ulong3)), _literal_to_value(y, type_of(ulong3)), _literal_to_value(z, type_of(ulong3))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ulong3', u64, IntLiteral]) -> 'ulong3': return __intrinsic__("binop.__add__.ulong3",  ulong3,  self, _other)
     @trace
@@ -2475,7 +2607,13 @@ class bool4:
     y: boolean
     z: boolean
     w: boolean
-    def __init__(self, x: tp.Union['boolean', bool] = False, y: tp.Union['boolean', bool] = False, z: tp.Union['boolean', bool] = False, w: tp.Union['boolean', bool] = False) -> None: self = __intrinsic__("init.bool4", bool4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['boolean', bool] = False, y: tp.Union['boolean', bool] = False, z: tp.Union['boolean', bool] = False, w: tp.Union['boolean', bool] = False) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.bool4", bool4, _literal_to_value(x, type_of(bool4)), _literal_to_value(y, type_of(bool4)), _literal_to_value(z, type_of(bool4)), _literal_to_value(w, type_of(bool4))))
+        else:
+            pass # TODO
+
     @trace
     def __eq__(self, _other:  tp.Union['bool4', boolean, bool]) -> 'bool4': return __intrinsic__("cmp.__eq__.bool4",  bool4,  self, _other) # type: ignore
     @trace
@@ -2505,7 +2643,13 @@ class float4:
     y: f32
     z: f32
     w: f32
-    def __init__(self, x: tp.Union['f32', FloatLiteral] = FloatLiteral(), y: tp.Union['f32', FloatLiteral] = FloatLiteral(), z: tp.Union['f32', FloatLiteral] = FloatLiteral(), w: tp.Union['f32', FloatLiteral] = FloatLiteral()) -> None: self = __intrinsic__("init.float4", float4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['f32', FloatLiteral] = FloatLiteral(), y: tp.Union['f32', FloatLiteral] = FloatLiteral(), z: tp.Union['f32', FloatLiteral] = FloatLiteral(), w: tp.Union['f32', FloatLiteral] = FloatLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.float4", float4, _literal_to_value(x, type_of(float4)), _literal_to_value(y, type_of(float4)), _literal_to_value(z, type_of(float4)), _literal_to_value(w, type_of(float4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['float4', f32, FloatLiteral]) -> 'float4': return __intrinsic__("binop.__add__.float4",  float4,  self, _other)
     @trace
@@ -2565,7 +2709,13 @@ class double4:
     y: f64
     z: f64
     w: f64
-    def __init__(self, x: tp.Union['f64', FloatLiteral] = FloatLiteral(), y: tp.Union['f64', FloatLiteral] = FloatLiteral(), z: tp.Union['f64', FloatLiteral] = FloatLiteral(), w: tp.Union['f64', FloatLiteral] = FloatLiteral()) -> None: self = __intrinsic__("init.double4", double4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['f64', FloatLiteral] = FloatLiteral(), y: tp.Union['f64', FloatLiteral] = FloatLiteral(), z: tp.Union['f64', FloatLiteral] = FloatLiteral(), w: tp.Union['f64', FloatLiteral] = FloatLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.double4", double4, _literal_to_value(x, type_of(double4)), _literal_to_value(y, type_of(double4)), _literal_to_value(z, type_of(double4)), _literal_to_value(w, type_of(double4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['double4', f64, FloatLiteral]) -> 'double4': return __intrinsic__("binop.__add__.double4",  double4,  self, _other)
     @trace
@@ -2625,7 +2775,13 @@ class byte4:
     y: i8
     z: i8
     w: i8
-    def __init__(self, x: tp.Union['i8', IntLiteral] = IntLiteral(), y: tp.Union['i8', IntLiteral] = IntLiteral(), z: tp.Union['i8', IntLiteral] = IntLiteral(), w: tp.Union['i8', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.byte4", byte4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['i8', IntLiteral] = IntLiteral(), y: tp.Union['i8', IntLiteral] = IntLiteral(), z: tp.Union['i8', IntLiteral] = IntLiteral(), w: tp.Union['i8', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.byte4", byte4, _literal_to_value(x, type_of(byte4)), _literal_to_value(y, type_of(byte4)), _literal_to_value(z, type_of(byte4)), _literal_to_value(w, type_of(byte4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['byte4', i8, IntLiteral]) -> 'byte4': return __intrinsic__("binop.__add__.byte4",  byte4,  self, _other)
     @trace
@@ -2705,7 +2861,13 @@ class ubyte4:
     y: u8
     z: u8
     w: u8
-    def __init__(self, x: tp.Union['u8', IntLiteral] = IntLiteral(), y: tp.Union['u8', IntLiteral] = IntLiteral(), z: tp.Union['u8', IntLiteral] = IntLiteral(), w: tp.Union['u8', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ubyte4", ubyte4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['u8', IntLiteral] = IntLiteral(), y: tp.Union['u8', IntLiteral] = IntLiteral(), z: tp.Union['u8', IntLiteral] = IntLiteral(), w: tp.Union['u8', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ubyte4", ubyte4, _literal_to_value(x, type_of(ubyte4)), _literal_to_value(y, type_of(ubyte4)), _literal_to_value(z, type_of(ubyte4)), _literal_to_value(w, type_of(ubyte4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ubyte4', u8, IntLiteral]) -> 'ubyte4': return __intrinsic__("binop.__add__.ubyte4",  ubyte4,  self, _other)
     @trace
@@ -2785,7 +2947,13 @@ class short4:
     y: i16
     z: i16
     w: i16
-    def __init__(self, x: tp.Union['i16', IntLiteral] = IntLiteral(), y: tp.Union['i16', IntLiteral] = IntLiteral(), z: tp.Union['i16', IntLiteral] = IntLiteral(), w: tp.Union['i16', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.short4", short4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['i16', IntLiteral] = IntLiteral(), y: tp.Union['i16', IntLiteral] = IntLiteral(), z: tp.Union['i16', IntLiteral] = IntLiteral(), w: tp.Union['i16', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.short4", short4, _literal_to_value(x, type_of(short4)), _literal_to_value(y, type_of(short4)), _literal_to_value(z, type_of(short4)), _literal_to_value(w, type_of(short4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['short4', i16, IntLiteral]) -> 'short4': return __intrinsic__("binop.__add__.short4",  short4,  self, _other)
     @trace
@@ -2865,7 +3033,13 @@ class ushort4:
     y: u16
     z: u16
     w: u16
-    def __init__(self, x: tp.Union['u16', IntLiteral] = IntLiteral(), y: tp.Union['u16', IntLiteral] = IntLiteral(), z: tp.Union['u16', IntLiteral] = IntLiteral(), w: tp.Union['u16', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ushort4", ushort4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['u16', IntLiteral] = IntLiteral(), y: tp.Union['u16', IntLiteral] = IntLiteral(), z: tp.Union['u16', IntLiteral] = IntLiteral(), w: tp.Union['u16', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ushort4", ushort4, _literal_to_value(x, type_of(ushort4)), _literal_to_value(y, type_of(ushort4)), _literal_to_value(z, type_of(ushort4)), _literal_to_value(w, type_of(ushort4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ushort4', u16, IntLiteral]) -> 'ushort4': return __intrinsic__("binop.__add__.ushort4",  ushort4,  self, _other)
     @trace
@@ -2945,7 +3119,13 @@ class int4:
     y: i32
     z: i32
     w: i32
-    def __init__(self, x: tp.Union['i32', IntLiteral] = IntLiteral(), y: tp.Union['i32', IntLiteral] = IntLiteral(), z: tp.Union['i32', IntLiteral] = IntLiteral(), w: tp.Union['i32', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.int4", int4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['i32', IntLiteral] = IntLiteral(), y: tp.Union['i32', IntLiteral] = IntLiteral(), z: tp.Union['i32', IntLiteral] = IntLiteral(), w: tp.Union['i32', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.int4", int4, _literal_to_value(x, type_of(int4)), _literal_to_value(y, type_of(int4)), _literal_to_value(z, type_of(int4)), _literal_to_value(w, type_of(int4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['int4', i32, IntLiteral]) -> 'int4': return __intrinsic__("binop.__add__.int4",  int4,  self, _other)
     @trace
@@ -3025,7 +3205,13 @@ class uint4:
     y: u32
     z: u32
     w: u32
-    def __init__(self, x: tp.Union['u32', IntLiteral] = IntLiteral(), y: tp.Union['u32', IntLiteral] = IntLiteral(), z: tp.Union['u32', IntLiteral] = IntLiteral(), w: tp.Union['u32', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.uint4", uint4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['u32', IntLiteral] = IntLiteral(), y: tp.Union['u32', IntLiteral] = IntLiteral(), z: tp.Union['u32', IntLiteral] = IntLiteral(), w: tp.Union['u32', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.uint4", uint4, _literal_to_value(x, type_of(uint4)), _literal_to_value(y, type_of(uint4)), _literal_to_value(z, type_of(uint4)), _literal_to_value(w, type_of(uint4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['uint4', u32, IntLiteral]) -> 'uint4': return __intrinsic__("binop.__add__.uint4",  uint4,  self, _other)
     @trace
@@ -3105,7 +3291,13 @@ class long4:
     y: i64
     z: i64
     w: i64
-    def __init__(self, x: tp.Union['i64', IntLiteral] = IntLiteral(), y: tp.Union['i64', IntLiteral] = IntLiteral(), z: tp.Union['i64', IntLiteral] = IntLiteral(), w: tp.Union['i64', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.long4", long4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['i64', IntLiteral] = IntLiteral(), y: tp.Union['i64', IntLiteral] = IntLiteral(), z: tp.Union['i64', IntLiteral] = IntLiteral(), w: tp.Union['i64', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.long4", long4, _literal_to_value(x, type_of(long4)), _literal_to_value(y, type_of(long4)), _literal_to_value(z, type_of(long4)), _literal_to_value(w, type_of(long4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['long4', i64, IntLiteral]) -> 'long4': return __intrinsic__("binop.__add__.long4",  long4,  self, _other)
     @trace
@@ -3185,7 +3377,13 @@ class ulong4:
     y: u64
     z: u64
     w: u64
-    def __init__(self, x: tp.Union['u64', IntLiteral] = IntLiteral(), y: tp.Union['u64', IntLiteral] = IntLiteral(), z: tp.Union['u64', IntLiteral] = IntLiteral(), w: tp.Union['u64', IntLiteral] = IntLiteral()) -> None: self = __intrinsic__("init.ulong4", ulong4, x, y, z, w)
+    @trace
+    def __init__(self, x: tp.Union['u64', IntLiteral] = IntLiteral(), y: tp.Union['u64', IntLiteral] = IntLiteral(), z: tp.Union['u64', IntLiteral] = IntLiteral(), w: tp.Union['u64', IntLiteral] = IntLiteral()) -> None:
+        if is_jit():
+            assign(self, __intrinsic__("init.ulong4", ulong4, _literal_to_value(x, type_of(ulong4)), _literal_to_value(y, type_of(ulong4)), _literal_to_value(z, type_of(ulong4)), _literal_to_value(w, type_of(ulong4))))
+        else:
+            pass # TODO
+
     @trace
     def __add__(self, _other:  tp.Union['ulong4', u64, IntLiteral]) -> 'ulong4': return __intrinsic__("binop.__add__.ulong4",  ulong4,  self, _other)
     @trace

@@ -57,7 +57,7 @@ class TypeCodeGenCache:
             case hir.PointerType(element=element):
                 return f"lc_ptr<{self.gen(element)}>"
             case hir.VectorType(element=element, count=count):
-                return f"{self.gen(element)}{count}>"
+                return f"{self.gen(element)}{count}"
             case hir.ArrayType(element=element, count=count):
                 return f"lc_array<{self.gen(element)}, {count}>"
             case hir.StructType(name=name, fields=fields):

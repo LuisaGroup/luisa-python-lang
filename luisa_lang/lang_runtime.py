@@ -143,6 +143,7 @@ def current_func() -> FuncTracer:
     """
     Get the current function tracer
     """
+    assert is_jit(), "Not in JIT context"
     return FUNC_STACK[-1]
 
 

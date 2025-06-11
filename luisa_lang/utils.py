@@ -12,8 +12,10 @@ from typing import (
     Sequence,
     Tuple,
     TypeVar,
+    Union,
     cast,
     overload,
+    ForwardRef
 )
 import sourceinspect
 from hashlib import sha256
@@ -252,6 +254,24 @@ def instantiate_generic_expand(typ: type, args: Sequence[Any]) -> type:
     t = eval(s, globals(), locals())
     return t
 
+def check_type(pat: Any, obj: Any) -> bool:
+    """
+    Check if `obj` matches the type pattern `pat`.
+    """
+    if isinstance(pat, type):
+        return isinstance(obj, pat)
+    elif isinstance(pat, ForwardRef):
+        # Handle forward references, e.g., Union['int', str]
+        return check_type(eval(pat.__forward_arg__), obj)
+    elif isinstance(pat, tuple):
+        return isinstance(obj, pat)
+    elif getattr(pat, "__origin__", None) is Union or isinstance(pat, types.UnionType): # type: ignore
+        return any(check_type(arg, obj) for arg in getattr(pat, "__args__", ()))
+    elif hasattr(pat, "__origin__") and hasattr(pat, "__args__"):
+        origin = pat.__origin__
+        args = pat.__args__
+        return isinstance(obj, origin) and all(isinstance(o, a) for o, a in zip(obj, args))
+    return False
 
 class IdentityDict[K, V]:
     """

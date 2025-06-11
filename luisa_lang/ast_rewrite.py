@@ -62,6 +62,9 @@ else:
 
 """
 
+NO_REWRITE_FUNCTIONS: Set[str] = {
+    "__escape__",
+}
 
 class FuncRewriter(NodeTransformer):
     def __init__(self, decorator_name: str,filename:str):
@@ -167,17 +170,20 @@ class FuncRewriter(NodeTransformer):
 
     def visit_Call(self, node: ast.Call) -> Any:
         # first check if it is of form `__intrinsic__(...)`
-        if isinstance(node.func, ast.Name) and node.func.id == "__intrinsic__":
-            # rewrite to __lc_ctx__.intrinsic(...)
-            return ast.Call(
-                func=ast.Attribute(
-                    value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
-                    attr="intrinsic",
-                    ctx=ast.Load(),
-                ),
-                args=[self.visit(arg) for arg in node.args],
-                keywords=[self.visit(kw) for kw in node.keywords],
-            )
+        if isinstance(node.func, ast.Name):
+            if node.func.id in NO_REWRITE_FUNCTIONS:
+                return node
+            if node.func.id == "__intrinsic__" or node.func.id == "__intrinsic_checked__":
+                # rewrite to __lc_ctx__.intrinsic(...)
+                return ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                        attr=node.func.id[2:-2],
+                        ctx=ast.Load(),
+                    ),
+                    args=[self.visit(arg) for arg in node.args],
+                    keywords=[self.visit(kw) for kw in node.keywords],
+                )
         # rewrite to __lc_ctx__.redirect_call(func, args...)
         func = self.visit(node.func)
         args = [self.visit(arg) for arg in node.args]

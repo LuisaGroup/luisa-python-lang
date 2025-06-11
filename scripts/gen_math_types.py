@@ -55,7 +55,7 @@ def main() -> None:
             "from luisa_lang._builtin_decor import func, builtin_type, trace",
         )
         print(
-            "from luisa_lang.lang_runtime import __intrinsic__, assign, type_of, is_jit, JitVar",
+            "from luisa_lang.lang_runtime import __intrinsic__, __intrinsic_checked__, __escape__, assign, type_of, is_jit, JitVar",
         )
         print(
             "from luisa_lang.core_types import Ref",
@@ -98,7 +98,8 @@ def _literal_to_value(literal, dtype):
             print(
                 f"""
     @trace
-    def {op}(self, _other: {operand_ty}) -> '{ty}': return __intrinsic__("binop.{op}.{ty}",  {ty},  {'self' if not inplace else 'Ref(self)'}, _other)
+    def {op}(self, _other: {operand_ty}) -> '{ty}': # type: ignore
+        return __intrinsic_checked__("binop.{op}.{ty}", [{ty}, __escape__({operand_ty.replace('\'','')})], {ty},  {'self' if not inplace else 'Ref(self)'}, _other)
 """
             )
 
@@ -106,7 +107,8 @@ def _literal_to_value(literal, dtype):
             print(
                 f"""
     @trace
-    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': return __intrinsic__("cmp.{op}.{ty}",  {retrun_ty},  self, _other) # type: ignore
+    def {op}(self, _other: {operand_ty}) -> '{retrun_ty}': # type: ignore
+        return __intrinsic_checked__("cmp.{op}.{ty}", [{ty}, __escape__({operand_ty.replace('\'','')})], {retrun_ty},  self, _other) # type: ignore
 """
             )
 

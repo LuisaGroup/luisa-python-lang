@@ -5,10 +5,10 @@ Runtime support for DSL
 from abc import abstractmethod
 import typing
 
-from luisa_lang.utils import IdentityDict, is_generic_class
+from luisa_lang.utils import IdentityDict, check_type, is_generic_class
 import luisa_lang.hir as hir
 from hir import PyTreeStructure
-from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 
 class Scope:
@@ -480,7 +480,7 @@ def create_intrinsic_node[T: JitVar](
         elif isinstance(a, hir.Value):
             nodes.append(a)
         else:
-            raise ValueError(f"Argument {i} is not a valid DSL variable or HIR node")
+            raise ValueError(f"Argument [{i}] `{a}` of type {type(a)} is not a valid DSL variable or HIR node")
     if ret_type is not None:
         ret_dsl_type = hir.get_dsl_type(ret_type).default()
         if ret_dsl_type is None:
@@ -489,10 +489,28 @@ def create_intrinsic_node[T: JitVar](
         ret_dsl_type = hir.UnitType()
     return push_to_current_bb(hir.Intrinsic(name, nodes, ret_dsl_type))
 
+def __escape__(x: Any) -> Any:
+    return x
+
+def __intrinsic_checked__[T](
+    name: str, arg_types: Sequence[Any], ret_type: type[T], *args
+) -> T:
+    """
+    Call an intrinsic function with type checking.
+    """
+    assert len(args) == len(arg_types), (
+        f"Intrinsic {name} expects {len(arg_types)} arguments, got {len(args)}"
+    )
+    for i, (arg, arg_type) in enumerate(zip(args, arg_types)):
+        if not check_type(arg_type, arg):
+            raise ValueError(
+                f"Argument {i} of intrinsic {name} is not of type {arg_type}, got {type(arg)}"
+            )
+    return __intrinsic__(name, ret_type, *args)
 
 def __intrinsic__[T](name: str, ret_type: type[T], *args) -> T:
     """
-    Call an intrinsic function
+    Call an intrinsic function. This function does not check the arguemnts.
     """
     assert issubclass(
         ret_type, JitVar
@@ -669,6 +687,9 @@ class TraceContext:
 
     def intrinsic(self, f, *args, **kwargs):
         return __intrinsic__(f, *args, **kwargs)
+    
+    def intrinsic_checked(self, f, arg_types, ret_type, *args):
+        return __intrinsic_checked__(f, arg_types, ret_type, *args)
 
     def decl_arg(self, name: str, arg: Any):
         func = current_func()

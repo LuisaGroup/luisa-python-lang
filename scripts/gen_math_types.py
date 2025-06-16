@@ -178,7 +178,7 @@ class {ty}{inherits_str}:
             pass # TODO
 """
             )
-            gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", 'bool', kind)
+            gen_common_binop(ty, f" tp.Union['{ty}', {literal_ty}]", 'boolean', kind)
             if kind == Kind.FLOAT or kind == Kind.INT:
                 gen_unaryop("neg", ty)
                 gen_unaryop("pos", ty)

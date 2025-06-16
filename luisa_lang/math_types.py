@@ -72,11 +72,11 @@ class boolean:
         else:
             pass # TODO
     @trace
-    def __eq__(self, _other:  tp.Union['boolean', bool]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.boolean", [boolean, __escape__( tp.Union[boolean, bool])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['boolean', bool]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.boolean", [boolean, __escape__( tp.Union[boolean, bool])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['boolean', bool]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.boolean", [boolean, __escape__( tp.Union[boolean, bool])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['boolean', bool]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.boolean", [boolean, __escape__( tp.Union[boolean, bool])], boolean,  self, _other) # type: ignore
     @trace
     def __and__(self, _other:  tp.Union['boolean', bool]) -> 'boolean': # type: ignore
         return __intrinsic_checked__("binop.__and__.boolean", [boolean, __escape__( tp.Union[boolean, bool])], boolean,  self, _other)
@@ -152,23 +152,23 @@ class f32:
     def __imod__(self, _other:  tp.Union['f32', float]) -> 'f32': # type: ignore
         return __intrinsic_checked__("binop.__imod__.f32", [f32, __escape__( tp.Union[f32, float])], f32,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['f32', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.f32", [f32, __escape__( tp.Union[f32, float])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['f32', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.f32", [f32, __escape__( tp.Union[f32, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['f32', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.f32", [f32, __escape__( tp.Union[f32, float])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['f32', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.f32", [f32, __escape__( tp.Union[f32, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['f32', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.f32", [f32, __escape__( tp.Union[f32, float])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['f32', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.f32", [f32, __escape__( tp.Union[f32, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['f32', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.f32", [f32, __escape__( tp.Union[f32, float])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['f32', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.f32", [f32, __escape__( tp.Union[f32, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['f32', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.f32", [f32, __escape__( tp.Union[f32, float])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['f32', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.f32", [f32, __escape__( tp.Union[f32, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['f32', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.f32", [f32, __escape__( tp.Union[f32, float])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['f32', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.f32", [f32, __escape__( tp.Union[f32, float])], boolean,  self, _other) # type: ignore
     @trace
     def __truediv__(self, _other:  tp.Union['f32', float]) -> 'f32': # type: ignore
         return __intrinsic_checked__("binop.__truediv__.f32", [f32, __escape__( tp.Union[f32, float])], f32,  self, _other)
@@ -243,23 +243,23 @@ class f64:
     def __imod__(self, _other:  tp.Union['f64', float]) -> 'f64': # type: ignore
         return __intrinsic_checked__("binop.__imod__.f64", [f64, __escape__( tp.Union[f64, float])], f64,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['f64', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.f64", [f64, __escape__( tp.Union[f64, float])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['f64', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.f64", [f64, __escape__( tp.Union[f64, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['f64', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.f64", [f64, __escape__( tp.Union[f64, float])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['f64', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.f64", [f64, __escape__( tp.Union[f64, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['f64', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.f64", [f64, __escape__( tp.Union[f64, float])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['f64', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.f64", [f64, __escape__( tp.Union[f64, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['f64', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.f64", [f64, __escape__( tp.Union[f64, float])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['f64', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.f64", [f64, __escape__( tp.Union[f64, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['f64', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.f64", [f64, __escape__( tp.Union[f64, float])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['f64', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.f64", [f64, __escape__( tp.Union[f64, float])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['f64', float]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.f64", [f64, __escape__( tp.Union[f64, float])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['f64', float]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.f64", [f64, __escape__( tp.Union[f64, float])], boolean,  self, _other) # type: ignore
     @trace
     def __truediv__(self, _other:  tp.Union['f64', float]) -> 'f64': # type: ignore
         return __intrinsic_checked__("binop.__truediv__.f64", [f64, __escape__( tp.Union[f64, float])], f64,  self, _other)
@@ -334,23 +334,23 @@ class i8:
     def __imod__(self, _other:  tp.Union['i8', IntLiteral]) -> 'i8': # type: ignore
         return __intrinsic_checked__("binop.__imod__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], i8,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['i8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['i8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['i8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['i8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['i8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['i8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['i8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['i8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['i8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['i8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['i8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['i8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
     def __floordiv__(self, _other:  tp.Union['i8', IntLiteral]) -> 'i8': # type: ignore
         return __intrinsic_checked__("binop.__floordiv__.i8", [i8, __escape__( tp.Union[i8, IntLiteral])], i8,  self, _other)
@@ -457,23 +457,23 @@ class u8:
     def __imod__(self, _other:  tp.Union['u8', IntLiteral]) -> 'u8': # type: ignore
         return __intrinsic_checked__("binop.__imod__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], u8,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['u8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['u8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['u8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['u8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['u8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['u8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['u8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['u8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['u8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['u8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['u8', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['u8', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
     def __floordiv__(self, _other:  tp.Union['u8', IntLiteral]) -> 'u8': # type: ignore
         return __intrinsic_checked__("binop.__floordiv__.u8", [u8, __escape__( tp.Union[u8, IntLiteral])], u8,  self, _other)
@@ -580,23 +580,23 @@ class i16:
     def __imod__(self, _other:  tp.Union['i16', IntLiteral]) -> 'i16': # type: ignore
         return __intrinsic_checked__("binop.__imod__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], i16,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['i16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['i16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['i16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['i16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['i16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['i16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['i16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['i16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['i16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['i16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['i16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['i16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
     def __floordiv__(self, _other:  tp.Union['i16', IntLiteral]) -> 'i16': # type: ignore
         return __intrinsic_checked__("binop.__floordiv__.i16", [i16, __escape__( tp.Union[i16, IntLiteral])], i16,  self, _other)
@@ -703,23 +703,23 @@ class u16:
     def __imod__(self, _other:  tp.Union['u16', IntLiteral]) -> 'u16': # type: ignore
         return __intrinsic_checked__("binop.__imod__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], u16,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['u16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['u16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['u16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['u16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['u16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['u16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['u16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['u16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['u16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['u16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['u16', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['u16', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
     def __floordiv__(self, _other:  tp.Union['u16', IntLiteral]) -> 'u16': # type: ignore
         return __intrinsic_checked__("binop.__floordiv__.u16", [u16, __escape__( tp.Union[u16, IntLiteral])], u16,  self, _other)
@@ -826,23 +826,23 @@ class i64:
     def __imod__(self, _other:  tp.Union['i64', IntLiteral]) -> 'i64': # type: ignore
         return __intrinsic_checked__("binop.__imod__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], i64,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['i64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['i64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['i64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['i64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['i64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['i64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['i64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['i64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['i64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['i64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['i64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['i64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
     def __floordiv__(self, _other:  tp.Union['i64', IntLiteral]) -> 'i64': # type: ignore
         return __intrinsic_checked__("binop.__floordiv__.i64", [i64, __escape__( tp.Union[i64, IntLiteral])], i64,  self, _other)
@@ -949,23 +949,23 @@ class u64:
     def __imod__(self, _other:  tp.Union['u64', IntLiteral]) -> 'u64': # type: ignore
         return __intrinsic_checked__("binop.__imod__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], u64,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['u64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['u64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['u64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['u64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['u64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['u64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['u64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['u64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['u64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['u64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['u64', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['u64', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
     def __floordiv__(self, _other:  tp.Union['u64', IntLiteral]) -> 'u64': # type: ignore
         return __intrinsic_checked__("binop.__floordiv__.u64", [u64, __escape__( tp.Union[u64, IntLiteral])], u64,  self, _other)
@@ -1072,23 +1072,23 @@ class i32:
     def __imod__(self, _other:  tp.Union['i32', IntLiteral]) -> 'i32': # type: ignore
         return __intrinsic_checked__("binop.__imod__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], i32,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['i32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['i32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['i32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['i32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['i32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['i32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['i32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['i32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['i32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['i32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['i32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['i32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
     def __floordiv__(self, _other:  tp.Union['i32', IntLiteral]) -> 'i32': # type: ignore
         return __intrinsic_checked__("binop.__floordiv__.i32", [i32, __escape__( tp.Union[i32, IntLiteral])], i32,  self, _other)
@@ -1195,23 +1195,23 @@ class u32:
     def __imod__(self, _other:  tp.Union['u32', IntLiteral]) -> 'u32': # type: ignore
         return __intrinsic_checked__("binop.__imod__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], u32,  Ref(self), _other)
     @trace
-    def __lt__(self, _other:  tp.Union['u32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__lt__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __lt__(self, _other:  tp.Union['u32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__lt__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __le__(self, _other:  tp.Union['u32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__le__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __le__(self, _other:  tp.Union['u32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__le__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __gt__(self, _other:  tp.Union['u32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__gt__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __gt__(self, _other:  tp.Union['u32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__gt__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ge__(self, _other:  tp.Union['u32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ge__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ge__(self, _other:  tp.Union['u32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ge__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __eq__(self, _other:  tp.Union['u32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__eq__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __eq__(self, _other:  tp.Union['u32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__eq__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
-    def __ne__(self, _other:  tp.Union['u32', IntLiteral]) -> 'bool': # type: ignore
-        return __intrinsic_checked__("cmp.__ne__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], bool,  self, _other) # type: ignore
+    def __ne__(self, _other:  tp.Union['u32', IntLiteral]) -> 'boolean': # type: ignore
+        return __intrinsic_checked__("cmp.__ne__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], boolean,  self, _other) # type: ignore
     @trace
     def __floordiv__(self, _other:  tp.Union['u32', IntLiteral]) -> 'u32': # type: ignore
         return __intrinsic_checked__("binop.__floordiv__.u32", [u32, __escape__( tp.Union[u32, IntLiteral])], u32,  self, _other)

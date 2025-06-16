@@ -46,6 +46,7 @@ class FuncTracer:
     ret_type: hir.Type | None
     func_globals: Dict[str, Any]
     name: str
+    entry_bb: hir.BasicBlock
 
     def __init__(self, name:str, func_globals: Dict[str, Any]):
         self.locals = []
@@ -55,6 +56,7 @@ class FuncTracer:
         self.ret_type = None
         self.func_globals = func_globals
         self.name = name
+        self.entry_bb = self.scopes[0].bb
 
     def push_scope(self) -> Scope:
         self.scopes.append(Scope(self.scopes[-1]))
@@ -121,17 +123,24 @@ class FuncTracer:
         if self.ret_type is None:
             self.ret_type = ty
         else:
-            if not self.ret_type != ty:
+            if self.ret_type != ty:
                 raise ValueError(
                     f"Return type mismatch: expected {self.ret_type}, got {ty}"
                 )
 
     def cur_bb(self) -> hir.BasicBlock:
         return self.scopes[-1].bb
+    
+    def set_cur_bb(self, bb: hir.BasicBlock) -> None:
+        """
+        Set the current basic block to `bb`
+        """
+        assert len(self.scopes) > 0, "No scopes available"
+        self.scopes[-1].bb = bb
 
     def finalize(self) -> hir.Function:
         assert len(self.scopes) == 1
-        entry_bb = self.scopes[0].bb
+        entry_bb = self.entry_bb
         assert self.ret_type is not None
         return hir.Function(self.name, self.params, self.locals, entry_bb, self.ret_type)
 
@@ -149,6 +158,7 @@ def current_func() -> FuncTracer:
 
 def push_to_current_bb[T: hir.Node](node: T) -> T:
     return current_func().cur_bb().append(node)
+
 
 
 class Symbolic:
@@ -555,15 +565,37 @@ class ControlFlowFrame:
         self.parent = parent
         self.is_static = False
 
+    def on_exit(self) -> None:
+        """
+        Called when exiting the control flow frame
+        """
+        pass
+
+class ScopeGuard:
+    def __enter__(self) -> Scope:
+        """
+        Enter a new scope
+        """
+        return current_func().push_scope()
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        Exit the current scope
+        """
+        current_func().pop_scope()
 
 class IfFrame(ControlFlowFrame):
     static_cond: Optional[bool]
+    true_bb: Optional[hir.BasicBlock]
+    false_bb: Optional[hir.BasicBlock]
 
-    def __init__(self, parent: ControlFlowFrame, cond: Any):
+    def __init__(self, cond: Any, parent: ControlFlowFrame):
         super().__init__(parent)
         self.cond = cond
         self.is_static = not isinstance(cond, JitVar)
         self.static_cond = bool(cond) if self.is_static else None
+        self.true_bb = None
+        self.false_bb = None
 
     def true_active(self) -> bool:
         if self.is_static:
@@ -577,6 +609,26 @@ class IfFrame(ControlFlowFrame):
             return not self.static_cond
         return True
 
+    def end_true(self) -> None:
+        if is_jit():
+            assert self.true_bb is None, "True branch already ended"
+            self.true_bb = current_func().cur_bb()
+
+    def end_false(self) -> None:
+        if is_jit():
+            assert self.false_bb is None, "False branch already ended"
+            self.false_bb = current_func().cur_bb()
+
+    def on_exit(self) -> None:
+        if is_jit():
+            cond = self.cond
+            assert isinstance(cond, JitVar), "Condition must be a DSL variable"
+            merge_bb = hir.BasicBlock()
+            if_stmt = hir.If(cond.symbolic().node, 
+                             cast(hir.BasicBlock, self.true_bb), 
+                             cast(hir.BasicBlock, self.false_bb), merge_bb)
+            push_to_current_bb(if_stmt)
+            current_func().set_cur_bb(merge_bb)
 
 class ControlFrameGuard[T: ControlFlowFrame]:
     cf_type: type[T]
@@ -597,6 +649,7 @@ class ControlFrameGuard[T: ControlFlowFrame]:
         return self.cf_frame
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cf_frame.on_exit()
         parent = self.ctx.cf_frame.parent
         assert parent is not None
         self.ctx.cf_frame = parent
@@ -644,7 +697,14 @@ BINOP_TO_METHOD_NAMES: Dict[str, List[str]] = {
     "RShift": ["__rshift__", "__rrshift__"],
     "Pow": ["__pow__", "__rpow__"],
 }
-
+CMP_OP_TO_METHOD_NAMES: Dict[str, List[str]] = {
+    "Eq": ["__eq__", "__eq__"],
+    "NotEq": ["__ne__", "__ne__"],
+    "Lt": ["__lt__", "__gt__"],
+    "LtE": ["__le__", "__ge__"],
+    "Gt": ["__gt__", "__lt__"],
+    "GtE": ["__ge__", "__le__"],
+}
 
 class TraceContext:
     cf_frame: ControlFlowFrame
@@ -661,6 +721,9 @@ class TraceContext:
 
     def if_(self, cond: Any) -> ControlFrameGuard[IfFrame]:
         return ControlFrameGuard(self, IfFrame, cond)
+    
+    def scope(self) -> ScopeGuard:
+        return ScopeGuard()
 
     def return_(self, expr: JitVar) -> None:
         """
@@ -671,7 +734,7 @@ class TraceContext:
         push_to_current_bb(hir.Return(expr.symbolic().node))
 
     def redirect_binary(self, op, x, y):
-        print(op, x, y)
+        # print(op, x, y)
         op, rop = BINOP_TO_METHOD_NAMES[op]
         if hasattr(x, op):
             return getattr(x, op)(y, __lc_ctx__=self)
@@ -680,6 +743,17 @@ class TraceContext:
         else:
             raise ValueError(
                 f"Binary operation {op} not supported for {type(x)} and {type(y)}"
+            )
+        
+    def redirect_cmp(self, op, x, y):
+        op, rop = CMP_OP_TO_METHOD_NAMES[op]
+        if hasattr(x, op):
+            return getattr(x, op)(y, __lc_ctx__=self)
+        elif hasattr(y, rop):
+            return getattr(y, rop)(x, __lc_ctx__=self)
+        else:
+            raise ValueError(
+                f"Comparison operation {op} not supported for {type(x)} and {type(y)}"
             )
 
     def redirect_call(self, f, *args, **kwargs):

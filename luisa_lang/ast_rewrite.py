@@ -27,9 +27,13 @@ is rewritten to:
 
 with __lc_ctx__.if_(cond) as if_stmt:
     if_stmt.true_active():
-        true_body
+        with __lc_ctx__.scope():
+            true_body
+            if_stmt.end_true()
     if_stmt.false_active():
-        false_body
+        with __lc_ctx__.scope():
+            false_body
+            if_stmt.end_false()
 
 for i in range(expr):
     body
@@ -65,6 +69,29 @@ else:
 NO_REWRITE_FUNCTIONS: Set[str] = {
     "__escape__",
 }
+
+def _with_block(stmts: List[ast.stmt]) -> List[ast.stmt]:
+    """
+    with __lc_ctx__.scope():
+        stmts
+    """
+    return [ast.With(
+        items=[
+            ast.withitem(
+                context_expr=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                        attr="scope",
+                        ctx=ast.Load(),
+                    ),
+                    args=[],
+                    keywords=[],
+                ),
+                optional_vars=None,
+            )
+        ],
+        body=stmts,
+    )]
 
 class FuncRewriter(NodeTransformer):
     def __init__(self, decorator_name: str,filename:str):
@@ -222,6 +249,21 @@ class FuncRewriter(NodeTransformer):
             args=[ast.Constant(value=type(node.op).__name__), operand],
             keywords=[],
         )
+        
+    def visit_Compare(self, node: ast.Compare) -> Any:
+        if len(node.ops) != 1 or len(node.comparators) != 1:
+            raise NotImplementedError("Only single comparison is supported")
+        left = self.visit(node.left)
+        right = self.visit(node.comparators[0])
+        return ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
+                attr="redirect_binary",
+                ctx=ast.Load(),
+            ),
+            args=[ast.Constant(value=type(node.ops[0]).__name__), left, right],
+            keywords=[],
+        )
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
         value = self.visit(node.value)
@@ -264,7 +306,7 @@ class FuncRewriter(NodeTransformer):
                     attr="if_",
                     ctx=ast.Load(),
                 ),
-                args=[node.test],
+                args=[self.visit(node.test)],
                 keywords=[],
             ),
             optional_vars=ast.Name(id=if_id, ctx=ast.Store()),
@@ -279,7 +321,19 @@ class FuncRewriter(NodeTransformer):
                 args=[],
                 keywords=[],
             ),
-            body=self.visit_list_stmt(node.body),
+            body=_with_block(self.visit_list_stmt(node.body) + [
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(id=if_id, ctx=ast.Load()),
+                            attr="end_true",
+                            ctx=ast.Load(),
+                        ),
+                        args=[],
+                        keywords=[],
+                    )
+                )
+            ]),
             orelse=[],
         )
         false_branch = ast.If(
@@ -292,11 +346,21 @@ class FuncRewriter(NodeTransformer):
                 args=[],
                 keywords=[],
             ),
-            body=self.visit_list_stmt(node.orelse),
+            body=_with_block(self.visit_list_stmt(node.orelse)+[
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(id=if_id, ctx=ast.Load()),
+                            attr="end_false",
+                            ctx=ast.Load(),
+                        ),
+                        args=[],
+                        keywords=[],
+                    )
+                )
+            ]),
             orelse=[],
         )
-        for stmt in node.orelse:
-            false_branch.body.append(checked_cast(ast.stmt, self.visit(stmt)))
         with_stmt = ast.With(items=[with_item], body=[true_branch, false_branch])
         return with_stmt
 
@@ -410,7 +474,7 @@ def rewrite_function[F: Callable[..., Any]](f: F, decorator_name: str) -> F:
     tree, filename = retrieve_ast_and_filename(f)
     tree = FuncRewriter(decorator_name, filename).visit(tree)
     ast.fix_missing_locations(tree)
-    # print(ast.unparse(tree))
+    print(ast.unparse(tree))
     code = compile(tree, filename="<ast>", mode="exec")
     local_dict: dict[Any, Any] = {}
     exec(code, f.__globals__, local_dict)

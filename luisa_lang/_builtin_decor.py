@@ -197,7 +197,7 @@ def trace[F: Callable[..., Any]](f: F) -> F:
             func_tracer = current_func()
             old_globals = func_tracer.func_globals
             func_tracer.func_globals = globalns
-            assert isinstance(__lc_ctx__, TraceContext)
+            assert isinstance(__lc_ctx__, TraceContext), f"__lc_ctx__ must be a TraceContext but got {type(__lc_ctx__)}"
             # Call the rewritten function with the trace context
             ret = rewritten(*args, **kwargs, __lc_ctx__=__lc_ctx__)
             # Restore the original globals

@@ -1,6 +1,6 @@
 import types
 
-from _builtin_decor import func
+from luisa_lang._builtin_decor import func
 from luisa_lang.math_types import *
 from luisa_lang.core_types import Ref
 import luisa_lang.hir as hir

@@ -7,8 +7,8 @@ import typing
 
 from luisa_lang.utils import IdentityDict, check_type, is_generic_class
 import luisa_lang.hir as hir
-from hir import PyTreeStructure
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union, cast
+from luisa_lang.hir import PyTreeStructure
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Type, Union, cast
 
 
 class Scope:
@@ -174,11 +174,11 @@ class Symbolic:
 
 
 class FlattenedTree:
-    metadata: Tuple[type, Tuple[Any], Any]  # (type, type_args, Any)
+    metadata: Tuple[Type[Any], Tuple[Any], Any]  # (type, type_args, Any)
     children: List["FlattenedTree"]
 
     def __init__(
-        self, metadata: Tuple[type, Tuple[Any], Any], children: List["FlattenedTree"]
+        self, metadata: Tuple[Type[Any], Tuple[Any], Any], children: List["FlattenedTree"]
     ):
         self.metadata = metadata
         self.children = children
@@ -342,13 +342,13 @@ def tree_flatten(obj: Any, allow_non_pytree_objects: bool) -> FlattenedTree:
     if isinstance(obj, PyTree):
         return obj._flatten()
     if allow_non_pytree_objects and not PyTreeRegistry.is_registered(type(obj)):
-        return FlattenedTree((type(obj), tuple(), obj), [])
+        return FlattenedTree((type(obj), cast(Tuple[Any, ...], tuple()), obj), [])
     flatten_func, _ = PyTreeRegistry.get(type(obj))
     return flatten_func(obj)
 
 
 def tree_unflatten(obj: FlattenedTree, allow_non_pytree_objects: bool) -> Any:
-    typ = obj.metadata[0]
+    typ: Type[Any] = obj.metadata[0]
     if issubclass(typ, JitVar):
         _type_args, v = obj.metadata[1:]
         assert isinstance(v, JitVar)
@@ -409,7 +409,7 @@ class PyTreeRegistry:
     @staticmethod
     def __register_default_types() -> None:
         def flatten_primitive(obj: Any) -> FlattenedTree:
-            return FlattenedTree((type(obj), tuple(), obj), [])
+            return FlattenedTree((type(obj), cast(Tuple[Any, ...], tuple()), obj), [])
 
         def unflatten_primitive(tree: FlattenedTree) -> Any:
             assert len(tree.children) == 0
@@ -423,7 +423,7 @@ class PyTreeRegistry:
 
         def flatten_list(obj: List[Any]) -> FlattenedTree:
             return FlattenedTree(
-                (list, tuple(), None), [tree_flatten(o, True) for o in obj]
+                (list, cast(Tuple[Any, ...], tuple()), None), [tree_flatten(o, True) for o in obj]
             )
 
         def unflatten_list(tree: FlattenedTree) -> List[Any]:
@@ -435,7 +435,7 @@ class PyTreeRegistry:
 
         def flatten_tuple(obj: Tuple[Any, ...]) -> FlattenedTree:
             return FlattenedTree(
-                (tuple, tuple(), None), [tree_flatten(o, True) for o in obj]
+                (tuple, cast(Tuple[Any, ...], tuple()), None), [tree_flatten(o, True) for o in obj]
             )
 
         def unflatten_tuple(tree: FlattenedTree) -> Tuple[Any, ...]:
@@ -447,14 +447,15 @@ class PyTreeRegistry:
 
         def flatten_dict(obj: Dict[Any, Any]) -> FlattenedTree:
             return FlattenedTree(
-                (dict, tuple(), (len(obj.keys()))),
+                (dict, cast(Tuple[Any, ...], tuple()), (len(obj.keys()))),
                 [tree_flatten(k, True) for k in obj.keys()]
                 + [tree_flatten(v, True) for v in obj.values()],
             )
 
         def unflatten_dict(tree: FlattenedTree) -> Dict[Any, Any]:
             assert tree.metadata[0] is dict
-            length = tree.metadata[1]
+            length = tree.metadata[2][0]
+            assert isinstance(length, int), "Invalid length for dict unflattening"
             assert len(tree.children) == length * 2
             keys = tree.children[:length]
             values = tree.children[length:]
@@ -561,7 +562,7 @@ class ControlFlowFrame:
     parent: Optional["ControlFlowFrame"]
     is_static: bool
 
-    def __init__(self, parent: Optional["ControlFlowFrame"]):
+    def __init__(self, *args, parent: Optional["ControlFlowFrame"]):
         self.parent = parent
         self.is_static = False
 
@@ -590,7 +591,7 @@ class IfFrame(ControlFlowFrame):
     false_bb: Optional[hir.BasicBlock]
 
     def __init__(self, cond: Any, parent: ControlFlowFrame):
-        super().__init__(parent)
+        super().__init__(parent=parent)
         self.cond = cond
         self.is_static = not isinstance(cond, JitVar)
         self.static_cond = bool(cond) if self.is_static else None
@@ -712,7 +713,7 @@ class TraceContext:
     top_level_func: Optional[hir.Function]
 
     def __init__(self, is_top_level):
-        self.cf_frame = ControlFlowFrame(None)
+        self.cf_frame = ControlFlowFrame(parent=None)
         self.is_top_level = is_top_level
         self.top_level_func = None
 

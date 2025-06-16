@@ -474,7 +474,7 @@ def rewrite_function[F: Callable[..., Any]](f: F, decorator_name: str) -> F:
     tree, filename = retrieve_ast_and_filename(f)
     tree = FuncRewriter(decorator_name, filename).visit(tree)
     ast.fix_missing_locations(tree)
-    print(ast.unparse(tree))
+    # print(ast.unparse(tree))
     code = compile(tree, filename="<ast>", mode="exec")
     local_dict: dict[Any, Any] = {}
     exec(code, f.__globals__, local_dict)

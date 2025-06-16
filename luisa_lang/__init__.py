@@ -6,3 +6,5 @@ if sys.version_info < (3, 12):
 
 from luisa_lang.lang import *
 from luisa_lang.lang_builtins import *
+
+bool = boolean

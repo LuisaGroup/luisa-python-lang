@@ -23,15 +23,21 @@ from dataclasses import dataclass
 
 
 class GenericInstance:
-    origin: 'VarType'
+    origin: type
     args: List["VarType"]
 
-    def __init__(self, origin: 'VarType', args: List["VarType"]):
+    def __init__(self, origin: type, args: List["VarType"]):
         self.origin = origin
         self.args = args
 
     def __repr__(self):
         return f"{self.origin}[{', '.join(map(repr, self.args))}]"
+    
+    def __eq__(self, other):
+        return isinstance(other, GenericInstance) and self.origin == other.origin and self.args == other.args
+    
+    def __hash__(self):
+        return hash((self.origin, tuple(self.args)))
 
 
 class UnionType:
@@ -45,6 +51,12 @@ class UnionType:
 
     def substitute(self, env: Dict[TypeVar, 'VarType']) -> "UnionType":
         return UnionType([subst_type(ty, env) for ty in self.types])
+    
+    def __eq__(self, other):
+        return isinstance(other, UnionType) and self.types == other.types
+    
+    def __hash__(self):
+        return hash(tuple(self.types))
 
 
 class AnyType:
@@ -53,6 +65,7 @@ class AnyType:
 
     def __eq__(self, other):
         return isinstance(other, AnyType)
+        
 
 
 class SelfType:
@@ -74,6 +87,9 @@ class LiteralType:
 
     def __eq__(self, other):
         return isinstance(other, LiteralType) and self.value == other.value
+    
+    def __hash__(self):
+        return hash(self.value)
 
 
 class AnnotatedType:
@@ -89,10 +105,22 @@ class AnnotatedType:
 
     def substitute(self, env: Dict[TypeVar, 'VarType']) -> "AnnotatedType":
         return AnnotatedType(subst_type(self.origin, env), self.annotations)
+    
+    def __eq__(self, other):
+        return isinstance(other, AnnotatedType) and self.origin == other.origin and self.annotations == other.annotations
+    
+    def __hash__(self):
+        return hash((self.origin, tuple(self.annotations)))
 
+class TypeEllipsis:
+    def __repr__(self):
+        return "..."
+
+    def __eq__(self, other):
+        return isinstance(other, TypeEllipsis)
 
 type VarType = Union[TypeVar, Type, GenericInstance,
-                     UnionType, SelfType, AnyType, LiteralType, AnnotatedType]
+                     UnionType, SelfType, AnyType, LiteralType, AnnotatedType, TypeEllipsis]
 
 
 def subst_type(ty: VarType, env: Dict[TypeVar, VarType]) -> VarType:
@@ -165,7 +193,7 @@ class ClassType:
         if len(type_args) != len(self.type_vars):
             raise RuntimeError(
                 f"Expected {len(self.type_vars)}" +
-                f"type arguments but got {len(type_args)}"
+                f" type arguments but got {len(type_args)}"
             )
         env = dict(zip(self.type_vars, type_args))
         return ClassType(
@@ -289,6 +317,8 @@ def parse_type_hint(hint: Any) -> VarType:
         return hint
     if hint == typing.Self:
         return SelfType()
+    if hint == ...:
+        return TypeEllipsis()
     raise UnsupportedTypeHintError(f"{hint}")
 
 
@@ -303,20 +333,20 @@ def extract_type_vars_from_hint(hint: typing.Any) -> List[TypeVar]:
     return []
 
 
-def get_type_vars(func: typing.Callable) -> List[TypeVar]:
-    type_hints = typing.get_type_hints(func, include_extras=True)
+def get_type_vars(func: typing.Callable, globalns) -> List[TypeVar]:
+    type_hints = typing.get_type_hints(func, include_extras=True,globalns=globalns)
     type_vars = []
     for hint in type_hints.values():
         type_vars.extend(extract_type_vars_from_hint(hint))
     return list(set(type_vars))  # Return unique type vars
 
 
-def parse_func_signature(func: object, globalns: Dict[str, Any], foreign_type_vars: List[TypeVar], is_static: bool = False) -> MethodType:
+def parse_func_signature(func: object, globalns: Dict[str, Any], foreign_type_vars: List[TypeVar], is_static: bool = False, force_hints:bool=False) -> MethodType:
     assert inspect.isfunction(func)
     signature = inspect.signature(func)
     method_type_hints = typing.get_type_hints(func, globalns)
     param_types: List[Tuple[str, VarType]] = []
-    type_vars = get_type_vars(func)
+    type_vars = get_type_vars(func, globalns)
     for param in signature.parameters.values():
         if param.name == "self":
             param_types.append((param.name, SelfType()))
@@ -324,6 +354,9 @@ def parse_func_signature(func: object, globalns: Dict[str, Any], foreign_type_va
             param_types.append((param.name, parse_type_hint(
                 method_type_hints[param.name])))
         else:
+            if force_hints:
+                raise RuntimeError(
+                    f"Missing type hint for parameter {param.name} in {func}")
             param_types.append((param.name, AnyType()))
     if "return" in method_type_hints:
         return_type = parse_type_hint(method_type_hints.get("return"))
@@ -347,6 +380,7 @@ def register_class(cls: type) -> None:
     cls_qualname = cls.__qualname__
     globalns = _get_cls_globalns(cls)
     globalns[cls.__name__] = cls
+    assert cls.__name__ in globalns
     assert (
         "<locals>" not in cls_qualname
     ), f"Cannot use local class {cls_qualname} as a DSL type. Must be a top-level class!"
@@ -399,8 +433,26 @@ def register_class(cls: type) -> None:
     for name, member in inspect.getmembers(cls):
         if name in local_methods:
             # print(f'Found local method: {name} in {cls}')
-            cls_ty.methods[name] = parse_func_signature(
-                member, globalns, cls_ty.type_vars, is_static=is_static(cls, name))
+            try:
+                cls_ty.methods[name] = parse_func_signature(
+                    member, globalns, cls_ty.type_vars, is_static=is_static(cls, name))
+            except UnsupportedTypeHintError as e:
+                raise RuntimeError(
+                    f"Unsupported type hint for method {name} in {cls}: {e}") from e
     for name in local_fields:
         cls_ty.fields[name] = parse_type_hint(type_hints[name])
     _CLS_TYPE_INFO[cls] = cls_ty
+
+
+def _get_func_globalns(f: Callable[..., Any]) -> Dict[str, Any]:
+    """
+    Get the global namespace for a function.
+    This is used to resolve names in the function's scope.
+    """
+    # Get the module that contains the function
+    module = inspect.getmodule(f)
+    if module is None:
+        return {}
+        
+    # Return the module's global namespace
+    return module.__dict__

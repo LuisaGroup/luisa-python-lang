@@ -9,10 +9,12 @@ from typing import (
     List,
     Literal,
     Optional,
+    Protocol,
     Set,
     Tuple,
     Dict,
     Union,
+    ClassVar,
 )
 import typing
 from typing_extensions import override
@@ -23,92 +25,11 @@ from abc import ABC, abstractmethod
 PATH_PREFIX = "luisa_lang"
 
 
-# @dataclass
-# class FunctionTemplateResolveResult:
-#     func: Optional[Function]
-#     matched: bool
-
-
-FunctionTemplateResolvingArgs = List[Tuple[str,
-                                           Union['Type', Any]]]
-"""
-[Function parameter name, Type or Value].
-The reason for using parameter name instead of GenericParameter is that python supports passing type[T] as a parameter,
-"""
-
-
-FunctionTemplateResolvingFunc = Callable[[
-    FunctionTemplateResolvingArgs], Union['Function', 'TemplateMatchingError']]
-
-
-class FuncProperties:
-    inline: bool | Literal["never", "always"]
-    export: bool
-
-    def __init__(self):
-        self.inline = False
-        self.export = False
-
-
-class FunctionTemplate:
-    """
-    Contains a delegate that can be resolved to a function.
-    This is to support generic functions as well as meta-programming.
-    Since each time the function is called in DSL, user meta-programming code in the function body
-    will be called, we need to keep the AST of the function.
-
-    """
-    parsing_func: FunctionTemplateResolvingFunc
-    _resolved: Dict[Tuple[Tuple[str,
-                                Union['Type', Any]], ...], "Function"]
-    is_generic: bool
-    name: str
-    params: List[str]
-    props: Optional[FuncProperties]
-    """Function parameters (NOT type parameters)"""
-
-    def __init__(self, name: str, params: List[str], parsing_func: FunctionTemplateResolvingFunc, is_generic: bool) -> None:
-        self.parsing_func = parsing_func
-        self._resolved = {}
-        self.params = params
-        self.is_generic = is_generic
-        self.name = name
-        self.props = None
-
-    def resolve(self, args: FunctionTemplateResolvingArgs | None) -> Union["Function", 'TemplateMatchingError']:
-        args = args or []
-        if not self.is_generic:
-            key = tuple(args)
-        else:
-            key = tuple()
-        if key in self._resolved:
-            return self._resolved[key]
-        func = self.parsing_func(args)
-        if isinstance(func, TemplateMatchingError):
-            return func
-        self._resolved[key] = func
-        return func
-
-    def reset(self) -> None:
-        self._resolved = {}
-
-    def inline_hint(self) -> bool | Literal['always', 'never']:
-        if self.props is None:
-            return False
-        return self.props.inline
-
-
-class DynamicIndex:
-    pass
-
-
 class Type(ABC):
-    methods: Dict[str, Union["Function", FunctionTemplate]]
-    is_builtin: bool
+    methods: Dict[str, "FunctionTemplate"]
 
     def __init__(self):
         self.methods = {}
-        self.is_builtin = False
 
     @abstractmethod
     def size(self) -> int:
@@ -126,18 +47,7 @@ class Type(ABC):
     def __hash__(self) -> int:
         pass
 
-    def member(self, field: Any) -> Optional['Type']:
-        if isinstance(field, str):
-            m = self.methods.get(field)
-            if not m:
-                return None
-            return FunctionType(m, None)
-        return None
-
-    def method(self, name: str) -> Optional[Union["Function", FunctionTemplate]]:
-        m = self.methods.get(name)
-        if m:
-            return m
+    def member(self, field: Any) -> Optional["Type"]:
         return None
 
     def is_concrete(self) -> bool:
@@ -149,7 +59,7 @@ class Type(ABC):
     def __len__(self) -> int:
         return 1
 
-    def remove_ref(self) -> 'Type':
+    def remove_ref(self) -> "Type":
         if isinstance(self, RefType):
             return self.element
         return self
@@ -159,23 +69,23 @@ class RefType(Type):
     """
     A logical reference type. Cannot be returned from functions/stored in aggregates.
     """
+
     element: Type
 
     def __init__(self, element: Type) -> None:
         super().__init__()
-        assert element.is_addressable(), f"RefType element {
+        assert (
+            element.is_addressable()
+        ), f"RefType element {
             element} is not addressable"
-        assert not isinstance(
-            element, (OpaqueType, RefType, FunctionType, TypeConstructorType))
+        assert not isinstance(element, (OpaqueType, RefType))
         self.element = element
-        self.methods = element.methods
 
     def size(self) -> int:
         raise RuntimeError("RefTypes are logical and thus do not have a size")
 
     def align(self) -> int:
-        raise RuntimeError(
-            "RefTypes are logical and thus do not have an align")
+        raise RuntimeError("RefTypes are logical and thus do not have an align")
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, RefType) and value.element == self.element
@@ -187,17 +97,11 @@ class RefType(Type):
         return f"Ref[{self.element}]"
 
     @override
-    def member(self, field: Any) -> Optional['Type']:
+    def member(self, field: Any) -> Optional["Type"]:
         ty = self.element.member(field)
         if ty is None:
             return None
-        if isinstance(ty, FunctionType):
-            return ty
         return RefType(ty)
-
-    @override
-    def method(self, name: str) -> Optional[Union["Function", FunctionTemplate]]:
-        return self.element.method(name)
 
     @override
     def is_addressable(self) -> bool:
@@ -230,23 +134,6 @@ class LiteralType(Type):
 
     def __hash__(self) -> int:
         return hash((LiteralType, self.value))
-
-
-class AnyType(Type):
-    def size(self) -> int:
-        raise RuntimeError("AnyType has no size")
-
-    def align(self) -> int:
-        raise RuntimeError("AnyType has no align")
-
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, AnyType)
-
-    def __hash__(self) -> int:
-        return hash(AnyType)
-
-    def __str__(self) -> str:
-        return "AnyType"
 
 
 class UnitType(Type):
@@ -319,74 +206,6 @@ class IntType(ScalarType):
         return f"{'i' if self.signed else 'u'}{self.bits}"
 
 
-class GenericFloatType(ScalarType):
-    @override
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, GenericFloatType)
-
-    @override
-    def __hash__(self) -> int:
-        return hash(GenericFloatType)
-
-    @override
-    def size(self) -> int:
-        raise RuntimeError("GenericFloatType has no size")
-
-    @override
-    def align(self) -> int:
-        raise RuntimeError("GenericFloatType has no align")
-
-    @override
-    def __repr__(self) -> str:
-        return f"GenericFloatType()"
-
-    @override
-    def __str__(self) -> str:
-        return "float"
-
-    @override
-    def is_concrete(self) -> bool:
-        return False
-
-    @override
-    def is_addressable(self) -> bool:
-        return False
-
-
-class GenericIntType(ScalarType):
-    @override
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, GenericIntType)
-
-    @override
-    def __hash__(self) -> int:
-        return hash(GenericIntType)
-
-    @override
-    def size(self) -> int:
-        raise RuntimeError("GenericIntType has no size")
-
-    @override
-    def align(self) -> int:
-        raise RuntimeError("GenericIntType has no align")
-
-    @override
-    def __repr__(self) -> str:
-        return f"GenericIntType()"
-
-    @override
-    def __str__(self) -> str:
-        return "int"
-
-    @override
-    def is_concrete(self) -> bool:
-        return False
-
-    @override
-    def is_addressable(self) -> bool:
-        return False
-
-
 class FloatType(ScalarType):
     bits: int
 
@@ -427,8 +246,7 @@ class VectorType(Type):
         self.count = count
         self._align = align
         assert (self.element.size() * self.count) % self._align == 0
-        self._size = round_to_align(
-            self.element.size() * self.count, self._align)
+        self._size = round_to_align(self.element.size() * self.count, self._align)
 
     def size(self) -> int:
         return self._size
@@ -453,8 +271,8 @@ class VectorType(Type):
         return f"<{self.count} x {self.element}>"
 
     @override
-    def member(self, field: Any) -> Optional['Type']:
-        comps = 'xyzw'[:self.count]
+    def member(self, field: Any) -> Optional["Type"]:
+        comps = "xyzw"[: self.count]
         if isinstance(field, str) and field in comps:
             return self.element
         return Type.member(self, field)
@@ -469,21 +287,17 @@ class MatrixType(Type):
 
 class ArrayType(Type):
     element: Type
-    count: Union[int, "SymbolicConstant"]
+    count: int
 
-    def __init__(self, element: Type, count: Union[int, "SymbolicConstant"]) -> None:
+    def __init__(self, element: Type, count: int) -> None:
         super().__init__()
         self.element = element
         self.count = count
 
     def size(self) -> int:
-        if isinstance(self.count, SymbolicConstant):
-            raise RuntimeError("ArrayType size is symbolic")
         return self.element.size() * self.count
 
     def align(self) -> int:
-        if isinstance(self.count, SymbolicConstant):
-            raise RuntimeError("ArrayType align is symbolic")
         return self.element.align()
 
     def __eq__(self, value: object) -> bool:
@@ -543,7 +357,9 @@ class TupleType(Type):
         return max(element.align() for element in self.elements)
 
     def __eq__(self, value: object) -> bool:
-        return self is value or (isinstance(value, TupleType) and value.elements == self.elements)
+        return self is value or (
+            isinstance(value, TupleType) and value.elements == self.elements
+        )
 
     def __repr__(self) -> str:
         return f"TupleType({self.elements})"
@@ -555,7 +371,7 @@ class TupleType(Type):
         return f"({', '.join(str(e) for e in self.elements)})"
 
     @override
-    def member(self, field: Any) -> Optional['Type']:
+    def member(self, field: Any) -> Optional["Type"]:
         if isinstance(field, int):
             if field < len(self.elements):
                 return self.elements[field]
@@ -569,7 +385,9 @@ class StructType(Type):
     _field_dict: Dict[str, Type]
     # _monomorphification_cache: Dict[Tuple['GenericParameter', Type | 'Value'], Type]
 
-    def __init__(self, name: str, display_name: str, fields: List[Tuple[str, Type]]) -> None:
+    def __init__(
+        self, name: str, display_name: str, fields: List[Tuple[str, Type]]
+    ) -> None:
         super().__init__()
         self.name = name
         self._fields = fields
@@ -597,12 +415,13 @@ class StructType(Type):
     @override
     def __eq__(self, value: object) -> bool:
         return value is self or (
-            isinstance(
-                value, StructType) and value.fields == self.fields and value.name == self.name
+            isinstance(value, StructType)
+            and value.fields == self.fields
+            and value.name == self.name
         )
 
     @override
-    def member(self, field: Any) -> Optional['Type']:
+    def member(self, field: Any) -> Optional["Type"]:
         if isinstance(field, str):
             if field in self._field_dict:
                 return self._field_dict[field]
@@ -611,94 +430,6 @@ class StructType(Type):
     @override
     def __hash__(self) -> int:
         return hash((StructType, tuple(self.fields), self.name))
-
-
-class TypeBound:
-    @abstractmethod
-    def satisfied_by(self, ty: Type) -> bool:
-        pass
-
-
-class AnyBound(TypeBound):
-    @override
-    def satisfied_by(self, ty: Type) -> bool:
-        return True
-
-
-class SubtypeBound(TypeBound):
-    super_type: Type
-    exact_match: bool
-
-    def __init__(self, super_type: Type, exact_match: bool) -> None:
-        self.super_type = super_type
-        self.exact_match = exact_match
-
-    def __repr__(self) -> str:
-        return f"SubtypeBound({self.super_type})"
-
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, SubtypeBound) and value.super_type == self.super_type
-
-    @override
-    def satisfied_by(self, ty: Type) -> bool:
-        if self.exact_match:
-            return is_type_compatible_to(ty, self.super_type)
-        else:
-            raise NotImplementedError()
-
-
-class UnionBound(TypeBound):
-    bounds: List[SubtypeBound]
-
-    def __init__(self, bounds: List[SubtypeBound]) -> None:
-        self.bounds = bounds
-
-    def __repr__(self) -> str:
-        return f"UnionBound({self.bounds})"
-
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, UnionBound) and value.bounds == self.bounds
-
-    @override
-    def satisfied_by(self, ty: Type) -> bool:
-        return any(b.satisfied_by(ty) for b in self.bounds)
-
-
-class GenericParameter:
-    """
-    A GenericParameter contains three parts:
-        name@ctx_name: bound
-    """
-    name: str
-    """ name of the generic parameter in source code, e.g. 'T'"""
-    ctx_name: str
-    """ a string describing the context (where the generic parameter is defined), e.g. 'some_function' """
-    bound: TypeBound | None
-
-    def __init__(
-        self, name: str, ctx_name: str, bound: TypeBound | None = None
-    ) -> None:
-        self.name = name
-        self.ctx_name = ctx_name
-        self.bound = bound
-
-    def __eq__(self, value: object) -> bool:
-        return (
-            value is self or (
-                isinstance(value, GenericParameter)
-                and value.name == self.name
-                and value.ctx_name == self.ctx_name)
-        )
-
-    def __hash__(self) -> int:
-        return hash((GenericParameter, self.name, self.ctx_name))
-
-    def __repr__(self) -> str:
-        bound_str = f" : {self.bound}" if self.bound else ""
-        return f"GenericParameter({self.name}, {self.ctx_name}, {bound_str})"
-
-    def __str__(self) -> str:
-        return f"~{self.name}@{self.ctx_name}"
 
 
 class OpaqueType(Type):
@@ -717,7 +448,11 @@ class OpaqueType(Type):
         raise RuntimeError("OpaqueType has no align")
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, OpaqueType) and value.name == self.name and value.extra_args == self.extra_args
+        return (
+            isinstance(value, OpaqueType)
+            and value.name == self.name
+            and value.extra_args == self.extra_args
+        )
 
     def __hash__(self) -> int:
         return hash((OpaqueType, self.name, tuple(self.extra_args)))
@@ -734,189 +469,156 @@ class OpaqueType(Type):
         return False
 
 
-class SymbolicType(Type):
-    param: GenericParameter
+class TemplateArgs(Protocol):
+    pass
 
-    def __init__(self, param: GenericParameter) -> None:
-        super().__init__()
-        self.param = param
 
-    def size(self) -> int:
-        raise RuntimeError("SymbolicType has no size")
+class Template[T, Args: TemplateArgs]:
+    cache: Dict[Args, T]
+    instantiation_func: Callable[[Args], T]
+    arg_type: type[Args]
 
-    def align(self) -> int:
-        raise RuntimeError("SymbolicType has no align")
+    def __init__(
+        self, arg_type: type[Args], instantiation_func: Callable[[Args], T]
+    ) -> None:
+        self.cache = {}
+        self.instantiation_func = instantiation_func
+        self.arg_type = arg_type
+
+    def instantiate(self, args: Args) -> T:
+        if args in self.cache:
+            return self.cache[args]
+        func = self.instantiation_func(args)
+        self.cache[args] = func
+        return func
+
+    def default(self) -> T:
+        return self.instantiate(self.arg_type())
+
+    def clear_instantiations(self) -> None:
+        self.cache = {}
+
+
+type TypeTemplateArgs = Tuple[classinfo.VarType, ...]
+
+
+class TypeTemplate(Template[Type, TypeTemplateArgs]):
+    pass
+
+
+class PyTreeStructure: # TODO: refactor this into another file
+    metadata: (
+        Tuple[type, Tuple[Any], Any] | None
+    )  # for JitVars, this is (type, type_args, hir.Type), for other types, this is (type, (), Any)
+    children: List["PyTreeStructure"]
+
+    def __init__(
+        self,
+        metadata: Tuple[type, Tuple[Any], Any] | None = None,
+        children: List["PyTreeStructure"] | None = None,
+    ) -> None:
+        self.metadata = metadata
+        self.children = children or []
 
     def __eq__(self, value: object) -> bool:
-        return isinstance(value, SymbolicType) and value.param == self.param
+        if not isinstance(value, PyTreeStructure):
+            return False
+        if self.metadata != value.metadata:
+            return False
+        if len(self.children) != len(value.children):
+            return False
+        for a, b in zip(self.children, value.children):
+            if a != b:
+                return False
+        return True
 
     def __hash__(self) -> int:
-        return hash((SymbolicType, self.param))
+        h = hash(PyTreeStructure)
+        if self.metadata is not None:
+            h ^= hash(self.metadata[0])
+            for arg in self.metadata[1]:
+                h ^= hash(arg)
+            h ^= hash(self.metadata[2])
+        for child in self.children:
+            h ^= hash(child)
+        return h
 
-    def __str__(self) -> str:
-        return f'~{self.param.name}@{self.param.ctx_name}'
 
-    def __repr__(self) -> str:
-        return f"SymbolicType({self.param})"
+type FunctionTemplateArg = PyTreeStructure
 
 
-MonomorphizationFunc = Callable[[List[Type]], Type]
+class FunctionTemplateArgs:
+    __args: List[FunctionTemplateArg]
+    __kwargs: Dict[str, FunctionTemplateArg]
+
+    def __init__(
+        self,
+        args: List[FunctionTemplateArg] | None = None,
+        kwargs: Dict[str, FunctionTemplateArg] | None = None,
+    ) -> None:
+        self.__args = args or []
+        self.__kwargs = kwargs or {}
+
+    @property
+    def args(self) -> List[FunctionTemplateArg]:
+        return self.__args
+
+    @property
+    def kwargs(self) -> Dict[str, FunctionTemplateArg]:
+        return self.__kwargs
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, FunctionTemplateArgs):
+            return False
+        other_args = other.args
+        other_kwargs = other.kwargs
+
+        return (
+            len(self.__args) == len(other_args)
+            and all(a == b for a, b in zip(self.__args, other_args))
+            and len(self.__kwargs) == len(other_kwargs)
+            and all(
+                k in self.__kwargs and self.__kwargs[k] == v
+                for k, v in other_kwargs.items()
+            )
+        )
+
+    def __hash__(self) -> int:
+        h = hash(FunctionTemplateArgs)
+        h ^= hash(len(self.__args))
+        for a in self.__args:
+            h ^= hash(a)
+        h ^= hash(len(self.__kwargs))
+        for k, v in self.__kwargs.items():
+            h ^= hash(k)
+            h ^= hash(v)
+        return h
 
 
-class ParametricType(Type):
-    """
-    The definition of a parametric type, e.g. class Foo[T]: ...
-    """
-    params: List[GenericParameter]
-    body: Type
-    monomorphification_cache: Dict[Tuple[Union['Type', Any], ...], 'Type']
-    monomorphification_func: Optional[MonomorphizationFunc]
+class FunctionTemplate(Template["Function", FunctionTemplateArgs]):
+    pass
 
-    def __init__(self, params: List[GenericParameter],
-                 body: Type,
-                 monomorphification_func: MonomorphizationFunc | None = None) -> None:
-        super().__init__()
+
+class Function:
+    name: str
+    params: List["Var"]
+    locals: List["Var"]
+    body: "BasicBlock"
+    return_type: Type
+
+    def __init__(
+        self,
+        name: str,
+        params: List["Var"],
+        locals: List["Var"],
+        body: "BasicBlock",
+        return_type: Type,
+    ) -> None:
+        self.name = name
         self.params = params
+        self.locals = locals
         self.body = body
-        self.monomorphification_func = monomorphification_func
-        self.monomorphification_cache = {}
-
-    def instantiate(self, args: List[Union[Type, Any]]) -> 'Type':
-        keys = tuple(args)
-        if keys in self.monomorphification_cache:
-            return self.monomorphification_cache[keys]
-        if self.monomorphification_func is not None:
-            ty = self.monomorphification_func(args)
-            self.monomorphification_cache[keys] = ty
-            return ty
-        raise RuntimeError("monomorphification_func is not set")
-
-    def size(self) -> int:
-        raise RuntimeError("ParametricType has no size")
-
-    def align(self) -> int:
-        raise RuntimeError("ParametricType has no align")
-
-    def __eq__(self, value: object) -> bool:
-        return (
-            isinstance(value, ParametricType)
-            and value.params == self.params
-            and value.body == self.body
-        )
-
-    def __hash__(self) -> int:
-        return hash((ParametricType, tuple(self.params), self.body))
-
-    def __str__(self) -> str:
-        return f"{self.body}[{', '.join(str(p) for p in self.params)}]"
-
-    @override
-    def is_concrete(self) -> bool:
-        return self.body.is_concrete()
-
-    @override
-    def is_addressable(self) -> bool:
-        return self.body.is_addressable()
-
-
-class BoundType(Type):
-    """
-    An instance of a parametric type, e.g. Foo[int]
-    """
-    generic: ParametricType
-    args: List[Union[Type,  Any]]
-    instantiated: Optional[Type]
-
-    def __init__(self, generic: ParametricType, args: List[Union[Type,  Any]], instantiated: Optional[Type] = None) -> None:
-        super().__init__()
-        self.generic = generic
-        self.args = args
-        self.instantiated = instantiated
-
-    def size(self) -> int:
-        raise RuntimeError("don't call size on BoundedType")
-
-    def align(self) -> int:
-        raise RuntimeError("don't call align on BoundedType")
-
-    def __eq__(self, value: object) -> bool:
-        return (
-            isinstance(value, BoundType)
-            and value.generic == self.generic
-            and value.args == self.args
-        )
-
-    def __hash__(self):
-        return hash((BoundType, self.generic, tuple(self.args)))
-
-    def __str__(self) -> str:
-        return f"{self.generic}[{', '.join(str(a) for a in self.args)}]"
-
-    @override
-    def member(self, field) -> Optional['Type']:
-        if self.instantiated is not None:
-            return self.instantiated.member(field)
-        else:
-            raise RuntimeError("member access on uninstantiated BoundType")
-
-    @override
-    def method(self, name) -> Optional[Union["Function", FunctionTemplate]]:
-        if self.instantiated is not None:
-            return self.instantiated.method(name)
-        else:
-            raise RuntimeError("method access on uninstantiated BoundType")
-
-    @override
-    def is_addressable(self) -> bool:
-        return self.generic.is_addressable()
-
-    @override
-    def is_concrete(self) -> bool:
-        return self.generic.is_concrete()
-
-
-class TypeConstructorType(Type):
-    inner: Type
-
-    def __init__(self, inner: Type) -> None:
-        super().__init__()
-        self.inner = inner
-
-    def size(self) -> int:
-        raise RuntimeError("TypeConstructorType has no size")
-
-    def align(self) -> int:
-        raise RuntimeError("TypeConstructorType has no align")
-
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, TypeConstructorType) and value.inner == self.inner
-
-    def __hash__(self) -> int:
-        return hash((TypeConstructorType, self.inner))
-
-
-class FunctionType(Type):
-    func_like: Union["Function", FunctionTemplate]
-    bound_object: Optional['Value']
-
-    def __init__(self, func_like: Union["Function", FunctionTemplate], bound_object: Optional['Value']) -> None:
-        super().__init__()
-        self.func_like = func_like
-        self.bound_object = bound_object
-
-    def __eq__(self, value: object) -> bool:
-        if self.bound_object is not None:
-            return value is self
-        return isinstance(value, FunctionType) and value.func_like is self.func_like and value.bound_object is None
-
-    def __hash__(self) -> int:
-        return hash((FunctionType, id(self.func_like), id(self.bound_object)))
-
-    def size(self) -> int:
-        raise RuntimeError("FunctionType has no size")
-
-    def align(self) -> int:
-        raise RuntimeError("FunctionType has no align")
+        self.return_type = return_type
 
 
 class Node:
@@ -924,10 +626,19 @@ class Node:
     Base class for all nodes in the HIR. A node could be a value, a reference, or a statement.
     Nodes equality is based on their identity.
     """
+
     span: Optional[Span]
+    prev: Optional["Node"]
+    next: Optional["Node"]
+    block: Optional["BasicBlock"]
+    func: Optional[Function]
 
     def __init__(self, span: Optional[Span] = None) -> None:
-        self.span = None
+        self.span = span
+        self.prev = None
+        self.next = None
+        self.block = None
+        self.func = None
 
     def __eq__(self, value: object) -> bool:
         return value is self
@@ -935,240 +646,47 @@ class Node:
     def __hash__(self) -> int:
         return id(self)
 
-
-NodeT = typing.TypeVar("NodeT", bound=Node)
-
-
-class BasicBlock(Node):
-    nodes: List[Node]
-    terminated: bool
-
-    def __init__(self, span: Optional[Span] = None) -> None:
-        self.nodes = []
-        self.terminated = False
-        self.span = span
-
-    def append(self, node: NodeT) -> NodeT:
-        if isinstance(node, Terminator):
-            assert not self.terminated
-            self.terminated = True
-        self.nodes.append(node)
+    def append(self, node: "Node") -> "Node":
+        assert node.next is None
+        assert node.prev is None
+        if node.block is not None:
+            assert node.block is self.block
+        else:
+            node.block = self.block
+        if self.next is not None:
+            self.next.prev = node
+        node.prev = self
+        node.next = self.next
+        self.next = node
+        if self.block:
+            if self.block.tail is self:
+                self.block.tail = node
         return node
 
-
-class TypedNode(Node):
-    """
-    A node with a type, which can either be values or references.
-    """
-    type: Optional[Type]
-
-    def __init__(
-        self, type: Optional[Type] = None, span: Optional[Span] = None
-    ) -> None:
-        super().__init__()
-        self.type = type
-        self.span = span
-
-
-class Value(TypedNode):
-    def is_ref(self) -> bool:
-        assert self.type is not None
-        return isinstance(self.type, RefType)
-
-
-class Unit(Value):
-    def __init__(self) -> None:
-        super().__init__(UnitType())
-
-
-class SymbolicConstant(Value):
-    generic: GenericParameter
-
-    def __init__(
-        self, generic: GenericParameter, type: Optional[Type] = None, span: Optional[Span] = None
-    ) -> None:
-        super().__init__(type, span)
-        self.generic = generic
-
-
-class ParameterSemantic(Enum):
-    BYVAL = auto()
-    BYREF = auto()
-
-
-class Var(TypedNode):
-    name: str
-    semantic: ParameterSemantic
-
-    def __init__(
-        self, name: str, type: Optional[Type], span: Optional[Span], semantic: ParameterSemantic = ParameterSemantic.BYVAL
-    ) -> None:
-        assert not isinstance(type, RefType)
-        super().__init__(type, span)
-        self.name = name
-        self.semantic = semantic
-
-
-class VarValue(Value):
-    var: Var
-
-    def __init__(self, var: Var, span: Optional[Span]) -> None:
-        super().__init__(var.type, span)
-        self.var = var
-
-
-class VarRef(Value):
-    var: Var
-
-    def __init__(
-        self, var: Var, span: Optional[Span]
-    ) -> None:
-        # assert var.type is not None
-        if var.type is not None:
-            super().__init__(RefType(var.type), span)
+    def prepend(self, node: "Node") -> "Node":
+        assert node.next is None
+        assert node.prev is None
+        if node.block is not None:
+            assert node.block is self
         else:
-            super().__init__(None, span)
-        self.var = var
+            node.block = self.block
+        if self.prev is not None:
+            self.prev.next = node
+        node.next = self
+        node.prev = self.prev
+        self.prev = node
+        if self.block:
+            if self.block.head is self:
+                self.block.head = node
+        return node
 
-
-class Member(Value):
-    base: Value
-    field: str
-
-    def __init__(self, base: Value, field: str, type: Type, span: Optional[Span]) -> None:
-        super().__init__(type, span)
-        self.base = base
-        self.field = field
-
-
-class Index(Value):
-    base: Value
-    index: Value
-
-    def __init__(self, base: Value, index: Value, type: Type, span: Optional[Span]) -> None:
-        super().__init__(type, span)
-        self.base = base
-        self.index = index
-
-
-class Load(Value):
-    ref: Value
-
-    def __init__(self, ref: Value) -> None:
-        assert isinstance(ref.type, RefType)
-        super().__init__(ref.type.remove_ref(), ref.span)
-        self.ref = ref
-
-
-class Constant(Value):
-    value: Any
-
-    def __init__(self, value: Any, type: Type | None = None, span: Optional[Span] = None) -> None:
-        super().__init__(type, span)
-        self.value = value
-
-    def __eq__(self, value: object) -> bool:
-        return isinstance(value, Constant) and type(value.value) == type(self.value) and value.value == self.value
-
-    def __hash__(self) -> int:
-        return hash((Constant, self.value))
-
-
-class TypeValue(Value):
-    def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
-        super().__init__(TypeConstructorType(ty), span)
-
-    def inner_type(self) -> Type:
-        assert isinstance(self.type, TypeConstructorType)
-        return self.type.inner
-
-
-class FunctionValue(Value):
-    def __init__(self, ty: FunctionType, span: Optional[Span] = None) -> None:
-        super().__init__(ty, span)
-
-
-class Alloca(Value):
-    """
-    A temporary variable
-    """
-
-    def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
-        # assert isinstance(ty, RefType), f"expected a RefType but got {ty}"
-        super().__init__(RefType(ty), span)
-
-
-# class Init(Value):
-#     init_call: 'Call'
-
-#     def __init__(self, init_call: 'Call', ty: Type,  span: Optional[Span] = None) -> None:
-#         super().__init__(ty, span)
-#         self.init_call = init_call
-
-class AggregateInit(Value):
-    args: List[Value]
-
-    def __init__(self, args: List[Value], type: Type, span: Optional[Span] = None) -> None:
-        super().__init__(type, span)
-        self.args = args
-
-
-class Intrinsic(Value):
-    name: str
-    args: List[Value]
-
-    def __init__(self, name: str, args: List[Value], type: Type, span: Optional[Span] = None) -> None:
-        super().__init__(type, span)
-        self.name = name
-        self.args = args
-
-    def __str__(self) -> str:
-        return f'Intrinsic({self.name}, {self.args})'
-
-    def __repr__(self) -> str:
-        return f'Intrinsic({self.name}, {self.args})'
-
-
-class Call(Value):
-    op: "Function"
-    """After type inference, op should be a Value."""
-
-    args: List[Value]
-
-    def __init__(
-        self,
-        op: "Function",
-        args: List[Value],
-        type: Type,
-        span: Optional[Span] = None,
-    ) -> None:
-        super().__init__(type, span)
-        self.op = op
-        self.args = args
-
-
-class TemplateMatchingError(Exception):
-    span: Span | None
-    message: str
-
-    def __init__(self, node: Node | Span | None, message: str) -> None:
-        if node is not None:
-            if isinstance(node, Node):
-                self.span = node.span
-            else:
-                self.span = node
-        else:
-            self.span = None
-        self.message = message
-
-    def __str__(self) -> str:
-        if self.span is None:
-            return f"Template matching error:\n\t{self.message}"
-        return f"Template matching error at {self.span}:\n\t{self.message}"
-
-
-class ComptimeCallStack:
-    pass
+    def remove(self) -> None:
+        if self.prev is not None:
+            self.prev.next = self.next
+        if self.next is not None:
+            self.next.prev = self.prev
+        self.prev = None
+        self.next = None
 
 
 class SpannedError(Exception):
@@ -1191,29 +709,225 @@ class SpannedError(Exception):
         self.stack_trace = None
 
 
-def _pretty_print_error(err_kind: str, stack_trace: Optional[str], span: Optional[Span], message: str) -> str:
-    s = f"{err_kind} error"
-    if span is not None:
-        s += f" at {span}"
-    s += f":\n\t{message}"
-    if stack_trace is not None:
-        s += f"\n{stack_trace}"
-    return s
+class TypeCheckError(SpannedError):
+    pass
 
 
-class ParsingError(SpannedError):
+class BasicBlock(Node):
+    head: Node | None
+    tail: Node | None
+    terminated: bool
+
+    def __init__(self, span: Optional[Span] = None) -> None:
+        self.head = None
+        self.tail = None
+        self.terminated = False
+        self.span = span
+
+    def append[T: Node](self, node: T) -> T:
+        assert node.block is None
+        node.block = self
+        if isinstance(node, Terminator):
+            assert not self.terminated
+            self.terminated = True
+        if self.tail is not None:
+            self.tail = self.tail.append(node)
+        else:
+            self.head = node
+            self.tail = node
+        return node
+
+    def nodes(self) -> List[Node]:
+        nodes = []
+        node = self.head
+        while node is not None:
+            nodes.append(node)
+            node = node.next
+        return nodes
+
+
+class TypedNode(Node):
+    """
+    A node with a type, which can either be values or references.
+    """
+
+    type: Optional[Type]
+
+    def __init__(
+        self, type: Optional[Type] = None, span: Optional[Span] = None
+    ) -> None:
+        super().__init__()
+        self.type = type
+        self.span = span
+
+
+class Value(TypedNode):
+    def is_ref(self) -> bool:
+        assert self.type is not None
+        return isinstance(self.type, RefType)
+
+
+class Unit(Value):
+    def __init__(self) -> None:
+        super().__init__(UnitType())
+
+
+class ParameterSemantic(Enum):
+    BYVAL = auto()
+    BYREF = auto()
+
+
+class Var(TypedNode):
+    name: str
+    semantic: ParameterSemantic
+
+    def __init__(
+        self,
+        name: str,
+        type: Optional[Type],
+        span: Optional[Span],
+        semantic: ParameterSemantic = ParameterSemantic.BYVAL,
+    ) -> None:
+        assert not isinstance(type, RefType)
+        super().__init__(type, span)
+        self.name = name
+        self.semantic = semantic
+
+
+class VarValue(Value):
+    var: Var
+
+    def __init__(self, var: Var, span: Optional[Span]) -> None:
+        super().__init__(var.type, span)
+        self.var = var
+
+
+class VarRef(Value):
+    var: Var
+
+    def __init__(self, var: Var, span: Optional[Span] = None) -> None:
+        # assert var.type is not None
+        if var.type is not None:
+            super().__init__(RefType(var.type), span)
+        else:
+            super().__init__(None, span)
+        self.var = var
+
+
+class Member(Value):
+    base: Value
+    field: str
+
+    def __init__(
+        self, base: Value, field: str, type: Type, span: Optional[Span]
+    ) -> None:
+        super().__init__(type, span)
+        self.base = base
+        self.field = field
+
+
+class Index(Value):
+    base: Value
+    index: Value
+
+    def __init__(
+        self, base: Value, index: Value, type: Type, span: Optional[Span]
+    ) -> None:
+        super().__init__(type, span)
+        self.base = base
+        self.index = index
+
+
+class Load(Value):
+    ref: Value
+
+    def __init__(self, ref: Value) -> None:
+        assert isinstance(ref.type, RefType)
+        super().__init__(ref.type.remove_ref(), ref.span)
+        self.ref = ref
+
+
+class Constant(Value):
+    value: Any
+
+    def __init__(
+        self, value: Any, type: Type | None = None, span: Optional[Span] = None
+    ) -> None:
+        super().__init__(type, span)
+        self.value = value
+
+    def __eq__(self, value: object) -> bool:
+        return (
+            isinstance(value, Constant)
+            and type(value.value) == type(self.value)
+            and value.value == self.value
+        )
+
+    def __hash__(self) -> int:
+        return hash((Constant, self.value))
+
+
+class Alloca(Value):
+    """
+    A temporary variable
+    """
+
+    def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
+        # assert isinstance(ty, RefType), f"expected a RefType but got {ty}"
+        super().__init__(RefType(ty), span)
+
+
+# class Init(Value):
+#     init_call: 'Call'
+
+#     def __init__(self, init_call: 'Call', ty: Type,  span: Optional[Span] = None) -> None:
+#         super().__init__(ty, span)
+#         self.init_call = init_call
+
+
+class AggregateInit(Value):
+    args: List[Value]
+
+    def __init__(
+        self, args: List[Value], type: Type, span: Optional[Span] = None
+    ) -> None:
+        super().__init__(type, span)
+        self.args = args
+
+
+class Intrinsic(Value):
+    name: str
+    args: List[Value]
+
+    def __init__(
+        self, name: str, args: List[Value], type: Type, span: Optional[Span] = None
+    ) -> None:
+        super().__init__(type, span)
+        self.name = name
+        self.args = args
+
     def __str__(self) -> str:
-        return _pretty_print_error("Parsing", self.stack_trace, self.span, self.message)
+        return f"Intrinsic({self.name}, {self.args})"
+
+    def __repr__(self) -> str:
+        return f"Intrinsic({self.name}, {self.args})"
 
 
-class InlineError(SpannedError):
-    def __str__(self) -> str:
-        return _pretty_print_error("Inline", self.stack_trace, self.span, self.message)
+class Call(Value):
+    op: "Function"
 
+    args: List[Value]
 
-class TypeInferenceError(SpannedError):
-    def __str__(self) -> str:
-        return _pretty_print_error("Type inference", self.stack_trace, self.span, self.message)
+    def __init__(
+        self,
+        op: "Function",
+        args: List[Value],
+        type: Type,
+        span: Optional[Span] = None,
+    ) -> None:
+        super().__init__(type, span)
+        self.op = op
+        self.args = args
 
 
 class Assign(Node):
@@ -1221,11 +935,9 @@ class Assign(Node):
     value: Value
 
     def __init__(self, ref: Value, value: Value, span: Optional[Span] = None) -> None:
-        assert not isinstance(
-            value.type, (FunctionType, TypeConstructorType, RefType))
+        assert not isinstance(value.type, (RefType))
         if not isinstance(ref.type, RefType):
-            raise ParsingError(
-                ref, f"cannot assign to a non-reference variable")
+            raise TypeCheckError(ref, f"cannot assign to a non-reference variable")
         super().__init__(span)
         self.ref = ref
         self.value = value
@@ -1235,7 +947,9 @@ class Assert(Node):
     cond: Value
     msg: List[Union[Value, str]]
 
-    def __init__(self, cond: Value, msg: List[Union[Value, str]], span: Optional[Span] = None) -> None:
+    def __init__(
+        self, cond: Value, msg: List[Union[Value, str]], span: Optional[Span] = None
+    ) -> None:
         super().__init__(span)
         self.cond = cond
         self.msg = msg
@@ -1244,7 +958,9 @@ class Assert(Node):
 class Print(Node):
     args: List[Union[Value, str]]
 
-    def __init__(self, args: List[Union[Value, str]], span: Optional[Span] = None) -> None:
+    def __init__(
+        self, args: List[Union[Value, str]], span: Optional[Span] = None
+    ) -> None:
         super().__init__(span)
         self.args = args
 
@@ -1327,7 +1043,9 @@ class Range(Value):
     step: Value
     stop: Value
 
-    def __init__(self, start: Value, stop: Value, step: Value, span: Optional[Span] = None) -> None:
+    def __init__(
+        self, start: Value, stop: Value, step: Value, span: Optional[Span] = None
+    ) -> None:
         super().__init__(None, span)
         self.start = start
         self.stop = stop
@@ -1335,419 +1053,34 @@ class Range(Value):
 
     def value_type(self) -> Type:
         types = [self.start.type, self.stop.type, self.step.type]
-        for ty in types:
-            if not isinstance(ty, GenericIntType):
-                return unwrap(ty)
         return unwrap(types[0])
 
 
-class ComptimeValue:
-    value: Any
-    update_func: Optional[Callable[[Any], None]]
-
-    def __init__(self, value: Any, update_func: Callable[[Any], None] | None) -> None:
-        self.value = value
-        self.update_func = update_func
-
-    def update(self, value: Any) -> None:
-        if self.update_func is not None:
-            self.update_func(value)
-        else:
-            raise RuntimeError("unable to update comptime value")
-
-    def __str__(self) -> str:
-        return f"ComptimeValue({self.value})"
-
-
-class FunctionSignature:
-    params: List[Var]
-    return_type: Type | None
-    generic_params: List[GenericParameter]
-
-    def __init__(self,  generic_params: List[GenericParameter], params: List[Var], return_type: Type | None) -> None:
-        self.params = params
-        self.return_type = return_type
-        self.generic_params = generic_params
-
-
-class Function:
-    name: str
-    params: List[Var]
-    return_type: Type | None
-    body: Optional[BasicBlock]
-    export: bool
-    locals: List[Var]
-    complete: bool
-    is_method: bool
-    inline_hint: bool | Literal['always', 'never']
-
-    def __init__(
-        self,
-        name: str,
-        params: List[Var],
-        return_type: Type | None,
-        is_method: bool,
-    ) -> None:
-        self.name = name
-        self.params = params
-        self.return_type = return_type
-        self.body = None
-        self.export = False
-        self.locals = []
-        self.complete = False
-        self.is_method = is_method
-        self.inline_hint = False
-
-
-def match_template_args(
-        template: List[Tuple[str, Type]],
-        args: List[Type]) -> Dict[GenericParameter, Type] | TypeInferenceError:
-    mapping: Dict[GenericParameter, Type] = {}
-
-    def unify(a: Type, b: Type):
-        """
-        Perform unification on two types or values, only a could contain generic parameters.
-        """
-        if a is b:
-            return
-
-        # unify type
-        match a:
-            case SymbolicType():
-                if a.param.name in mapping:
-                    return unify(mapping[a.param], b)
-                if isinstance(b, RefType):
-                    return unify(a, b.element)
-                if a.param.bound is None:
-                    if isinstance(b, GenericFloatType) or isinstance(b, GenericIntType):
-                        raise TypeInferenceError(None,
-                                                 f"float/int literal cannot be used to infer generic type for `{a.param.name}` directly, wrap it with a concrete type")
-                else:
-                    if not a.param.bound.satisfied_by(b):
-                        raise TypeInferenceError(
-                            None, f"{b} does not satisfy bound {a.param.bound}")
-                    if isinstance(a.param.bound, UnionBound):
-                        for bound in a.param.bound.bounds:
-                            if bound.satisfied_by(b) and bound.super_type.is_concrete():
-                                mapping[a.param] = bound.super_type
-                                return
-                mapping[a.param] = b
-                return
-            case VectorType():
-                if not isinstance(b, VectorType):
-                    raise TypeInferenceError(
-                        None, f"expected {a}, got {b}")
-                if a.count != b.count:
-                    raise TypeInferenceError(
-                        None, f"vector length mismach, expected {a}, got {b}")
-                unify(a.element, b.element)
-            case ArrayType():
-                if not isinstance(b, ArrayType):
-                    raise TypeInferenceError(
-                        None, f"expected {a}, got {b}")
-                # TODO: handle generic array length
-                if a.count != b.count:
-                    raise TypeInferenceError(
-                        None, f"array length mismach, expected {a}, got {b}")
-                unify(a.element, b.element)
-            case PointerType():
-                if not isinstance(b, PointerType):
-                    raise TypeInferenceError(
-                        None, f"expected {a}, got {b}")
-                unify(a.element, b.element)
-            case TupleType():
-                def do() -> None:
-                    if not isinstance(b, TupleType):
-                        raise TypeInferenceError(
-                            None, f"expected {a}, got {b}")
-                    if len(a.elements) != len(b.elements):
-                        raise TypeInferenceError(
-                            None, f"expected {a}, got {b}")
-                    for ea, eb in zip(a.elements, b.elements):
-                        unify(ea, eb)
-                do()
-            case StructType():
-                raise RuntimeError(
-                    "StructType should not appear in match_template_args")
-                # if not isinstance(b, StructType):
-                #     raise TypeInferenceError(
-                #         None, f"expected {a}, got {b}")
-                # if len(a.fields) != len(b.fields):
-                #     raise TypeInferenceError(
-                #         None, f"field cound mismatch, expected {a}, got {b}")
-                # for (fa, ta), (fb, tb) in zip(a.fields, b.fields):
-                #     if fa != fb:
-                #         raise TypeInferenceError(
-                #             None, f"field name mismatch,expected {a}, got {b}")
-                #     unify(ta, tb)
-            case BoundType():
-                def do() -> None:
-                    if not isinstance(b, BoundType):
-                        if isinstance(b, TypeConstructorType) and isinstance(a.generic.body, TypeConstructorType):
-                            assert len(a.args) == 1
-                            unify(a.args[0], b.inner)
-                            return
-
-                        raise TypeInferenceError(
-                            None, f"{b} is not a BoundType")
-                    if len(a.args) != len(b.args):
-                        raise TypeInferenceError(
-                            None, f"expected {len(a.args)} arguments, got {len(b.args)}")
-                    for ea, eb in zip(a.args, b.args):
-                        unify(ea, eb)
-                    unify(a.generic.body, b.generic.body)
-                do()
-            case ParametricType():
-                raise RuntimeError(
-                    "ParametricType should not appear in match_template_args")
-            case _:
-                if not is_type_compatible_to(b, a):
-                    raise TypeInferenceError(
-                        None, f"expected {a}, got {b}")
-        return False
-    try:
-        if len(template) != len(args):
-            return TypeInferenceError(None, f"expected {len(template)} arguments, got {len(args)}")
-        for i in range(len(template)):
-            unify(template[i][1], args[i])
-        return mapping
-    except TypeInferenceError as e:
-        return e
-
-
-def match_func_template_args(sig: FunctionSignature, args: FunctionTemplateResolvingArgs) -> Dict[GenericParameter, Type] | TypeInferenceError:
-    if len(sig.params) != len(args):
-        return TypeInferenceError(
-            None, f"expected {len(sig.params)} arguments, got {len(args)}")
-
-    template_args: List[Tuple[str, Type]] = []
-    for param in sig.params:
-        assert param.type is not None
-        template_args.append((param.name, param.type))
-    matching_args = [arg[1] for arg in args]
-    return match_template_args(template_args, matching_args)
-
-
-_global_context: Optional["GlobalContext"] = None
-
-
 class GlobalContext:
-    types: Dict[type, Type]
+    types: Dict[type, TypeTemplate]
     functions: Dict[Callable[..., Any], FunctionTemplate]
+    _instance: ClassVar["GlobalContext"]
 
     @staticmethod
     def get() -> "GlobalContext":
-        global _global_context
-        if _global_context is None:
-            _global_context = GlobalContext()
-        return _global_context
+        if not hasattr(GlobalContext, "_instance"):
+            GlobalContext._instance = GlobalContext.__new__(GlobalContext)
+            GlobalContext._instance.types = {}
+            GlobalContext._instance.functions = {}
+        return GlobalContext._instance
 
-    def __init__(self) -> None:
-        assert _global_context is None, "GlobalContext should be a singleton"
-        self.types = {
-            type(None): UnitType(),
-            int: GenericIntType(),
-            float: GenericFloatType(),
-            bool: BoolType(),
-        }
-        self.functions = {}
+    def clear_all_instantiations(self) -> None:
+        for ty in self.types.values():
+            ty.clear_instantiations()
+        for func in self.functions.values():
+            func.clear_instantiations()
 
 
-class FuncMetadata:
-    pass
-
-
-class StructMetadata:
-    pass
-
-
-def get_dsl_func(func: Callable[..., Any]) -> Optional[FunctionTemplate]:
-    func_ = GlobalContext.get().functions.get(func)
-    # print(func, GlobalContext.get().functions)
-    if not func_:
-        # check if __luisa_func__ is set
-        luisa_func = getattr(func, "__luisa_func__", None)
-        if luisa_func and isinstance(luisa_func, FunctionTemplate):
-            func_ = luisa_func
-    return func_
-
-
-def get_dsl_type(cls: type) -> Optional[Type]:
-    return GlobalContext.get().types.get(cls)
-
-
-def is_type_compatible_to(ty: Type, target: Type) -> bool:
-    if ty == target or isinstance(ty, AnyType):
-        return True
-    if isinstance(ty, RefType):
-        return is_type_compatible_to(ty.element, target)
-    if isinstance(target, FloatType):
-        return isinstance(ty, GenericFloatType)
-    if isinstance(target, IntType):
-        return isinstance(ty, GenericIntType)
-    return False
-
-
-class FunctionInliner:
-    mapping: Dict[Var | Value, Value]
-    ret: Value | None
-
-    def __init__(self, func: Function, args: List[Value], body: BasicBlock, span: Optional[Span] = None) -> None:
-        self.mapping = {}
-        self.ret = None
-        for param, arg in zip(func.params, args):
-            self.mapping[param] = arg
-        for v in func.locals:
-            if v in self.mapping:
-                # skip function parameters
-                continue
-            assert v.type
-            assert v.type.is_addressable()
-            self.mapping[v] = body.append(Alloca(v.type, v.span))
-        assert func.body
-        self.do_inline(func.body, body)
-
-    def do_inline(self, func_body: BasicBlock, body: BasicBlock) -> None:
-        for node in func_body.nodes:
-            assert node not in self.mapping
-
-            match node:
-                case VarValue():
-                    assert node.type
-                    assert node.var in self.mapping
-                    self.mapping[node] = self.mapping[node.var]
-                case VarRef():
-                    assert node.var in self.mapping
-                    self.mapping[node] = self.mapping[node.var]
-                case Assign():
-                    ref = self.mapping.get(node.ref)
-                    assert isinstance(ref, Value)
-                    value = self.mapping.get(node.value)
-                    assert isinstance(value, Value)
-                    body.append(Assign(ref, value))
-                case Load():
-                    mapped_var = self.mapping[node.ref]
-                    if isinstance(node.ref.type, RefType) and isinstance(mapped_var, Value):
-                        self.mapping[node] = mapped_var
-                    else:
-                        assert isinstance(mapped_var.type, RefType)
-                        self.mapping[node] = body.append(Load(mapped_var))
-                case Index():
-                    base = self.mapping.get(node.base)
-                    assert isinstance(base, Value)
-                    index = self.mapping.get(node.index)
-                    assert isinstance(index, Value)
-                    assert node.type
-                    self.mapping[node] = body.append(
-                        Index(base, index, node.type, node.span))
-                case Member():
-                    base = self.mapping.get(node.base)
-                    assert isinstance(base, Value)
-                    assert node.type
-                    self.mapping[node] = body.append(Member(
-                        base, node.field, node.type, node.span))
-                case Call() as call:
-                    def do():
-                        args: List[Value] = []
-                        for arg in call.args:
-                            mapped_arg = self.mapping.get(arg)
-                            if mapped_arg is None:
-                                raise InlineError(
-                                    node, "unable to inline call")
-                            args.append(mapped_arg)
-                        assert call.type
-                        self.mapping[call] = body.append(
-                            Call(call.op, args, call.type, node.span))
-                    do()
-                case Intrinsic() as intrin:
-                    def do():
-                        args: List[Value] = []
-                        for i, arg in enumerate(intrin.args):
-                            mapped_arg = self.mapping.get(arg)
-                            if mapped_arg is None:
-                                raise InlineError(
-                                    node, f"unable to inline intrinsic, {i}-th argument {arg} is not mapped")
-                            args.append(mapped_arg)
-                        assert intrin.type
-                        self.mapping[intrin] = body.append(
-                            Intrinsic(intrin.name, args, intrin.type, node.span))
-                    do()
-                case If():
-                    cond = self.mapping.get(node.cond)
-                    assert isinstance(cond, Value)
-                    then_body = BasicBlock()
-                    else_body = BasicBlock()
-                    merge = BasicBlock()
-                    body.append(If(cond, then_body, else_body, merge))
-                    self.do_inline(node.then_body, then_body)
-                    if node.else_body:
-                        self.do_inline(node.else_body, else_body)
-                    body.append(merge)
-                case Loop():
-                    prepare = BasicBlock()
-                    if node.cond:
-                        cond = self.mapping.get(node.cond)
-                    else:
-                        cond = None
-                    assert cond is None or isinstance(cond, Value)
-                    body_ = BasicBlock()
-                    update = BasicBlock()
-                    merge = BasicBlock()
-                    body.append(Loop(prepare, cond, body_, update, merge))
-                    self.do_inline(node.prepare, prepare)
-                    self.do_inline(node.body, body_)
-                    if node.update:
-                        self.do_inline(node.update, update)
-                    body.append(merge)
-                case Return():
-                    if self.ret is not None:
-                        raise InlineError(node, "multiple return statement")
-                    assert node.value is not None
-                    mapped_value = self.mapping.get(node.value)
-                    if mapped_value is None:
-                        raise InlineError(node, "unable to inline return")
-                    self.ret = mapped_value
-                case _:
-                    raise ParsingError(node, f"invalid node {
-                                       node} for inlining")
-
-    @staticmethod
-    def inline(func: Function, args: List[Value], body: BasicBlock, span: Optional[Span] = None) -> Value:
-        inliner = FunctionInliner(func, args, body, span)
-        assert func.return_type
-        if func.return_type == UnitType():
-            return Unit()
-        assert inliner.ret
-        return inliner.ret
-
-
-def register_dsl_type_alias(target: type, alias: type):
+def get_dsl_type(target: type) -> TypeTemplate:
     """
-    Allow a type to be remapped to another type within DSL code.
-    Parameters:
-    target (type): The type to be remapped.
-    alias (type): The type to which the target type will be remapped.
-    Example:
-
-    For example, 
-    ```python
-    @lc.struct
-    class Foo:
-        x: int
-        y: int
-
-    class SomeOtherFoo:
-        components: List[int]
-
-    register_dsl_type_alias(SomeOtherFoo, Foo)
-
-    @lc.func
-    def foo(f: SomeOtherFoo): # SomeOtherFoo is interpreted as Foo
-        ...
-
-    ```
+    Get the inner DSL type representation of a type
     """
     ctx = GlobalContext.get()
-    alias_ty = get_dsl_type(alias)
-    assert alias_ty, f"alias type {alias} is not a DSL type"
-    ctx.types[target] = alias_ty
+    ty = ctx.types.get(target)
+    assert ty, f"no DSL type for {target} (id: {id(target)})"
+    return ty

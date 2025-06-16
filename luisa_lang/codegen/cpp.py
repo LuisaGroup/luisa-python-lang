@@ -4,8 +4,6 @@ from luisa_lang.utils import unique_hash, unwrap
 from luisa_lang.codegen import CodeGen, ScratchBuffer
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Union
 
-from luisa_lang.hir import get_dsl_func
-
 
 @cache
 def _get_cpp_lib() -> str:
@@ -59,7 +57,7 @@ class TypeCodeGenCache:
             case hir.PointerType(element=element):
                 return f"lc_ptr<{self.gen(element)}>"
             case hir.VectorType(element=element, count=count):
-                return f"{self.gen(element)}{count}>"
+                return f"{self.gen(element)}{count}"
             case hir.ArrayType(element=element, count=count):
                 return f"lc_array<{self.gen(element)}, {count}>"
             case hir.StructType(name=name, fields=fields):
@@ -80,19 +78,6 @@ class TypeCodeGenCache:
                     self.impl.writeln('};')
                     return name
                 return do()
-            case hir.BoundType():
-                assert ty.instantiated
-                return self.gen(ty.instantiated)
-            case hir.FunctionType():
-                name = f'func_{unique_hash(ty.func_like.name)}_t'
-                self.impl.writeln(
-                    f'struct {name} {{}}; // function type of {ty.func_like.name}')
-                return name
-            case hir.TypeConstructorType():
-                name = f'type_{unique_hash(self.gen(ty.inner))}_t'
-                self.impl.writeln(
-                    f'struct {name} {{}}; // type constructor of {ty.inner}')
-                return name
             case hir.OpaqueType():
                 def do():
                     match ty.name:
@@ -103,10 +88,6 @@ class TypeCodeGenCache:
                             raise NotImplementedError(
                                 f"unsupported opaque type: {ty.name}")
                 return do()
-            case hir.GenericIntType():
-                return 'int'
-            case hir.GenericFloatType():
-                return 'float'
             case hir.RefType():
                 return f"{self.gen(ty.element)} &"
             case _:
@@ -196,23 +177,12 @@ class Mangling:
             case hir.TupleType():
                 elements = [self.mangle(e) for e in obj.elements]
                 return f"T{unique_hash(''.join(elements))}"
-            case hir.BoundType():
-                assert obj.instantiated
-                return self.mangle(obj.instantiated)
             case hir.OpaqueType():
                 return obj.name
-            case hir.TypeConstructorType():
-                return self.mangle(obj.inner)
-            case hir.FunctionType():
-                return f'func_{unique_hash(obj.func_like.name)}'
-            case hir.GenericFloatType():
-                return 'f32'
-            case hir.GenericIntType():
-                return 'i32'
             case hir.RefType():
                 return f'R{self.mangle(obj.element)}'
             case _:
-                raise NotImplementedError(f"unsupported object: {obj}")
+                raise NotImplementedError(f"unsupported object: {obj} {isinstance(obj, hir.Function)}")
 
 
 class CppCodeGen(CodeGen):
@@ -228,16 +198,7 @@ class CppCodeGen(CodeGen):
         self.mangling = Mangling()
         self.generated_code = ScratchBuffer()
 
-    def gen_function(self, func: hir.Function | Callable[..., Any]) -> str:
-        if callable(func):
-            dsl_func = get_dsl_func(func)
-            assert dsl_func is not None
-            assert not dsl_func.is_generic, f"Generic functions should be resolved before codegen: {
-                func}"
-            func_tmp = dsl_func.resolve([])
-            assert isinstance(
-                func_tmp, hir.Function), f"Expected function, got {func_tmp}"
-            func = func_tmp
+    def gen_function(self, func: hir.Function) -> str:
         if id(func) in self.func_cache:
             return self.func_cache[id(func)][1]
         func_code_gen = FuncCodeGen(self, func)
@@ -279,14 +240,14 @@ class FuncCodeGen:
 
         self.signature = f'auto {
             self.name}({params}) -> {base.type_cache.gen(func.return_type)}'
-        if func.export:
-            self.signature = f'extern "C" {self.signature}'
-        else:
-            self.signature = f"inline {self.signature}"
-        if func.inline_hint == 'always':
-            self.signature = f"__lc_always_inline__ {self.signature}"
-        elif func.inline_hint == 'never':
-            self.signature = f"__lc_never_inline {self.signature}"
+        # if func.export:
+        #     self.signature = f'extern "C" {self.signature}'
+        # else:
+        #     self.signature = f"inline {self.signature}"
+        # if func.inline_hint == 'always':
+        #     self.signature = f"__lc_always_inline__ {self.signature}"
+        # elif func.inline_hint == 'never':
+        #     self.signature = f"__lc_never_inline {self.signature}"
         self.body = ScratchBuffer()
         self.params = set(p.name for p in func.params)
         self.node_map = {}
@@ -381,15 +342,6 @@ class FuncCodeGen:
                 case hir.VarValue() as var_value:
                     self.body.writeln(
                         f"auto&& v{vid} = {var_value.var.name};")
-                case hir.FunctionValue() as func_value:
-                    assert isinstance(func_value.type, hir.FunctionType)
-                    self.body.writeln(
-                        f'auto v{vid} = {self.base.type_cache.gen(func_value.type)}{{}};')
-                case hir.TypeValue() as type_value:
-                    assert type_value.type
-                    self.body.writeln(
-                        f'auto v{vid} = {self.base.type_cache.gen(type_value.type)}{{}};')
-                    return
                 case hir.Load() as load:
                     self.body.writeln(
                         f"const auto &v{vid} = {self.gen_ref(load.ref)}; // load")
@@ -529,7 +481,6 @@ class FuncCodeGen:
         return f'v{vid}'
 
     def gen_node(self, node: hir.Node) -> Optional[hir.BasicBlock]:
-
         match node:
             case hir.Return() as ret:
                 if ret.value:
@@ -538,8 +489,6 @@ class FuncCodeGen:
                 else:
                     self.body.writeln("return;")
             case hir.Assign() as assign:
-                if isinstance(assign.ref.type, (hir.FunctionType, hir.TypeConstructorType)):
-                    return None
                 ref = self.gen_ref(assign.ref)
                 value = self.gen_node_checked(assign.value)
                 self.body.writeln(f"{ref} = {value};")
@@ -604,7 +553,7 @@ class FuncCodeGen:
                 raise NotImplementedError("print statement")
             case hir.Assert() as assert_stmt:
                 raise NotImplementedError("assert statement")
-            case hir.AggregateInit() | hir.Intrinsic() | hir.Call() | hir.Constant() | hir.Load() | hir.Index() | hir.Member() | hir.TypeValue() | hir.FunctionValue() | hir.VarValue():
+            case hir.AggregateInit() | hir.Intrinsic() | hir.Call() | hir.Constant() | hir.Load() | hir.Index() | hir.Member() | hir.VarValue():
                 if isinstance(node, hir.TypedNode) and node.is_ref():
                     pass
                 else:
@@ -621,9 +570,9 @@ class FuncCodeGen:
             loop_again = False
             old_bb = bb
             self.body.writeln(f"// BasicBlock Begin {bb.span}")
-            for i, node in enumerate(bb.nodes):
+            for node in bb.nodes():
                 if (next := self.gen_node(node)) and next is not None:
-                    assert i == len(bb.nodes) - 1
+                    assert node.next is None
                     loop_again = True
                     bb = next
                     break

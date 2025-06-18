@@ -604,6 +604,7 @@ class Function:
     params: List["Var"]
     locals: List["Var"]
     body: "BasicBlock"
+    return_jitvar_type: typing.Type['Any']
     return_type: Type
 
     def __init__(
@@ -612,13 +613,15 @@ class Function:
         params: List["Var"],
         locals: List["Var"],
         body: "BasicBlock",
-        return_type: Type,
+        return_jitvar_type: typing.Type['Any'],
+        return_type: Type
     ) -> None:
         self.name = name
         self.params = params
         self.locals = locals
         self.body = body
         self.return_type = return_type
+        self.return_jitvar_type = return_jitvar_type
 
 
 class Node:

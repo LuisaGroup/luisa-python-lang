@@ -271,7 +271,8 @@ def func[F: Callable[..., Any]](f: F) -> F:
         )
         # print(instantiated_func.return_type)
         # func_tracer = current_func()
-        rt = instantiated_func.return_type
+        rt = instantiated_func.return_jitvar_type
+        assert issubclass(rt, JitVar), f"Return type {rt} is not a JitVar"
         jitvar_args: List[JitVar] = []
         for arg in pytree_args:
             jitvar_args.extend(arg.collect_jitvars())
@@ -279,15 +280,17 @@ def func[F: Callable[..., Any]](f: F) -> F:
             jitvar_args.extend(v.collect_jitvars())
         # TODO: handle kwargs properly
         if not __lc_ctx__.is_top_level:
-            push_to_current_bb(
+            ret_node = push_to_current_bb(
                 hir.Call(
                     op=instantiated_func,
                     args=[x.symbolic().node for x in jitvar_args],
-                    type=rt,
+                    type=instantiated_func.return_type,
                 )
             )
+            return rt.from_hir_node(ret_node)
         else:
             __lc_ctx__.top_level_func = instantiated_func
+        
 
     # Copy over important attributes from the original function
     wrapper.__name__ = f.__name__

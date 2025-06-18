@@ -8,7 +8,19 @@ import typing
 from luisa_lang.utils import IdentityDict, check_type, is_generic_class
 import luisa_lang.hir as hir
 from luisa_lang.hir import PyTreeStructure
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Type, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 
 class Scope:
@@ -43,12 +55,12 @@ class FuncTracer:
     locals: List[hir.Var]
     params: List[hir.Var]
     scopes: List[Scope]
-    ret_type: hir.Type | None
+    ret_type: Type["JitVar"] | None
     func_globals: Dict[str, Any]
     name: str
     entry_bb: hir.BasicBlock
 
-    def __init__(self, name:str, func_globals: Dict[str, Any]):
+    def __init__(self, name: str, func_globals: Dict[str, Any]):
         self.locals = []
         self.py_locals = {}
         self.params = []
@@ -75,7 +87,6 @@ class FuncTracer:
         if is_param:
             self.params.append(var)
         return var
-
 
     def add_py_var(self, name: str, obj: object):
         assert not isinstance(obj, JitVar)
@@ -119,7 +130,7 @@ class FuncTracer:
         else:
             self.py_locals[key] = value
 
-    def check_return_type(self, ty:hir.Type):
+    def check_return_type(self, ty: Type["JitVar"]) -> None:
         if self.ret_type is None:
             self.ret_type = ty
         else:
@@ -130,7 +141,7 @@ class FuncTracer:
 
     def cur_bb(self) -> hir.BasicBlock:
         return self.scopes[-1].bb
-    
+
     def set_cur_bb(self, bb: hir.BasicBlock) -> None:
         """
         Set the current basic block to `bb`
@@ -142,7 +153,14 @@ class FuncTracer:
         assert len(self.scopes) == 1
         entry_bb = self.entry_bb
         assert self.ret_type is not None
-        return hir.Function(self.name, self.params, self.locals, entry_bb, self.ret_type)
+        return hir.Function(
+            self.name,
+            self.params,
+            self.locals,
+            entry_bb,
+            self.ret_type,
+            self.ret_type.hir_type(),
+        )
 
 
 FUNC_STACK: List[FuncTracer] = []
@@ -158,7 +176,6 @@ def current_func() -> FuncTracer:
 
 def push_to_current_bb[T: hir.Node](node: T) -> T:
     return current_func().cur_bb().append(node)
-
 
 
 class Symbolic:
@@ -178,7 +195,9 @@ class FlattenedTree:
     children: List["FlattenedTree"]
 
     def __init__(
-        self, metadata: Tuple[Type[Any], Tuple[Any], Any], children: List["FlattenedTree"]
+        self,
+        metadata: Tuple[Type[Any], Tuple[Any], Any],
+        children: List["FlattenedTree"],
     ):
         self.metadata = metadata
         self.children = children
@@ -214,8 +233,8 @@ class FlattenedTree:
             return hir.PyTreeStructure(
                 (typ, self.metadata[1], self.metadata[2]), children
             )
-        
-    def collect_jitvars(self) -> List['JitVar']:
+
+    def collect_jitvars(self) -> List["JitVar"]:
         """
         Collect all JitVar instances from the flattened tree
         """
@@ -275,7 +294,7 @@ class JitVar:
     __symbolic__: Optional[Symbolic]
     dtype: type[Any]
 
-    def __init__(self, dtype:type[Any]):
+    def __init__(self, dtype: type[Any]):
         """
         Zero-initialize a variable with given data type
         """
@@ -315,6 +334,14 @@ class JitVar:
         instance.__symbolic__ = Symbolic(node)
         instance.dtype = cls
         return instance
+
+    @classmethod
+    def hir_type(cls) -> hir.Type:
+        """
+        Get the HIR type of the JitVar
+        """
+        # TODO: handle generic types
+        return hir.get_dsl_type(cls).default()
 
     def symbolic(self) -> Symbolic:
         """
@@ -423,7 +450,8 @@ class PyTreeRegistry:
 
         def flatten_list(obj: List[Any]) -> FlattenedTree:
             return FlattenedTree(
-                (list, cast(Tuple[Any, ...], tuple()), None), [tree_flatten(o, True) for o in obj]
+                (list, cast(Tuple[Any, ...], tuple()), None),
+                [tree_flatten(o, True) for o in obj],
             )
 
         def unflatten_list(tree: FlattenedTree) -> List[Any]:
@@ -435,7 +463,8 @@ class PyTreeRegistry:
 
         def flatten_tuple(obj: Tuple[Any, ...]) -> FlattenedTree:
             return FlattenedTree(
-                (tuple, cast(Tuple[Any, ...], tuple()), None), [tree_flatten(o, True) for o in obj]
+                (tuple, cast(Tuple[Any, ...], tuple()), None),
+                [tree_flatten(o, True) for o in obj],
             )
 
         def unflatten_tuple(tree: FlattenedTree) -> Tuple[Any, ...]:
@@ -491,7 +520,9 @@ def create_intrinsic_node[T: JitVar](
         elif isinstance(a, hir.Value):
             nodes.append(a)
         else:
-            raise ValueError(f"Argument [{i}] `{a}` of type {type(a)} is not a valid DSL variable or HIR node")
+            raise ValueError(
+                f"Argument [{i}] `{a}` of type {type(a)} is not a valid DSL variable or HIR node"
+            )
     if ret_type is not None:
         ret_dsl_type = hir.get_dsl_type(ret_type).default()
         if ret_dsl_type is None:
@@ -500,8 +531,10 @@ def create_intrinsic_node[T: JitVar](
         ret_dsl_type = hir.UnitType()
     return push_to_current_bb(hir.Intrinsic(name, nodes, ret_dsl_type))
 
+
 def __escape__(x: Any) -> Any:
     return x
+
 
 def __intrinsic_checked__[T](
     name: str, arg_types: Sequence[Any], ret_type: type[T], *args
@@ -509,15 +542,16 @@ def __intrinsic_checked__[T](
     """
     Call an intrinsic function with type checking.
     """
-    assert len(args) == len(arg_types), (
-        f"Intrinsic {name} expects {len(arg_types)} arguments, got {len(args)}"
-    )
+    assert len(args) == len(
+        arg_types
+    ), f"Intrinsic {name} expects {len(arg_types)} arguments, got {len(args)}"
     for i, (arg, arg_type) in enumerate(zip(args, arg_types)):
         if not check_type(arg_type, arg):
             raise ValueError(
                 f"Argument {i} of intrinsic {name} is not of type {arg_type}, got {type(arg)}"
             )
     return __intrinsic__(name, ret_type, *args)
+
 
 def __intrinsic__[T](name: str, ret_type: type[T], *args) -> T:
     """
@@ -572,18 +606,20 @@ class ControlFlowFrame:
         """
         pass
 
+
 class ScopeGuard:
     def __enter__(self) -> Scope:
         """
         Enter a new scope
         """
         return current_func().push_scope()
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
         Exit the current scope
         """
         current_func().pop_scope()
+
 
 class IfFrame(ControlFlowFrame):
     static_cond: Optional[bool]
@@ -625,11 +661,15 @@ class IfFrame(ControlFlowFrame):
             cond = self.cond
             assert isinstance(cond, JitVar), "Condition must be a DSL variable"
             merge_bb = hir.BasicBlock()
-            if_stmt = hir.If(cond.symbolic().node, 
-                             cast(hir.BasicBlock, self.true_bb), 
-                             cast(hir.BasicBlock, self.false_bb), merge_bb)
+            if_stmt = hir.If(
+                cond.symbolic().node,
+                cast(hir.BasicBlock, self.true_bb),
+                cast(hir.BasicBlock, self.false_bb),
+                merge_bb,
+            )
             push_to_current_bb(if_stmt)
             current_func().set_cur_bb(merge_bb)
+
 
 class ControlFrameGuard[T: ControlFlowFrame]:
     cf_type: type[T]
@@ -707,22 +747,43 @@ CMP_OP_TO_METHOD_NAMES: Dict[str, List[str]] = {
     "GtE": ["__ge__", "__le__"],
 }
 
+
+class LineTable:
+    span_of_line: Dict[int, hir.Span]
+
+
 class TraceContext:
     cf_frame: ControlFlowFrame
     is_top_level: bool
     top_level_func: Optional[hir.Function]
+    line_table: Optional[LineTable]  # for better error reporting
+    current_line: Optional[int] = None
 
     def __init__(self, is_top_level):
         self.cf_frame = ControlFlowFrame(parent=None)
         self.is_top_level = is_top_level
         self.top_level_func = None
 
+    def set_line_table(self, line_table: LineTable) -> None:
+        self.line_table = line_table
+
+    def set_current_line(self, line: int) -> None:
+        self.current_line = line
+
+    def current_span(self) -> hir.Span | None:
+        """
+        Get the current span for error reporting
+        """
+        if self.line_table is not None and self.current_line is not None:
+            return self.line_table.span_of_line.get(self.current_line, None)
+        return None
+
     def is_parent_static(self) -> bool:
         return self.cf_frame.is_static
 
     def if_(self, cond: Any) -> ControlFrameGuard[IfFrame]:
         return ControlFrameGuard(self, IfFrame, cond)
-    
+
     def scope(self) -> ScopeGuard:
         return ScopeGuard()
 
@@ -730,8 +791,8 @@ class TraceContext:
         """
         Return a value from the current function
         """
-        ty = expr._symbolic_type()
-        current_func().check_return_type(ty)
+        assert isinstance(expr, JitVar), "Return expression must be a DSL variable"
+        current_func().check_return_type(type(expr))  # TODO: handle generics
         push_to_current_bb(hir.Return(expr.symbolic().node))
 
     def redirect_binary(self, op, x, y):
@@ -745,7 +806,7 @@ class TraceContext:
             raise ValueError(
                 f"Binary operation {op} not supported for {type(x)} and {type(y)}"
             )
-        
+
     def redirect_cmp(self, op, x, y):
         op, rop = CMP_OP_TO_METHOD_NAMES[op]
         if hasattr(x, op):
@@ -758,11 +819,11 @@ class TraceContext:
             )
 
     def redirect_call(self, f, *args, **kwargs):
-        return f(*args, **kwargs, __lc_ctx__=self) # TODO: shoould not always pass self
+        return f(*args, **kwargs, __lc_ctx__=self)  # TODO: shoould not always pass self
 
     def intrinsic(self, f, *args, **kwargs):
         return __intrinsic__(f, *args, **kwargs)
-    
+
     def intrinsic_checked(self, f, arg_types, ret_type, *args):
         return __intrinsic_checked__(f, arg_types, ret_type, *args)
 
@@ -837,7 +898,7 @@ def _invoke_function_tracer(
     trace_ctx = TraceContext(False)
 
     # args is Type | object
-    func_tracer = FuncTracer(f.__name__.replace('.','_'), globalns)
+    func_tracer = FuncTracer(f.__name__.replace(".", "_"), globalns)
     FUNC_STACK.append(func_tracer)
     try:
         args_vars, kwargs_vars, jit_vars = _encode_func_args(args)
@@ -852,7 +913,7 @@ class KernelTracer:
     top_level_tracer: FuncTracer
 
     def __init__(self, func_globals: Dict[str, Any]):
-        self.top_level_tracer = FuncTracer('__kernel__', func_globals)
+        self.top_level_tracer = FuncTracer("__kernel__", func_globals)
 
     def __enter__(self) -> FuncTracer:
         FUNC_STACK.append(self.top_level_tracer)

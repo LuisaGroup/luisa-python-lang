@@ -120,6 +120,17 @@ class Span:
             end=(getattr(ast, "end_lineno", 0), getattr(ast, "end_col_offset", 0)),
         )
 
+    def apply_to_ast(self, ast: ast.AST) -> ast.AST:
+        """
+        Apply the span to the given AST node.
+        """
+        setattr(ast, "lineno", self.start[0])
+        setattr(ast, "col_offset", self.start[1])
+        setattr(ast, "end_lineno", self.end[0])
+        setattr(ast, "end_col_offset", self.end[1])
+        if self.file is not None:
+            setattr(ast, "source_file", self.file)
+        return ast
 
 def print_yellow(message: str) -> None:
     print(f"\033[33m{message}\033[0m")

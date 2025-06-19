@@ -2,7 +2,7 @@ import ast
 from ast import NodeTransformer
 import copy
 from typing import Callable, Any, List, Set, cast
-from luisa_lang.utils import checked_cast, retrieve_ast_and_filename, NestedHashMap
+from luisa_lang.utils import Span, checked_cast, retrieve_ast_and_filename, NestedHashMap
 
 """
 Rewrite rules:
@@ -163,17 +163,21 @@ class FuncRewriter(NodeTransformer):
         return node
 
     def visit_Name(self, node: ast.Name) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         # rewrite to __lc_ctx__.name
-        return ast.Subscript(
+        return span.apply_to_ast(ast.Subscript(
             value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
             slice=ast.Constant(value=node.id),
             ctx=node.ctx,
-        )
+        ))
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         return self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         target = checked_cast(ast.expr, self.visit(node.target))
         assert isinstance(target, (ast.Name, ast.Subscript, ast.Attribute))
         target.ctx = ast.Load()
@@ -193,16 +197,20 @@ class FuncRewriter(NodeTransformer):
         target = copy.deepcopy(target)
         target.ctx = ast.Store()
         assign = ast.Assign(targets=[target], value=self.visit(node.value))
+        span.apply_to_ast(anno)
+        span.apply_to_ast(assign)
         return [anno, assign]
 
     def visit_Call(self, node: ast.Call) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         # first check if it is of form `__intrinsic__(...)`
         if isinstance(node.func, ast.Name):
             if node.func.id in NO_REWRITE_FUNCTIONS:
                 return node
             if node.func.id == "__intrinsic__" or node.func.id == "__intrinsic_checked__":
                 # rewrite to __lc_ctx__.intrinsic(...)
-                return ast.Call(
+                return span.apply_to_ast(ast.Call(
                     func=ast.Attribute(
                         value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
                         attr=node.func.id[2:-2],
@@ -210,12 +218,12 @@ class FuncRewriter(NodeTransformer):
                     ),
                     args=[self.visit(arg) for arg in node.args],
                     keywords=[self.visit(kw) for kw in node.keywords],
-                )
+                ))
         # rewrite to __lc_ctx__.redirect_call(func, args...)
         func = self.visit(node.func)
         args = [self.visit(arg) for arg in node.args]
         keywords = [self.visit(kw) for kw in node.keywords]
-        return ast.Call(
+        return span.apply_to_ast(ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
                 attr="redirect_call",
@@ -223,12 +231,14 @@ class FuncRewriter(NodeTransformer):
             ),
             args=[func] + args,
             keywords=keywords,
-        )
+        ))
 
     def visit_BinOp(self, node: ast.BinOp) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         lhs = self.visit(node.left)
         rhs = self.visit(node.right)
-        return ast.Call(
+        return span.apply_to_ast(ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
                 attr="redirect_binary",
@@ -236,11 +246,13 @@ class FuncRewriter(NodeTransformer):
             ),
             args=[ast.Constant(value=type(node.op).__name__), lhs, rhs],
             keywords=[],
-        )
+        ))
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         operand = self.visit(node.operand)
-        return ast.Call(
+        return span.apply_to_ast(ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
                 attr="redirect_unary",
@@ -248,14 +260,16 @@ class FuncRewriter(NodeTransformer):
             ),
             args=[ast.Constant(value=type(node.op).__name__), operand],
             keywords=[],
-        )
+        ))
         
     def visit_Compare(self, node: ast.Compare) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         if len(node.ops) != 1 or len(node.comparators) != 1:
             raise NotImplementedError("Only single comparison is supported")
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
-        return ast.Call(
+        return span.apply_to_ast(ast.Call(
             func=ast.Attribute(
                 value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
                 attr="redirect_binary",
@@ -263,11 +277,13 @@ class FuncRewriter(NodeTransformer):
             ),
             args=[ast.Constant(value=type(node.ops[0]).__name__), left, right],
             keywords=[],
-        )
+        ))
 
     def visit_Subscript(self, node: ast.Subscript) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         value = self.visit(node.value)
-        return ast.Subscript(
+        return span.apply_to_ast(ast.Subscript(
             value=ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
@@ -279,11 +295,13 @@ class FuncRewriter(NodeTransformer):
             ),
             slice=node.slice,
             ctx=node.ctx,
-        )
+        ))
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         value = self.visit(node.value)
-        return ast.Attribute(
+        return span.apply_to_ast(ast.Attribute(
             value=ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
@@ -295,9 +313,11 @@ class FuncRewriter(NodeTransformer):
             ),
             attr=node.attr,
             ctx=node.ctx,
-        )
+        ))
 
     def visit_If(self, node: ast.If) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         if_id = self.new_id() + "_if"
         with_item = ast.withitem(
             context_expr=ast.Call(
@@ -361,10 +381,12 @@ class FuncRewriter(NodeTransformer):
             ]),
             orelse=[],
         )
-        with_stmt = ast.With(items=[with_item], body=[true_branch, false_branch])
+        with_stmt = span.apply_to_ast(ast.With(items=[with_item], body=[true_branch, false_branch]))
         return with_stmt
 
     def visit_Return(self, node: ast.Return) -> Any:
+        span = Span.from_ast(node)
+        assert span is not None
         self.return_cnt += 1
         if self.is_tracing:
             if self.return_cnt > 1:
@@ -380,7 +402,7 @@ class FuncRewriter(NodeTransformer):
             tmp = self.visit(node.value)
             assert isinstance(tmp, ast.expr)
             ret_value = tmp
-        return ast.If(
+        return span.apply_to_ast(ast.If(
             test=ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
@@ -407,10 +429,12 @@ class FuncRewriter(NodeTransformer):
                     )
                 ],
             ),
-        )
+        ))
 
     def visit_Break(self, node: ast.Break) -> Any:
-        return ast.If(
+        span = Span.from_ast(node)
+        assert span is not None
+        return span.apply_to_ast(ast.If(
             test=ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
@@ -437,10 +461,12 @@ class FuncRewriter(NodeTransformer):
                     )
                 ],
             ),
-        )
+        ))
 
     def visit_Continue(self, node: ast.Continue) -> Any:
-        return ast.If(
+        span = Span.from_ast(node)
+        assert span is not None
+        return span.apply_to_ast(ast.If(
             test=ast.Call(
                 func=ast.Attribute(
                     value=ast.Name(id="__lc_ctx__", ctx=ast.Load()),
@@ -467,15 +493,14 @@ class FuncRewriter(NodeTransformer):
                     )
                 ],
             ),
-        )
+        ))
 
 
 def rewrite_function[F: Callable[..., Any]](f: F, decorator_name: str) -> F:
     tree, filename = retrieve_ast_and_filename(f)
     tree = FuncRewriter(decorator_name, filename).visit(tree)
     ast.fix_missing_locations(tree)
-    # print(ast.unparse(tree))
-    code = compile(tree, filename="<ast>", mode="exec")
+    code = compile(tree, filename=filename, mode="exec")
     local_dict: dict[Any, Any] = {}
     exec(code, f.__globals__, local_dict)
     rewrote_f = local_dict[f.__name__]

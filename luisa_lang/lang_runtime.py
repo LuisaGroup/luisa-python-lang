@@ -533,6 +533,9 @@ def create_intrinsic_node[T: JitVar](
 
 
 def __escape__(x: Any) -> Any:
+    """
+    A marker used by the compiler frontend to prevent an expression from being rewritten.
+    """
     return x
 
 

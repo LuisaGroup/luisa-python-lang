@@ -79,9 +79,11 @@ class FuncTracer:
 
     def create_var(self, name: str, ty: hir.Type, is_param: bool) -> hir.Var:
         if self.scopes[-1].is_local_ref_defined(name):
-            raise ValueError(f"Local reference {name} already defined in current scope")
+            raise ValueError(
+                f"Local reference {name} already defined in current scope")
         if name in self.py_locals:
-            raise ValueError(f"Variable {name} already defined in current function")
+            raise ValueError(
+                f"Variable {name} already defined in current function")
         var = hir.Var(name, ty, None, hir.ParameterSemantic.BYVAL)
         self.locals.append(var)
         if is_param:
@@ -91,7 +93,8 @@ class FuncTracer:
     def add_py_var(self, name: str, obj: object):
         assert not isinstance(obj, JitVar)
         if name in self.py_locals:
-            raise ValueError(f"Variable {name} already defined in current function")
+            raise ValueError(
+                f"Variable {name} already defined in current function")
         self.py_locals[name] = obj
 
     def get_var(self, key: str) -> Any:
@@ -102,7 +105,8 @@ class FuncTracer:
                 # TODO: validate return values
                 return self.func_globals[key]
             else:
-                raise ValueError(f"Variable {key} not found in current function")
+                raise ValueError(
+                    f"Variable {key} not found in current function")
 
     def set_var(self, key: str, value: Any) -> None:
         if key not in self.py_locals:
@@ -260,7 +264,8 @@ class FlattenedTree:
         else:
             typ, type_args, other = s.metadata
             assert not issubclass(typ, JitVar)
-            children = [FlattenedTree.unstructure(c, mapping) for c in s.children]
+            children = [FlattenedTree.unstructure(
+                c, mapping) for c in s.children]
             return FlattenedTree((typ, type_args, other), children)
 
 
@@ -292,17 +297,24 @@ class JitVar:
     """
 
     __symbolic__: Optional[Symbolic]
-    dtype: type[Any]
+    __dtype__: type[Any]
 
     def __init__(self, dtype: type[Any]):
         """
         Zero-initialize a variable with given data type
         """
-        self.dtype = dtype
+        self.__dtype__ = dtype
         if is_jit():
             self._init_symbolic()
         else:
             self.__symbolic__ = None
+
+    @property
+    def dtype(self) -> Type[Any]:
+        """
+        Get the data type of the variable
+        """
+        return self.__dtype__
 
     def _type_args(self) -> Tuple[Any, ...]:
         # self.__orig_class__.__args__
@@ -311,11 +323,12 @@ class JitVar:
         return tuple()
 
     def _init_symbolic(self):
-        dsl_type = hir.get_dsl_type(self.dtype)
+        dsl_type = hir.get_dsl_type(self.__dtype__)
         if dsl_type is None:
-            raise ValueError(f"{self.dtype} is not a valid DSL type")
+            raise ValueError(f"{self.__dtype__} is not a valid DSL type")
         self.__symbolic__ = Symbolic(
-            hir.VarRef(current_func().create_var("", dsl_type.default(), False))
+            hir.VarRef(current_func().create_var(
+                "", dsl_type.default(), False))
         )
 
     def _destroy_symbolic(self):
@@ -323,7 +336,7 @@ class JitVar:
 
     def _symbolic_type(self) -> hir.Type:
         # TODO: check _type_args
-        return hir.get_dsl_type(self.dtype).default()
+        return hir.get_dsl_type(self.__dtype__).default()
 
     @classmethod
     def from_hir_node[T: JitVar](cls: type[T], node: hir.Value) -> T:
@@ -332,7 +345,7 @@ class JitVar:
         """
         instance = cls.__new__(cls)
         instance.__symbolic__ = Symbolic(node)
-        instance.dtype = cls
+        instance.__dtype__ = cls
         return instance
 
     @classmethod
@@ -423,7 +436,8 @@ class PyTreeRegistry:
         """
         funcs = PyTreeRegistry.instance().funcs.get(typ)
         if funcs is None:
-            raise ValueError(f"No flatten/unflatten functions registered for {typ}")
+            raise ValueError(
+                f"No flatten/unflatten functions registered for {typ}")
         return funcs
 
     @staticmethod
@@ -446,7 +460,8 @@ class PyTreeRegistry:
         PyTreeRegistry.register(float, flatten_primitive, unflatten_primitive)
         PyTreeRegistry.register(str, flatten_primitive, unflatten_primitive)
         PyTreeRegistry.register(bool, flatten_primitive, unflatten_primitive)
-        PyTreeRegistry.register(type(None), flatten_primitive, unflatten_primitive)
+        PyTreeRegistry.register(
+            type(None), flatten_primitive, unflatten_primitive)
 
         def flatten_list(obj: List[Any]) -> FlattenedTree:
             return FlattenedTree(
@@ -484,7 +499,8 @@ class PyTreeRegistry:
         def unflatten_dict(tree: FlattenedTree) -> Dict[Any, Any]:
             assert tree.metadata[0] is dict
             length = tree.metadata[2][0]
-            assert isinstance(length, int), "Invalid length for dict unflattening"
+            assert isinstance(
+                length, int), "Invalid length for dict unflattening"
             assert len(tree.children) == length * 2
             keys = tree.children[:length]
             values = tree.children[length:]
@@ -583,6 +599,8 @@ def is_jit() -> bool:
     """
     return FUNC_STACK != []
 
+def is_dsl_func(obj: Any) -> bool:
+    return hasattr(obj, '__luisa_original_func__')
 
 def is_dsl_var(obj: Any) -> bool:
     """
@@ -650,19 +668,19 @@ class IfFrame(ControlFlowFrame):
         return True
 
     def end_true(self) -> None:
-        if is_jit():
+        if is_jit() and not self.is_static:
             assert self.true_bb is None, "True branch already ended"
             self.true_bb = current_func().cur_bb()
 
     def end_false(self) -> None:
-        if is_jit():
+        if is_jit() and not self.is_static:
             assert self.false_bb is None, "False branch already ended"
             self.false_bb = current_func().cur_bb()
 
     def on_exit(self) -> None:
-        if is_jit():
+        if is_jit() and not self.is_static:
             cond = self.cond
-            assert isinstance(cond, JitVar), "Condition must be a DSL variable"
+            assert isinstance(cond, JitVar), f"Condition must be a DSL variable, got {type(cond)}"
             merge_bb = hir.BasicBlock()
             if_stmt = hir.If(
                 cond.symbolic().node,
@@ -685,7 +703,8 @@ class ControlFrameGuard[T: ControlFlowFrame]:
         self.args = args
         self.kwargs = kwargs
         self.cf_type = cf_type
-        self.cf_frame = self.cf_type(*self.args, **self.kwargs, parent=ctx.cf_frame)
+        self.cf_frame = self.cf_type(
+            *self.args, **self.kwargs, parent=ctx.cf_frame)
         self.ctx = ctx
 
     def __enter__(self) -> T:
@@ -794,7 +813,8 @@ class TraceContext:
         """
         Return a value from the current function
         """
-        assert isinstance(expr, JitVar), "Return expression must be a DSL variable"
+        assert isinstance(
+            expr, JitVar), "Return expression must be a DSL variable"
         current_func().check_return_type(type(expr))  # TODO: handle generics
         push_to_current_bb(hir.Return(expr.symbolic().node))
 
@@ -810,6 +830,9 @@ class TraceContext:
                 f"Binary operation {op} not supported for {type(x)} and {type(y)}"
             )
 
+    def redirect_attr(self, obj: Any) -> Any:
+        return obj
+
     def redirect_cmp(self, op, x, y):
         op, rop = CMP_OP_TO_METHOD_NAMES[op]
         if hasattr(x, op):
@@ -822,7 +845,16 @@ class TraceContext:
             )
 
     def redirect_call(self, f, *args, **kwargs):
-        return f(*args, **kwargs, __lc_ctx__=self)  # TODO: shoould not always pass self
+        if isinstance(f, type):
+            # if f is a class, then f() calls the constructor
+            if issubclass(f, JitVar):
+                return f(*args, **kwargs, __lc_ctx__=self) # type: ignore
+            else:
+                return f(*args, **kwargs)
+        if not is_dsl_func(f):
+            return f(*args, **kwargs)
+        # TODO: shoould not always pass self
+        return f(*args, **kwargs, __lc_ctx__=self)
 
     def intrinsic(self, f, *args, **kwargs):
         return __intrinsic__(f, *args, **kwargs)
@@ -887,10 +919,12 @@ def _encode_func_args(
         create_var(k, v)
 
     for a in args.args:
-        args_list.append(tree_unflatten(FlattenedTree.unstructure(a, mapping), False))
+        args_list.append(tree_unflatten(
+            FlattenedTree.unstructure(a, mapping), False))
 
     for k, v in args.kwargs.items():
-        kwargs_dict[k] = tree_unflatten(FlattenedTree.unstructure(v, mapping), False)
+        kwargs_dict[k] = tree_unflatten(
+            FlattenedTree.unstructure(v, mapping), False)
 
     return args_list, kwargs_dict, jit_vars
 

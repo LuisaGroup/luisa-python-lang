@@ -791,6 +791,7 @@ class Var(TypedNode):
         span: Optional[Span],
         semantic: ParameterSemantic = ParameterSemantic.BYVAL,
     ) -> None:
+        assert name != ""
         assert not isinstance(type, RefType)
         super().__init__(type, span)
         self.name = name
@@ -938,7 +939,7 @@ class Assign(Node):
     value: Value
 
     def __init__(self, ref: Value, value: Value, span: Optional[Span] = None) -> None:
-        assert not isinstance(value.type, (RefType))
+        assert not isinstance(value.type, (RefType)), f"expecting a non-reference value, but got {value}"
         if not isinstance(ref.type, RefType):
             raise TypeCheckError(ref, f"cannot assign to a non-reference variable")
         super().__init__(span)

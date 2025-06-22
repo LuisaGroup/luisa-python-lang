@@ -47,6 +47,11 @@ def _parse_type(ty: classinfo.VarType) -> hir.Type:
             raise NotImplementedError()
 
 
+excluded_names: Set[str] = set({
+    '__dtype__',
+    '__symbolic__',
+})
+
 def _dsl_struct_impl[T](
     cls: type[T], ir_ty_override: hir.Type | None = None
 ) -> type[T]:
@@ -58,6 +63,10 @@ def _dsl_struct_impl[T](
     # Register the class and get its type info
     classinfo.register_class(cls)
     cls_info = classinfo.class_typeinfo(cls)
+    globalns = classinfo._get_cls_globalns(cls)
+   
+    # jitvar_info = 
+    # print(base_class_infos)
     is_generic = len(cls_info.type_vars) > 0
 
     # Get the global namespace and register the class name
@@ -78,7 +87,10 @@ def _dsl_struct_impl[T](
         if ir_ty_override is None:
             # Build struct type from fields
             fields: List[Tuple[str, hir.Type]] = []
+            # print(instantiated_cls.fields)
             for name, field in instantiated_cls.fields.items():
+                if name in excluded_names:
+                    continue
                 field_ty = _parse_type(field)
                 if field_ty is None:
                     raise hir.TypeCheckError(
@@ -208,6 +220,7 @@ def trace[F: Callable[..., Any]](f: F) -> F:
     wrapper.__name__ = f.__name__
     wrapper.__doc__ = f.__doc__
     wrapper.__annotations__ = f.__annotations__
+    setattr(wrapper, '__luisa_original_func__', f)
 
     return cast(F, wrapper)
 
@@ -296,5 +309,6 @@ def func[F: Callable[..., Any]](f: F) -> F:
     wrapper.__name__ = f.__name__
     wrapper.__doc__ = f.__doc__
     wrapper.__annotations__ = f.__annotations__
-
+    setattr(wrapper, '__luisa_original_func__', f)
+    
     return cast(F, wrapper)

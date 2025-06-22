@@ -233,12 +233,12 @@ def inherit[T](cls: type[T], parent: Any, init_fn: Callable[..., None]) -> type[
     """
     original_init = cls.__dict__.get("__init__", None)
 
-    def new_init(self, *args, **kwargs):
+    def new_init(self, *args, __lc_ctx__: Optional[Any] = None, **kwargs):
         init_fn(self, *args, **kwargs)
 
         # Call original class (child) initializer
         if original_init:
-            original_init(self, *args, **kwargs)
+            original_init(self, *args, **kwargs, __lc_ctx__=__lc_ctx__)
 
     # Copy attributes and override __init__
     attrs = dict(cls.__dict__)

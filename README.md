@@ -149,18 +149,18 @@ However, not all references can be implemented on GPU. LuisaCompute would detect
 
 The behavior can be summarize in the following table:
 
-| Type        | Assignment | Field/Index Assignment | Function Argument Passing | Function Return |
-|-------------|------------|------------------------|---------------------------|-----------------|
-| Python Object | Reference   | Reference              | Reference                 | Reference       |
-| Scalar (e.g. lc.int) | Value       | Value                  | Value                     | Value           |
-| Compound Type (e.g. lc.float3, lc.float4x4) | Reference   | Copy              | Reference                 | Reference |
+| Type        | Assignment | Field/Index Assignment | Function Argument Passing | `@lc.trace` Return | `@lc.func` Return |
+|-------------|------------|------------------------|---------------------------|-----------------|-------------|
+| Python Object | Reference   | Reference              | Reference                 | Reference       | Reference |
+| Scalar (e.g. lc.int) | Value       | N/A                  | Value                     | Value           | Value   |
+| Compound Type (e.g. lc.float3, lc.float4x4) | Reference   | Copy              | Reference                 | Reference | Value |
 
 
 Let's take a look at an example:
 
 ```python
 @lc.kernel
-def kernel_example():
+def assignment_example():
     s = MyStruct(10, lc.float3(1.0, 2.0, 3.0))
     v = lc.float3(4.0, 5.0, 6.0)
     t = s # t is a reference to s as in Python
@@ -171,27 +171,44 @@ def kernel_example():
     t2 = lc.copy(s) # t2 is a copy of s, not a reference
     t2.a += 1
     lc.print(t2.a, s.a) # should print 11, 10
+```
 
-    # the following code is not allowed since such dynamically created reference cannot be implemented on GPU:
+#### Transient vs Persistent Values
+Values in LuisaCompute can be categorized into transient and persistent values. Transient values are similar to rvalues in C++, meaning that they are temporarily created and hasn't bind to any variable yet. Persistent values are similar to lvalues in C++, meaning that they are bound to a variable and can be used as assignment target.
+
+Since phyiscal reference might be supported on GPU, it is not possible to dynamically create reference to persistent values,
+for example
+```python
+@lc.kernel
+def transient_vs_persistent():
+    v1 = lc.float3(1.0, 2.0, 3.0)
+    v2 = lc.float3(4.0, 5.0, 6.0)
+
+    # the following code is allowed since both `v1 + 1.0` and `v2 + 1.0` are transient values.
     if dynamic_cond:
-        dynamic = s
+        dynamic = v1 + 1.0
     else:
-        dynamic = t2
+        dynamic = v2 + 1.0
+        
+    # the following code is not allowed since such dynamically created reference to persitent values cannot be implemented on GPU:
+    if dynamic_cond:
+        dynamic = v1
+    else:
+        dynamic = v2
 
     # instead, you can either use lc.copy() to create a copy of the struct:
     if dynamic_cond:
-        dynamic = s
+        dynamic = lc.copy(v1)
     else:
-        dynamic = t2
+        dynamic = lc.copy(v2)
 
     # or use a static condition:
     if lc.comptime(cond):
-        dynamic = s
+        dynamic = v1
     else:
-        dynamic = t2
+        dynamic = v2
 
 ```
-
 
 ### Functions and Methods
 Functions and methods in LuisaCompute are defined using the `@lc.func` or `@lc.trace` decorators. Both decorator transforms the python function into a LuisaCompute function that can be executed on both host (native Python) and device (LuisaCompute backend). The difference is that `@lc.trace` **inline**s the function body into the caller each time it is called, while `@lc.func` creates a separate function on the device.

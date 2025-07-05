@@ -85,7 +85,8 @@ class RefType(Type):
         raise RuntimeError("RefTypes are logical and thus do not have a size")
 
     def align(self) -> int:
-        raise RuntimeError("RefTypes are logical and thus do not have an align")
+        raise RuntimeError(
+            "RefTypes are logical and thus do not have an align")
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, RefType) and value.element == self.element
@@ -246,7 +247,8 @@ class VectorType(Type):
         self.count = count
         self._align = align
         assert (self.element.size() * self.count) % self._align == 0
-        self._size = round_to_align(self.element.size() * self.count, self._align)
+        self._size = round_to_align(
+            self.element.size() * self.count, self._align)
 
     def size(self) -> int:
         return self._size
@@ -506,10 +508,11 @@ class TypeTemplate(Template[Type, TypeTemplateArgs]):
     pass
 
 
-class PyTreeStructure: # TODO: refactor this into another file
+class PyTreeStructure:  # TODO: refactor this into another file
     metadata: (
         Tuple[type, Tuple[Any], Any] | None
-    )  # for JitVars, this is (type, type_args, hir.Type), for other types, this is (type, (), Any)
+        # for JitVars, this is (type, type_args, hir.Type), for other types, this is (type, (), Any)
+    )
     children: List["PyTreeStructure"]
 
     def __init__(
@@ -764,7 +767,21 @@ class TypedNode(Node):
         self.span = span
 
 
+class ValueCategory(Enum):
+    NONE = auto() # not applicable. such as for opaque types or references
+    TRANSIENT = auto()  # or r-values
+    PERSISTENT = auto()  # or l-values
+
+
 class Value(TypedNode):
+    category: ValueCategory
+
+    def __init__(self, type: Optional[Type] = None,
+                 span: Optional[Span] = None,
+                 category: ValueCategory = ValueCategory.NONE) -> None:
+        super().__init__(type, span)
+        self.category = category
+
     def is_ref(self) -> bool:
         assert self.type is not None
         return isinstance(self.type, RefType)
@@ -791,7 +808,7 @@ class Var(TypedNode):
         span: Optional[Span],
         semantic: ParameterSemantic = ParameterSemantic.BYVAL,
     ) -> None:
-        assert name != ""
+        # assert name != ""
         assert not isinstance(type, RefType)
         super().__init__(type, span)
         self.name = name
@@ -801,7 +818,7 @@ class Var(TypedNode):
 class VarValue(Value):
     var: Var
 
-    def __init__(self, var: Var, span: Optional[Span]) -> None:
+    def __init__(self, var: Var, span: Optional[Span] = None) -> None:
         super().__init__(var.type, span)
         self.var = var
 
@@ -878,7 +895,7 @@ class Alloca(Value):
 
     def __init__(self, ty: Type, span: Optional[Span] = None) -> None:
         # assert isinstance(ty, RefType), f"expected a RefType but got {ty}"
-        super().__init__(RefType(ty), span)
+        super().__init__(ty, span)
 
 
 # class Init(Value):
@@ -939,9 +956,11 @@ class Assign(Node):
     value: Value
 
     def __init__(self, ref: Value, value: Value, span: Optional[Span] = None) -> None:
-        assert not isinstance(value.type, (RefType)), f"expecting a non-reference value, but got {value}"
+        assert not isinstance(
+            value.type, (RefType)), f"expecting a non-reference value, but got {value}"
         if not isinstance(ref.type, RefType):
-            raise TypeCheckError(ref, f"cannot assign to a non-reference variable")
+            raise TypeCheckError(
+                ref, f"cannot assign to a non-reference variable")
         super().__init__(span)
         self.ref = ref
         self.value = value

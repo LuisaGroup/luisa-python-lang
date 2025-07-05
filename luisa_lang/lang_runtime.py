@@ -326,10 +326,11 @@ class JitVar:
         dsl_type = hir.get_dsl_type(self.__dtype__)
         if dsl_type is None:
             raise ValueError(f"{self.__dtype__} is not a valid DSL type")
-        self.__symbolic__ = Symbolic(
-            hir.VarRef(current_func().create_var(
-                "", dsl_type.default(), False))
-        )
+        # self.__symbolic__ = Symbolic(
+        #     hir.VarValue(current_func().create_var(
+        #         "", dsl_type.default(), False))
+        # )
+        self.__symbolic__ = Symbolic(hir.Alloca(dsl_type.default(), span=None))
 
     def _destroy_symbolic(self):
         self.__symbolic__ = None
